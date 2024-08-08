@@ -3,7 +3,7 @@
     "public": "public",
     "rewrites": [ {
       "source": "**",
-      "destination": "/install.sh",
+      "destination": "/install.sh"
     } ],
     "ignore": [
       "firebase.json",
