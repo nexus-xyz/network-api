@@ -1,10 +1,9 @@
 {
   "hosting": {
     "public": "public",
-    "redirects": [ {
-      "source": "/",
+    "rewrites": [ {
+      "source": "**",
       "destination": "/install.sh",
-      "type": 301
     } ],
     "ignore": [
       "firebase.json",
