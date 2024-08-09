@@ -2,7 +2,7 @@
   "hosting": {
     "public": "public",
     "rewrites": [ {
-      "source": "/",
+      "source": "/index.html",
       "destination": "/install.sh"
     } ],
     "ignore": [
