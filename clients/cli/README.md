@@ -4,21 +4,11 @@ Command line interface (CLI) for accessing the Nexus Network. Highest-performanc
 
 ## Quick start
 
-Ensure that you have Rust. 
-
 ```
-curl https://sh.rustup.rs -sSf | sh
+curl https://network-cli.nexus.xyz/install.sh | sh
 ```
 
-Get the CLI and run it:
-
-```
-git clone https://github.com/nexus-xyz/network-cli
-cd network-cli
-cargo run --bin prover -- dev.orchestrator.nexus.xyz
-```
-
-Note: Hostname will default to `orchestrator.nexus.xyz` in the public beta release.
+If you do not already have Rust, you will be prompted to install it.
 
 ## Known issues
 
