@@ -135,8 +135,7 @@ async fn main() {
 
         let total_steps = tr.steps();
         println!("Program trace {} steps", total_steps);
-        let start: usize = 0;
-        match to_prove.step_to_start {
+        let start: usize = match to_prove.step_to_start {
             Some(step) => step as usize,
             None => 0,
         };
