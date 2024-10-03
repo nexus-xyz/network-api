@@ -1,5 +1,6 @@
-# network-cli
+# network-api
 
-This repository contains the Nexus Network CLI and the interface definition for the Orchestrator server API.
+This repository contains the Nexus network command-line interface and
+the interface it uses to communicate with Nexus servers.
 
 See the [CLI readme](./clients/cli/README.md) to get started.
