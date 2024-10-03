@@ -16,15 +16,14 @@ clap = { version = "4.5", features = ["derive"] }
 futures = "0.3"
 prost = "0.13"
 rand = "0.8.5"
-reqwest = { version = "0.12", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1.38", features = ["full"] }
 tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["std", "env-filter"] }
 uuid = { version = "1.9", features = ["v4", "fast-rng"] }
-
-base64 = "0.22.1"
-flutter_rust_bridge = "=2.1.0"
+home = "0.5.9"
+random_word = { version = "0.4.3", features = ["en"] }
 nexus-core = { git = "https://github.com/nexus-xyz/nexus-zkvm.git" }
 getrandom = { version = "0.2", features = ["js"] }
 # Workaround for "failed to resolve patches for `https://github.com/rust-lang/crates.io-index`"
@@ -60,6 +59,8 @@ ark-grumpkin = "0.4.0"
 ark-pallas = "0.4.0"
 ark-vesta = "0.4.0"
 ark-test-curves = { version = "0.4.2", features = ["bls12_381_curve"] }
+iana-time-zone = "0.1.60"
+chrono = "0.4.38"
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }
