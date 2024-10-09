@@ -12,6 +12,13 @@ while [ -z "$NONINTERACTIVE" ]; do
     esac
 done
 
+git --version 2>&1 >/dev/null
+GIT_IS_AVAILABLE=$?
+if [ $GIT_IS_AVAILABLE != 0 ]; then
+  echo Unable to find git. Please install it and try again.
+  exit 1;
+fi
+
 if [ -d "$NEXUS_HOME/network-api" ]; then
   echo "$NEXUS_HOME/network-api exists. Updating.";
   (cd $NEXUS_HOME/network-api && git pull)
