@@ -6,8 +6,9 @@ NEXUS_HOME=$HOME/.nexus
 while [ -z "$NONINTERACTIVE" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     case $yn in
-        [Yy]* ) break;;
         [Nn]* ) exit;;
+        [Yy]* ) break;;
+        "" ) break;;
         * ) echo "Please answer yes or no.";;
     esac
 done
