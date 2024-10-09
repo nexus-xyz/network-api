@@ -25,7 +25,7 @@ if [ -d "$NEXUS_HOME/network-api" ]; then
   (cd $NEXUS_HOME/network-api && git pull)
 else
   mkdir -p $NEXUS_HOME
-  (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-cli)
+  (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
 fi
 
 (cd $NEXUS_HOME/network-api/clients/cli && cargo run --release --bin prover -- beta.orchestrator.nexus.xyz)
