@@ -2,18 +2,30 @@
 
 rustc --version || curl https://sh.rustup.rs -sSf | sh
 NEXUS_HOME=$HOME/.nexus
-CLI_ZIP=/tmp/nexus-network-api.zip
-curl -L --verbose "https://docs.google.com/uc?export=download&id=1kcbEeKpVEyvIqL-_cgR5sYdZe_fOEPs6" > $CLI_ZIP
-if [ -d "$NEXUS_HOME" ]; then
-  echo "$NEXUS_HOME exists. Updating.";
-  (cd $NEXUS_HOME && rm -rf network-api && unzip $CLI_ZIP)
-  # TODO: Once GitHub repo is public, do this instead
-  # (cd $NEXUS_HOME && git pull)
+
+while [ -z "$NONINTERACTIVE" ]; do
+    read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
+    case $yn in
+        [Nn]* ) exit;;
+        [Yy]* ) break;;
+        "" ) break;;
+        * ) echo "Please answer yes or no.";;
+    esac
+done
+
+git --version 2>&1 >/dev/null
+GIT_IS_AVAILABLE=$?
+if [ $GIT_IS_AVAILABLE != 0 ]; then
+  echo Unable to find git. Please install it and try again.
+  exit 1;
+fi
+
+if [ -d "$NEXUS_HOME/network-api" ]; then
+  echo "$NEXUS_HOME/network-api exists. Updating.";
+  (cd $NEXUS_HOME/network-api && git pull)
 else
-  # TODO: Once GitHub repo is public, do this instead
-  # git clone git@github.com:nexus-xyz/network-cli $NEXUS_HOME
   mkdir -p $NEXUS_HOME
-  (cd $NEXUS_HOME && unzip $CLI_ZIP)
+  (cd $NEXUS_HOME && git clone git@github.com:nexus-xyz/network-cli)
 fi
 
 (cd $NEXUS_HOME/network-api/clients/cli && cargo run --release --bin prover -- beta.orchestrator.nexus.xyz)

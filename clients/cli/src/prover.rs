@@ -74,19 +74,6 @@ async fn main() {
 
     // If the prover_id file is found, use the contents, otherwise generate a new random id
     // and store it.
-    let _ = match env::var("NONINTERACTIVE") {
-        Ok(_) => (),
-        Err(_) => {
-            println!(
-                "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n)"
-            );
-            let mut input = String::new();
-            let _ = std::io::stdin().read_line(&mut input);
-            if input.chars().nth(0).unwrap() == 'n' || input.chars().nth(0).unwrap() == 'N' {
-                return ();
-            }
-        }
-    };
     let mut prover_id = format!(
         "{}-{}-{}",
         random_word::gen(Lang::En),
