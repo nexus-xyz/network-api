@@ -32,7 +32,7 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
-use std::env;
+// use std::env;
 use zstd::stream::Encoder;
 use rand::{ RngCore };
 
@@ -125,10 +125,12 @@ async fn main() {
         )),
     };
 
-    client
+    if let Err(e) = client
         .send(Message::Binary(registration.encode_to_vec()))
         .await
-        .unwrap();
+    {
+        eprintln!("Failed to send message: {:?}", e);
+    }
 
     track(
         "register".into(),
