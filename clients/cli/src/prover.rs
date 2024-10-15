@@ -125,11 +125,24 @@ async fn main() {
         )),
     };
 
-    if let Err(e) = client
-        .send(Message::Binary(registration.encode_to_vec()))
-        .await
-    {
-        eprintln!("Failed to send message: {:?}", e);
+    let mut retries = 0;
+    let max_retries = 5;
+
+    loop {
+        if let Err(e) = client.send(Message::Binary(registration.encode_to_vec())).await {
+            eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
+
+            retries += 1;
+            if retries >= max_retries {
+                eprintln!("Max retries reached, exiting...");
+                break;
+            }
+
+            // Optionally, add a delay before retrying
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        } else {
+            break;
+        }
     }
 
     track(
@@ -263,10 +276,26 @@ async fn main() {
                 }),
             );
             progress_time = SystemTime::now();
-            client
-                .send(Message::Binary(progress.encode_to_vec()))
-                .await
-                .unwrap();
+
+            let mut retries = 0;
+            let max_retries = 5;
+            loop {
+                if let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
+                    eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
+        
+                    retries += 1;
+                    if retries >= max_retries {
+                        eprintln!("Max retries reached, exiting...");
+                        break;
+                    }
+        
+                    // Optionally, add a delay before retrying
+                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                } else {
+                    break;
+                }
+            }
+
             if step == end - 1 {
                 let mut buf = Vec::new();
                 let mut writer = Box::new(&mut buf);
