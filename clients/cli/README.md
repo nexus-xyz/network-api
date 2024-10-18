@@ -20,4 +20,4 @@ add `NONINTERACTIVE=1` before `sh`.
 ## Known issues
 
 Currently only proving is supported. Submitting programs to the network is in private beta.
-To request an API key, [contact us](https://forms.gle/183D9bcDHUdbxCV5A).
+To request an API key, contact us at growth@nexus.xyz.
