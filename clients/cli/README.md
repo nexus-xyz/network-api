@@ -5,7 +5,7 @@ Command line interface (CLI) for accessing the Nexus Network. Highest-performanc
 ## Quick start
 
 ```
-curl https://cli.nexus.xyz/install.sh | sh
+curl https://cli.nexus.xyz/ | sh
 ```
 
 If you do not already have Rust, you will be prompted to install it.
