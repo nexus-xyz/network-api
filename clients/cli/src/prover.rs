@@ -279,13 +279,13 @@ async fn main() {
                         proof: Some(proof::Proof::NovaBytes(buf)),
                     })),
                 };
-                client
-                    .send(Message::Binary(response.encode_to_vec()))
-                    .await
-                    .unwrap();
                 let duration = SystemTime::now().duration_since(start_time).unwrap();
                 let proof_cycles_hertz = cycles_proven * 1000 / duration.as_millis();
                 let proof_cycles_per_minute = cycles_proven * 60 * 1000 / duration.as_millis();
+                client
+                    .send(Message::Binary(response.encode_to_vec()))
+                    .await
+                    .unwrap();                                               
                 track(
                     "proof".into(),
                     format!("Proof sent! You proved at {} Hz.", proof_cycles_hertz),
