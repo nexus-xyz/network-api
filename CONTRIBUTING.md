@@ -39,7 +39,6 @@ If you believe that you have uncovered a bug, please describe it to the best of 
 
 As a starting point, in a bug report we will pretty much always want:
 
-- the Nexus network version/revision you are using;
 - the platform you are on, ideally both the operating system (Windows, macOS, or Linux) and the machine architecture (_e.g.,_ if you're using an M-series Mac) if you know them;
 - console logs from the CLI or web application showing errors and status messages;
 - concrete and comprehensive steps to reproduce the bug.
