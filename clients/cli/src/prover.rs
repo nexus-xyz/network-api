@@ -32,7 +32,6 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
-use std::env;
 use zstd::stream::Encoder;
 use rand::{ RngCore };
 
@@ -125,10 +124,25 @@ async fn main() {
         )),
     };
 
-    client
-        .send(Message::Binary(registration.encode_to_vec()))
-        .await
-        .unwrap();
+    let mut retries = 0;
+    let max_retries = 5;
+
+    loop {
+        if let Err(e) = client.send(Message::Binary(registration.encode_to_vec())).await {
+            eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
+
+            retries += 1;
+            if retries >= max_retries {
+                eprintln!("Max retries reached, exiting...");
+                break;
+            }
+
+            // Add a delay before retrying
+            tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
+        } else {
+            break;
+        }
+    }
 
     track(
         "register".into(),
@@ -261,10 +275,26 @@ async fn main() {
                 }),
             );
             progress_time = SystemTime::now();
-            client
-                .send(Message::Binary(progress.encode_to_vec()))
-                .await
-                .unwrap();
+
+            let mut retries = 0;
+            let max_retries = 5;
+            loop {
+                if let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
+                    eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
+        
+                    retries += 1;
+                    if retries >= max_retries {
+                        eprintln!("Max retries reached, exiting...");
+                        break;
+                    }
+        
+                    // Add a delay before retrying
+                    tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
+                } else {
+                    break;
+                }
+            }
+
             if step == end - 1 {
                 let mut buf = Vec::new();
                 let mut writer = Box::new(&mut buf);
