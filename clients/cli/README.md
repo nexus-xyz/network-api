@@ -24,6 +24,10 @@ follow these instructions to install Git:
 brew install git
 ```
 
+### Windows
+
+Install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install).
+
 ## Quick start
 
 ```
