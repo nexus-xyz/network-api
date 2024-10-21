@@ -7,6 +7,14 @@ It is the highest-performance option for proving.
 
 If you don't have these dependencies already, install them first.
 
+### Linux
+
+```
+sudo apt update
+sudo apt upgrade
+sudo apt install build-essential pkg-config libssl-dev git-all
+```
+
 ### Mac
 
 If you have [installed Homebrew](https://brew.sh/) to manage packages on OS X,
@@ -14,14 +22,6 @@ follow these instructions to install Git:
 
 ```
 brew install git
-```
-
-### Linux
-
-```
-sudo apt update
-sudo apt upgrade
-sudo apt install build-essential pkg-config libssl-dev git-all
 ```
 
 ## Quick start
