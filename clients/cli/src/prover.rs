@@ -32,7 +32,6 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
-// use std::env;
 use zstd::stream::Encoder;
 use rand::{ RngCore };
 
@@ -138,8 +137,8 @@ async fn main() {
                 break;
             }
 
-            // Optionally, add a delay before retrying
-            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            // Add a delay before retrying
+            tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
         } else {
             break;
         }
@@ -289,8 +288,8 @@ async fn main() {
                         break;
                     }
         
-                    // Optionally, add a delay before retrying
-                    tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    // Add a delay before retrying
+                    tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
                 } else {
                     break;
                 }
