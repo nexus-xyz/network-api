@@ -150,9 +150,6 @@ async fn main() {
         &ws_addr_string,
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
-    println!(
-        "Network stats are available at https://beta.nexus.xyz/."
-    );
     loop {
         let program_message = match client.next().await.unwrap().unwrap() {
             Message::Binary(b) => b,
