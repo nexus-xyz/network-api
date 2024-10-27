@@ -48,6 +48,7 @@ add `NONINTERACTIVE=1` before `sh`.
 
 * Only the latest version of the CLI is currently supported.
 * Prebuilt binaries are not yet available.
+* Linking email to prover id is currently available on the web version only.
 * Counting cycles proved is not yet available in the CLI.
 * Only proving is supported. Submitting programs to the network is in private beta.
 To request an API key, contact us at growth@nexus.xyz.
