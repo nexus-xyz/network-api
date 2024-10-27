@@ -222,8 +222,8 @@ async fn main() {
         track(
             "progress".into(),
             format!(
-                "Program trace is {} steps. Proving from {} to {}...",
-                total_steps, start, end
+                "Program trace is {} steps. Proving {} steps starting at {}...",
+                total_steps, steps_to_prove, start
             ),
             &ws_addr_string,
             json!({
@@ -252,11 +252,10 @@ async fn main() {
             };
             let progress_duration = SystemTime::now().duration_since(progress_time).unwrap();
             let cycles_proven = steps_proven * 4;
-            let proof_cycles_hertz = k * 1000 / progress_duration.as_millis();
-            let proof_cycles_per_minute = k * 60 * 1000 / progress_duration.as_millis();
+            let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
             track(
                 "progress".into(),
-                format!("Proved step {} at {} Hz.", step, proof_cycles_hertz),
+                format!("Proved step {} at {:.2} proof cycles/sec.", step, proof_cycles_hertz),
                 &ws_addr_string,
                 json!({
                     "completed_fraction": completed_fraction,
@@ -267,7 +266,6 @@ async fn main() {
                     "k": k,
                     "progress_duration_millis": progress_duration.as_millis(),
                     "proof_cycles_hertz": proof_cycles_hertz,
-                    "proof_cycles_per_minute": proof_cycles_per_minute,
                     "prover_id": prover_id,
                 }),
             );
@@ -307,21 +305,19 @@ async fn main() {
                     })),
                 };
                 let duration = SystemTime::now().duration_since(start_time).unwrap();
-                let proof_cycles_hertz = cycles_proven * 1000 / duration.as_millis();
-                let proof_cycles_per_minute = cycles_proven * 60 * 1000 / duration.as_millis();
+                let proof_cycles_hertz = cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
                 client
                     .send(Message::Binary(response.encode_to_vec()))
                     .await
                     .unwrap();                                               
                 track(
                     "proof".into(),
-                    format!("Proof sent! You proved at {} Hz.", proof_cycles_hertz),
+                    format!("Proof sent! Overall speed was {:.2} proof cycles/sec.", proof_cycles_hertz),
                     &ws_addr_string,
                     json!({
                         "proof_duration_sec": duration.as_secs(),
                         "proof_duration_millis": duration.as_millis(),
                         "proof_cycles_hertz": proof_cycles_hertz,
-                        "proof_cycles_per_minute": proof_cycles_per_minute,
                         "prover_id": prover_id,
                     }),
                 );
