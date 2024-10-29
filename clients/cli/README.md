@@ -1,6 +1,6 @@
 # Network CLI
 
-The command line interface (CLI) lets you run a Nexus prover node.
+The command line interface (CLI) lets you run a prover node and contribute proofs to the Nexus network.
 It is the highest-performance option for proving.
 
 ## Prerequisites
@@ -56,4 +56,4 @@ To request an API key, contact us at growth@nexus.xyz.
 ## Resources
 
 * [Network FAQ](https://nexus.xyz/network#network-faqs)
-* [Discord channel](https://discord.gg/nexus-xyz)
+* [Discord server](https://discord.gg/nexus-xyz)
