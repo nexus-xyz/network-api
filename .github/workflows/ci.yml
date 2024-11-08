@@ -32,12 +32,17 @@ jobs:
         with:
           workspaces: ./clients/cli
 
-      - name: Build CLI
+      - name: Format
+        working-directory: clients/cli
+        run: |
+          rustfmt src/**/*.rs --check --edition 2021
+
+      - name: Build
         working-directory: clients/cli
         run: |
           cargo build --profile=ci-build
 
-      - name: Run cargo clippy on CLI
+      - name: Run cargo clippy
         working-directory: clients/cli
         run: |
           cargo clippy --profile=ci-build --no-deps --all-targets --workspace -- -D warnings
