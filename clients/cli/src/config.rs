@@ -1,7 +1,7 @@
 #[cfg(debug_assertions)]
 pub fn analytics_token(_ws_addr_string: &str) -> String {
     // Use one of the tokens in the release version if debugging analytics
-    return "".into();
+    "".into()
 }
 
 #[cfg(not(debug_assertions))]
