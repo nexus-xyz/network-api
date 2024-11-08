@@ -100,8 +100,3 @@ ark-vesta = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves/", rev = "3fded1f" }
 
 zstd-sys = { git = "https://github.com/gyscos/zstd-rs" }
-
-[profile.release]
-strip = true
-lto = true
-codegen-units = 1
