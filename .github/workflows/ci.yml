@@ -37,7 +37,7 @@ jobs:
         run: |
           cargo build --profile=ci-build
 
-      - name: Run cargo clippy on Orchestrator
+      - name: Run cargo clippy on CLI
         working-directory: clients/cli
         run: |
           cargo clippy --profile=ci-build --no-deps --all-targets --workspace -- -D warnings
