@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    name: Lint CLI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            clients/cli
+            proto
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install protoc
+        uses: arduino/setup-protoc@v3
+
+      - name: Set up Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ./clients/cli
+
+      - name: Format
+        working-directory: clients/cli
+        run: |
+          rustfmt src/**/*.rs --check --edition 2021
+
+      - name: Build
+        working-directory: clients/cli
+        run: |
+          cargo build --profile=ci-build
+
+      - name: Run cargo clippy
+        working-directory: clients/cli
+        run: |
+          cargo clippy --profile=ci-build --no-deps --all-targets --workspace -- -D warnings
+
+      - name: Test
+        working-directory: clients/cli
+        run: |
+          cargo test --profile=ci-build --tests
+
+      - name: Ensure checked in generated files are up to date
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then \
+              echo "There are uncommitted changes in working tree after building."; \
+              git status; \
+              git --no-pager diff; \
+              exit 1; \
+          else \
+              echo "Git working tree is clean"; \
+          fi;

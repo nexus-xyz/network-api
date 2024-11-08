@@ -32,8 +32,8 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
+use rand::RngCore;
 use zstd::stream::Encoder;
-use rand::{ RngCore };
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -118,7 +118,7 @@ async fn main() {
         contents: Some(prover_request::Contents::Registration(
             ProverRequestRegistration {
                 prover_type: ProverType::Volunteer.into(),
-                prover_id: prover_id.clone().into(),
+                prover_id: prover_id.clone(),
                 estimated_proof_cycles_hertz: None,
             },
         )),
@@ -127,21 +127,25 @@ async fn main() {
     let mut retries = 0;
     let max_retries = 5;
 
-    loop {
-        if let Err(e) = client.send(Message::Binary(registration.encode_to_vec())).await {
-            eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
+    while let Err(e) = client
+        .send(Message::Binary(registration.encode_to_vec()))
+        .await
+    {
+        eprintln!(
+            "Failed to send message: {:?}, attempt {}/{}",
+            e,
+            retries + 1,
+            max_retries
+        );
 
-            retries += 1;
-            if retries >= max_retries {
-                eprintln!("Max retries reached, exiting...");
-                break;
-            }
-
-            // Add a delay before retrying
-            tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
-        } else {
+        retries += 1;
+        if retries >= max_retries {
+            eprintln!("Max retries reached, exiting...");
             break;
         }
+
+        // Add a delay before retrying
+        tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
     }
 
     track(
@@ -180,7 +184,7 @@ async fn main() {
         );
 
         let mut vm: NexusVM<MerkleTrie> =
-            parse_elf(&elf_bytes.as_ref()).expect("error loading and parsing RISC-V instruction");
+            parse_elf(elf_bytes.as_ref()).expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
 
         // TODO(collinjackson): Get outputs
@@ -244,10 +248,10 @@ async fn main() {
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
             let progress = ProverRequest {
                 contents: Some(prover_request::Contents::Progress(Progress {
-                    completed_fraction: completed_fraction,
+                    completed_fraction,
                     steps_in_trace: total_steps as i32,
                     steps_to_prove: steps_to_prove as i32,
-                    steps_proven: steps_proven as i32,
+                    steps_proven,
                 })),
             };
             let progress_duration = SystemTime::now().duration_since(progress_time).unwrap();
@@ -255,7 +259,10 @@ async fn main() {
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
             track(
                 "progress".into(),
-                format!("Proved step {} at {:.2} proof cycles/sec.", step, proof_cycles_hertz),
+                format!(
+                    "Proved step {} at {:.2} proof cycles/sec.",
+                    step, proof_cycles_hertz
+                ),
                 &ws_addr_string,
                 json!({
                     "completed_fraction": completed_fraction,
@@ -273,21 +280,22 @@ async fn main() {
 
             let mut retries = 0;
             let max_retries = 5;
-            loop {
-                if let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
-                    eprintln!("Failed to send message: {:?}, attempt {}/{}", e, retries + 1, max_retries);
-        
-                    retries += 1;
-                    if retries >= max_retries {
-                        eprintln!("Max retries reached, exiting...");
-                        break;
-                    }
-        
-                    // Add a delay before retrying
-                    tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
-                } else {
+            while let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
+                eprintln!(
+                    "Failed to send message: {:?}, attempt {}/{}",
+                    e,
+                    retries + 1,
+                    max_retries
+                );
+
+                retries += 1;
+                if retries >= max_retries {
+                    eprintln!("Max retries reached, exiting...");
                     break;
                 }
+
+                // Add a delay before retrying
+                tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
             }
 
             if step == end - 1 {
@@ -305,14 +313,18 @@ async fn main() {
                     })),
                 };
                 let duration = SystemTime::now().duration_since(start_time).unwrap();
-                let proof_cycles_hertz = cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
+                let proof_cycles_hertz =
+                    cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
                 client
                     .send(Message::Binary(response.encode_to_vec()))
                     .await
-                    .unwrap();                                               
+                    .unwrap();
                 track(
                     "proof".into(),
-                    format!("Proof sent! Overall speed was {:.2} proof cycles/sec.", proof_cycles_hertz),
+                    format!(
+                        "Proof sent! Overall speed was {:.2} proof cycles/sec.",
+                        proof_cycles_hertz
+                    ),
                     &ws_addr_string,
                     json!({
                         "proof_duration_sec": duration.as_secs(),

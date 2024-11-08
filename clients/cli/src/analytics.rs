@@ -44,7 +44,7 @@ pub fn track(
         let client = reqwest::Client::new();
         let _ = client
             .post("https://api.mixpanel.com/track?ip=1")
-            .body(format!("[{}]", body.to_string()))
+            .body(format!("[{}]", body))
             .header(ACCEPT, "text/plain")
             .header(CONTENT_TYPE, "application/json")
             .send()
