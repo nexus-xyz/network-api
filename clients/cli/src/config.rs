@@ -1,6 +1,13 @@
-// This version is ONLY compiled when running in debug mode
+// Debug version of analytics_id
 #[cfg(debug_assertions)]
-pub fn analytics_token(_ws_addr_string: &str) -> String {
+pub fn analytics_id(_ws_addr_string: &str) -> String {
+    // Use one of the tokens in the release version if debugging analytics
+    return "".into();
+}
+
+// Debug version of analytics_api_key
+#[cfg(debug_assertions)]
+pub fn analytics_api_key(_ws_addr_string: &str) -> String {
     // Use one of the tokens in the release version if debugging analytics
     return "".into();
 }
@@ -30,15 +37,15 @@ mod firebase {
     pub const STAGING_APP_ID: &str = "1:222794630996:web:1758d64a85eba687eaaac1";
     pub const BETA_APP_ID: &str = "1:279395003658:web:04ee2c524474d683d75ef3";
 
-    // DUMMY VALUES FOR DEBUGGING, NOT REAL API SECRETS
+    // Analytics Secrets for the different environments
     pub const DEV_API_SECRET: &str = "85858585858585858585858585858585";
     pub const STAGING_API_SECRET: &str = "85858585858585858585858585858585";
-    pub const BETA_API_SECRET: &str = "85858585858585858585858585858585";
+    pub const BETA_API_SECRET: &str = "gxxzKAQLSl-uYI0eKbIi_Q";
 }
 
-// // This version is ONLY compiled when running in release mode
+// Release versions (existing code)
 #[cfg(not(debug_assertions))]
-pub fn analytics_token(ws_addr_string: &str) -> String {
+pub fn analytics_id(ws_addr_string: &str) -> String {
 
     // Determine the environment from the web socket string (ws_addr_string)
     let env = match ws_addr_string {
@@ -58,7 +65,7 @@ pub fn analytics_token(ws_addr_string: &str) -> String {
 }
 
 #[cfg(not(debug_assertions))]
-pub fn analytics_api_secret(ws_addr_string: &str) -> String {
+pub fn analytics_api_key(ws_addr_string: &str) -> String {
     match ws_addr_string {
         web_socket_urls::DEV => firebase::DEV_API_SECRET.to_string(),
         web_socket_urls::STAGING => firebase::STAGING_API_SECRET.to_string(),

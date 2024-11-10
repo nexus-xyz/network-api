@@ -1,4 +1,4 @@
-use crate::config::{analytics_token, analytics_api_secret};
+use crate::config::{analytics_id, analytics_api_key};
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
@@ -16,8 +16,8 @@ pub fn track(
 ) {
     println!("{}", description);
 
-    let firebase_app_id = analytics_token(ws_addr_string);
-    let firebase_api_secret = analytics_api_secret(ws_addr_string);
+    let firebase_app_id = analytics_id(ws_addr_string);
+    let firebase_api_key = analytics_api_key(ws_addr_string);
     if firebase_app_id.is_empty() {
         return;
     }
@@ -26,7 +26,7 @@ pub fn track(
     // For tracking events, we use the Firebase Measurement Protocol
     // Firebase is mostly designed for mobile and web apps, but for our use case of a CLI,
     // we can use the Measurement Protocol to track events by POST to a URL. 
-    // The only thing that may be unexpected is that the URL we use includes a firebase secret (something we dont typically add to client code)
+    // The only thing that may be unexpected is that the URL we use includes a firebase key
 
     // Firebase format for properties for Mesurement protocol: 
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
@@ -67,7 +67,7 @@ pub fn track(
             .post(format!(
                 "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
                 firebase_app_id,
-                firebase_api_secret
+                firebase_api_key
             ))
             .body(format!("[{}]", body.to_string()))
             .header(ACCEPT, "text/plain")
