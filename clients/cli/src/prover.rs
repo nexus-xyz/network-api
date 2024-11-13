@@ -220,7 +220,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 Some(Ok(other)) => {
                     track(
                         "unexpected_message".into(),
-                        format!("Unexpected message type"),
+                        "Unexpected message type".into(),
                         ws_addr,
                         json!({ 
                             "prover_id": prover_id,
@@ -286,9 +286,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             .ok_or("Program inner field is None")?;      // handle third Option
         
         // Then extract the ELF bytes with proper error handling
-        let elf_bytes = match program_enum {
-            Program::Rv32iElfBytes(bytes) => bytes
-        };
+        // let elf_bytes = match program_enum {
+        //     Program::Rv32iElfBytes(bytes) => bytes
+        // };
+        let Program::Rv32iElfBytes(elf_bytes) = program_enum;
+
 
         let to_prove = match program.to_prove.clone() {
             Some(to_prove) => to_prove,
@@ -573,5 +575,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         &ws_addr_string,
         json!({ "prover_id": prover_id }),
     );
-    Ok(()) 
+    Ok(())
 }
