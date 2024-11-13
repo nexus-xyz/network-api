@@ -277,15 +277,18 @@ async fn main() {
                     );
                     Err("Unexpected message type".into())
                 },
-                Some(Err(err)) => {
-                    
-                    eprintln!("WebSocket error: {}", err);
-
-                    // try to reconnect
-                    client = connect_to_orchestrator_with_retry(ws_addr, prover_id).await;
-                    continue;
-
-                },
+                Some(Err(e)) => {
+                    track(
+                        "websocket_error".into(),
+                        format!("WebSocket error: {}", e),
+                        ws_addr,
+                        json!({
+                            "prover_id": prover_id,
+                            "error": e.to_string(),
+                        }),
+                    );
+                    Err(format!("WebSocket error: {}", e).into())
+                }
             }
         }
 
@@ -363,7 +366,7 @@ async fn main() {
             track(
                 "send_error".into(),
                 format!("Failed to send progress message: {}", e),
-                ws_addr,
+                &ws_addr_string,
                 json!({
                     "prover_id": prover_id,
                     "error": e.to_string(),
