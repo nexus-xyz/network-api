@@ -72,7 +72,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -292,10 +292,7 @@ async fn main() {
             }
         }
 
-        // let program_message = match client.next().await.unwrap().unwrap() {
-        //     Message::Binary(b) => b,
-        //     _ => panic!("Unexpected message type"),
-        // };
+
 
         let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
             Ok(message) => message,
@@ -305,7 +302,25 @@ async fn main() {
             }
         };
 
-        let program = ProverResponse::decode(program_message.as_slice()).unwrap();
+        let program = match ProverResponse::decode(program_message.as_slice()) {
+            Ok(program) => program,
+            Err(e) => {
+                track(
+                    "decode_error".into(),
+                    format!("Failed to decode prover response: {}", e),
+                    &ws_addr_string,
+                    json!({
+                        "prover_id": &prover_id,
+                        "error": e.to_string(),
+                        "message_size": program_message.len(),
+                    }),
+                );
+                eprintln!("Failed to decode program message: {}", e);
+                return Err("Decode error".into());     // Exit with error
+
+                // return Err(e.into());
+            }
+        };
 
         let Program::Rv32iElfBytes(elf_bytes) = program
             .to_prove
@@ -518,4 +533,5 @@ async fn main() {
         &ws_addr_string,
         json!({ "prover_id": prover_id }),
     );
+    Ok(()) 
 }
