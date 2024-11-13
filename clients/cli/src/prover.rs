@@ -18,9 +18,31 @@ use prost::Message as _;
 use random_word::Lang;
 use serde_json::json;
 use std::{fs, path::Path, time::SystemTime};
-use tokio_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message};
+// Network connection types for WebSocket communication
+use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
+
+use tokio_tungstenite::{
+    // WebSocketStream: Manages WebSocket protocol (messages, frames, etc.)
+    // - Built on top of TcpStream
+    // - Handles WebSocket handshake
+    // - Provides async send/receive
+    WebSocketStream,
+
+    // MaybeTlsStream: Wrapper for secure/insecure connections
+    // - Handles both ws:// and wss:// URLs
+    // - Provides TLS encryption when needed
+    MaybeTlsStream,
+};
+
+// WebSocket protocol types for message handling
+use tokio_tungstenite::tungstenite::protocol::{
+    frame::coding::CloseCode,  // Status codes for connection closure (e.g., 1000 for normal)
+    CloseFrame,               // Frame sent when closing connection (includes code and reason)
+    Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
+};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
+
 
 use nexus_core::{
     nvm::{
@@ -154,7 +176,7 @@ async fn main() {
 
     /// This function wraps connect_to_orchestrator and retries
     /// with exponential backoff if the connection fails
-    async fn connect_to_orchestrator_with_retry(ws_addr: &str) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
+    async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
         let mut attempt = 1;
 
         loop {
@@ -163,12 +185,12 @@ async fn main() {
                     track(
                         "connected".into(),
                         "Connected.".into(),
-                        &ws_addr_string,
+                        ws_addr,
                         json!({"prover_id": prover_id}),
                     );
                     return client;
                 },
-                Err(e) => {
+                Err(_) => {
 
                     eprintln!(
                         "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...", 
@@ -188,7 +210,7 @@ async fn main() {
     }
 
     // Connect to the Orchestrator with exponential backoff
-    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string).await;    
+    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
     let registration = ProverRequest {
         contents: Some(prover_request::Contents::Registration(
@@ -231,10 +253,55 @@ async fn main() {
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
     loop {
-        let program_message = match client.next().await.unwrap().unwrap() {
-            Message::Binary(b) => b,
-            _ => panic!("Unexpected message type"),
+
+        async fn receive_program_message(
+            client: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+            ws_addr: &str,
+            prover_id: &str,
+        ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+            match client.next().await {
+                 // Stream has ended (connection closed)
+                None => {
+                    Err("WebSocket connection closed unexpectedly".into())
+                },
+                Some(Ok(Message::Binary(bytes))) => Ok(bytes),
+                Some(Ok(other)) => {
+                    track(
+                        "unexpected_message".into(),
+                        format!("Unexpected message type"),
+                        ws_addr,
+                        json!({ 
+                            "prover_id": prover_id,
+                            "message_type": format!("{:?}", other) 
+                        }),
+                    );
+                    Err("Unexpected message type".into())
+                },
+                Some(Err(err)) => {
+                    
+                    eprintln!("WebSocket error: {}", err);
+
+                    // try to reconnect
+                    client = connect_to_orchestrator_with_retry(ws_addr, prover_id).await;
+                    continue;
+
+                },
+            }
+        }
+
+        // let program_message = match client.next().await.unwrap().unwrap() {
+        //     Message::Binary(b) => b,
+        //     _ => panic!("Unexpected message type"),
+        // };
+
+        let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
+            Ok(message) => message,
+            Err(e) => {
+                eprintln!("Failed to receive program message: {}", e);
+                continue;  // Skip rest of this iteration, try to receive next message
+            }
         };
+
         let program = ProverResponse::decode(program_message.as_slice()).unwrap();
 
         let Program::Rv32iElfBytes(elf_bytes) = program
@@ -289,10 +356,24 @@ async fn main() {
                 steps_proven: 0,
             })),
         };
-        client
-            .send(Message::Binary(initial_progress.encode_to_vec()))
-            .await
-            .unwrap();
+
+        // Send with error handling
+        if let Err(e) = client.send(Message::Binary(initial_progress.encode_to_vec())).await {
+            eprintln!("Failed to send progress update: {}", e);
+            track(
+                "send_error".into(),
+                format!("Failed to send progress message: {}", e),
+                ws_addr,
+                json!({
+                    "prover_id": prover_id,
+                    "error": e.to_string(),
+                }),
+            );
+            // TODO: Depending on error type, might want to:
+            // 1. Try to reconnect
+            // 2. Return error
+            // 3. Continue with next operation
+        }
 
         let z_st = tr.input(start).expect("error starting circuit trace");
         let mut proof = IVCProof::new(&z_st);
