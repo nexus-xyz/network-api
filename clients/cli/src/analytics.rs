@@ -79,7 +79,6 @@ pub fn track(
             Ok(response) => {
                 match response.text().await {
                     Ok(_) => {
-                        // Successfully sent analytics
                          // Successfully sent analytics
                          #[cfg(debug_assertions)]
                          println!("Successfully sent analytics");
