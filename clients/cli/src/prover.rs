@@ -83,10 +83,25 @@ async fn main() {
         Some(path) if !path.as_os_str().is_empty() => {
             let nexus_dir = Path::new(&path).join(".nexus");
             prover_id = match fs::read(nexus_dir.join("prover-id")) {
-                Ok(buf) => String::from_utf8(buf).unwrap(),
+                // 1. fs::read attempts to read the prover-id file
+                Ok(buf) => match String::from_utf8(buf) {
+                    Ok(id) => id,
+                    Err(_) => {
+                        eprintln!("Failed to read prover-id file. Using default.");
+                        prover_id // Fall back to generated ID
+                    },
+                },
+                // 2. If the file doesn't exist, we'll get an error
                 Err(_) => {
-                    let _ = fs::create_dir(nexus_dir.clone());
-                    fs::write(nexus_dir.join("prover-id"), prover_id.clone()).unwrap();
+                    // 3. We try to create the .nexus directory
+                    if let Err(e) = fs::create_dir(nexus_dir.clone()) {
+                        eprintln!("Failed to create .nexus directory: {:?}", e);
+                    }
+
+                    // 4. We try to write the prover-id to the file
+                    if let Err(e) = fs::write(nexus_dir.join("prover-id"), &prover_id) {
+                        eprintln!("Warning: Could not save prover-id: {}", e);
+                    }
                     prover_id
                 }
             }
