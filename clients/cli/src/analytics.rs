@@ -28,7 +28,7 @@ pub fn track(
     // we can use the Measurement Protocol to track events by POST to a URL. 
     // The only thing that may be unexpected is that the URL we use includes a firebase key
 
-    // Firebase format for properties for Mesurement protocol: 
+    // Firebase format for properties for Measurement protocol: 
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
     let mut properties = json!({
