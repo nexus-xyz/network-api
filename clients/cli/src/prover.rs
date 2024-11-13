@@ -611,7 +611,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             reason: Cow::Borrowed("Finished proving."),
         }))
         .await
-        .unwrap();
+        .map_err(|e| {
+            track(
+                "close_error".into(),
+                "Failed to close WebSocket connection".into(),
+                &ws_addr_string,
+                json!({
+                    "prover_id": &prover_id,
+                    "error": e.to_string(),
+                }),
+            );
+            format!("Failed to close WebSocket connection: {}", e)
+        })?;
     track(
         "disconnect".into(),
         "Sent proof and closed connection...".into(),
