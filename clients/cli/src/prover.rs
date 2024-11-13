@@ -363,7 +363,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 return Err("No program to prove".into());
             }
         };
-        let Input::RawBytes(input) = to_prove.input.unwrap().input.unwrap();
+
+        // First handle the nested Options with proper error messages
+        let input_enum = to_prove
+            .input
+            .as_ref()
+            .ok_or("No input provided")?
+            .input
+            .as_ref()
+            .ok_or("Input field is None")?;
+
+        // Then match on the Input enum variant
+        let Input::RawBytes(bytes) = input_enum;
+        let input = bytes.clone();
 
         track(
             "program".into(),
