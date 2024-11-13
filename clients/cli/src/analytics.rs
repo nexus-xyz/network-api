@@ -34,7 +34,7 @@ pub fn track(
     let mut properties = json!({
         "time": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
         // app_instance_id is the standard key Firebase uses this key to track the same user across sessions
-        // its is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
+        // It is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
         // I still left the distinct_id key as well for backwards compatibility
         "app_instance_id": event_properties["prover_id"],  
         "distinct_id": event_properties["prover_id"],
