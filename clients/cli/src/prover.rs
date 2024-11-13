@@ -3,7 +3,7 @@
 mod analytics;
 mod config;
 mod generated;
-mod connection;  // connection-related code
+mod connection;
 
 
 use crate::analytics::track;
