@@ -3,10 +3,14 @@
 mod analytics;
 mod config;
 mod generated;
+mod connection;  // connection-related code
+
 
 use crate::analytics::track;
 
 use std::borrow::Cow;
+
+use crate::connection::{connect_to_orchestrator_with_retry};
 
 use clap::Parser;
 use futures::{SinkExt, StreamExt};
@@ -157,58 +161,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         json!({"prover_id": prover_id}),
     );
 
-    // This function connects to the Orchestrator via websockets
-    // and returns the connected client
-    async fn connect_to_orchestrator(ws_addr: &str) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error>> {
-        
-        // Connect to the Orchestrator via websockets
-        let (client, _) = tokio_tungstenite::connect_async(ws_addr)
-        .await
-        // If the connection fails, print an error and return the error
-        .map_err(|e| {
-            eprintln!("Failed to connect to orchestrator at {}: {}", ws_addr, e);
-            e
-        })?;
-
-        // Return the connected client
-        Ok(client)
-    }
-
-    /// This function wraps connect_to_orchestrator and retries
-    /// with exponential backoff if the connection fails
-    async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
-        let mut attempt = 1;
-
-        loop {
-            match connect_to_orchestrator(ws_addr).await {
-                Ok(client) => {
-                    track(
-                        "connected".into(),
-                        "Connected.".into(),
-                        ws_addr,
-                        json!({"prover_id": prover_id}),
-                    );
-                    return client;
-                },
-                Err(_) => {
-
-                    eprintln!(
-                        "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...", 
-                        attempt,
-                        2u64.pow(attempt.min(6)), // Cap exponential backoff at 64 seconds
-                    );
-                    
-                    // Exponential backoff
-                    tokio::time::sleep(
-                        tokio::time::Duration::from_secs(2u64.pow(attempt.min(6)))
-                    ).await;
-
-                    attempt += 1;
-                }
-            }
-        }
-    }
-
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
@@ -322,14 +274,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
         };
 
-        // let Program::Rv32iElfBytes(elf_bytes) = program
-        //     .to_prove
-        //     .clone()
-        //     .unwrap()
-        //     .program
-        //     .unwrap()
-        //     .program
-        //     .unwrap();
         let program_enum = program
             .to_prove
             .as_ref()                                   // Borrow instead of move
