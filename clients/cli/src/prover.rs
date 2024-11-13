@@ -546,7 +546,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                         proof: Some(proof::Proof::NovaBytes(buf)),
                     })),
                 };
-                let duration = SystemTime::now().duration_since(start_time).unwrap();
+                let duration = match SystemTime::now().duration_since(start_time) {
+                    Ok(duration) => duration,
+                    Err(e) => {
+                        track(
+                            "time_error".into(),
+                            "Error calculating proof duration".into(),
+                            &ws_addr_string,
+                            json!({
+                                "prover_id": &prover_id,
+                                "error": e.to_string(),
+                            }),
+                        );
+                        return Err("Failed to calculate proof duration: clock may have gone backwards".into());
+                    }   
+                };
                 let proof_cycles_hertz =
                     cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
                 client
