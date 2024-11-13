@@ -1,6 +1,6 @@
 [package]
 name = "nexus-network"
-version = "0.3.2"
+version = "0.3.4"
 edition = "2021"
 
 [[bin]]
@@ -9,6 +9,23 @@ path = "src/prover.rs"
 
 [build-dependencies]
 prost-build = "0.13"
+
+[profile.dev]
+opt-level = 1
+
+[profile.release]
+lto = "fat"
+strip = true
+codegen-units = 1
+
+[profile.ci-build]
+inherits = "dev"
+opt-level = 0
+debug = 0
+strip = "none"
+lto = false
+codegen-units = 256
+incremental = true
 
 [dependencies]
 async-stream = "0.3"
@@ -83,8 +100,3 @@ ark-vesta = { git = "https://github.com/arkworks-rs/curves/", rev = "8c0256a" }
 ark-bls12-381 = { git = "https://github.com/arkworks-rs/curves/", rev = "3fded1f" }
 
 zstd-sys = { git = "https://github.com/gyscos/zstd-rs" }
-
-[profile.release]
-strip = true
-lto = true
-codegen-units = 1

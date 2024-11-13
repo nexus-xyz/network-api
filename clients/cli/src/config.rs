@@ -2,7 +2,7 @@
 #[cfg(debug_assertions)]
 pub fn analytics_id(_ws_addr_string: &str) -> String {
     // Use one of the tokens in the release version if debugging analytics
-    return "".into();
+    "".into()
 }
 
 // Debug version of analytics_api_key
