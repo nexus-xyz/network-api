@@ -69,7 +69,7 @@ pub fn track(
                 firebase_app_id,
                 firebase_api_key
             ))
-            .body(format!("[{}]", body.to_string()))
+            .body(format!("[{}]", body))
             .header(ACCEPT, "text/plain")
             .header(CONTENT_TYPE, "application/json")
             .send()
