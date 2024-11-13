@@ -63,7 +63,7 @@ pub fn track(
         let client = reqwest::Client::new();
 
         let _ = client
-            //URL is the google analytics endpoint for firebase: https://stackoverflow.com/questions/50355752/firebase-analytics-from-remote-rest-api
+            // URL is the Google Analytics endpoint for Firebase: https://stackoverflow.com/questions/50355752/firebase-analytics-from-remote-rest-api
             .post(format!(
                 "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
                 firebase_app_id,
