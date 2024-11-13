@@ -473,7 +473,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     steps_proven,
                 })),
             };
-            let progress_duration = SystemTime::now().duration_since(progress_time).unwrap();
+            let progress_duration = match SystemTime::now().duration_since(progress_time) {
+                Ok(duration) => duration,
+                Err(e) => {
+                    track(
+                        "time_error".into(),
+                        "Error calculating progress duration".into(),
+                        &ws_addr_string,
+                        json!({
+                            "prover_id": &prover_id,
+                            "error": e.to_string(),
+                        }),
+                    );
+                    // Use a fallback duration or return error
+                    return Err("Failed to calculate progress duration: clock may have gone backwards".into());
+                }
+            };
             let cycles_proven = steps_proven * 4;
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
             track(
