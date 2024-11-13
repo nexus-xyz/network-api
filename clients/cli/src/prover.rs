@@ -322,15 +322,47 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
         };
 
-        let Program::Rv32iElfBytes(elf_bytes) = program
+        // let Program::Rv32iElfBytes(elf_bytes) = program
+        //     .to_prove
+        //     .clone()
+        //     .unwrap()
+        //     .program
+        //     .unwrap()
+        //     .program
+        //     .unwrap();
+        let program_enum = program
             .to_prove
-            .clone()
-            .unwrap()
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("No program to prove")?              // handle first Option
             .program
-            .unwrap()
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("Program field is None")?            // handle second Option
             .program
-            .unwrap();
-        let to_prove = program.to_prove.unwrap();
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("Program inner field is None")?;      // handle third Option
+        
+        // Then extract the ELF bytes with proper error handling
+        let elf_bytes = match program_enum {
+            Program::Rv32iElfBytes(bytes) => bytes
+        };
+
+        let to_prove = match program.to_prove.clone() {
+            Some(to_prove) => to_prove,
+            None => {
+                // Log the error
+                track(
+                    "program_error".into(),
+                    "No program to prove".into(),
+                    &ws_addr_string,
+                    json!({
+                        "prover_id": &prover_id,
+                        "error": "to_prove is None"
+                    }),
+                );
+                // Return error instead of panicking
+                return Err("No program to prove".into());
+            }
+        };
         let Input::RawBytes(input) = to_prove.input.unwrap().input.unwrap();
 
         track(
