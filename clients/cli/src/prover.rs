@@ -563,10 +563,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 };
                 let proof_cycles_hertz =
                     cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
+                
                 client
                     .send(Message::Binary(response.encode_to_vec()))
                     .await
-                    .unwrap();
+                    .map_err(|e| {
+                        track(
+                            "send_error".into(),
+                            "Failed to send response".into(),
+                            &ws_addr_string,
+                            json!({
+                                "prover_id": &prover_id,
+                                "error": e.to_string(),
+                            }),
+                        );
+                        format!("Failed to send response: {}", e)
+                    })?;
                 track(
                     "proof".into(),
                     format!(
