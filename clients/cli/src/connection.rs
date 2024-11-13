@@ -51,7 +51,6 @@ pub async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) 
 
 #[cfg(test)]
 mod tests {
-    // use super::*;
     use super::connect_to_orchestrator;  // Just the function we're testing
     use futures::{SinkExt, StreamExt};
     use tokio::net::TcpListener;
