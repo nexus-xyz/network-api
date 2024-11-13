@@ -37,9 +37,11 @@ mod firebase {
     pub const STAGING_APP_ID: &str = "1:222794630996:web:1758d64a85eba687eaaac1";
     pub const BETA_APP_ID: &str = "1:279395003658:web:04ee2c524474d683d75ef3";
 
-    // Analytics Secrets for the different environments
-    pub const DEV_API_SECRET: &str = "85858585858585858585858585858585";
-    pub const STAGING_API_SECRET: &str = "85858585858585858585858585858585";
+    // Analytics keys for the different environments
+    // These are keys that allow the measurement protocol to write to the analytics database
+    // They are not sensitive. Worst case, if a malicious actor obtains the secret, they could potentially send false or misleading data to your GA4 property
+    pub const DEV_API_SECRET: &str = "8ySxiKrtT8a76zClqqO8IQ";
+    pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
     pub const BETA_API_SECRET: &str = "gxxzKAQLSl-uYI0eKbIi_Q";
 }
 
