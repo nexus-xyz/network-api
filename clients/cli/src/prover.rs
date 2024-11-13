@@ -72,42 +72,59 @@ async fn main() {
         .expect("error generating public parameters");
 
     // If the prover_id file is found, use the contents, otherwise generate a new random id
-    // and store it.
-    let mut prover_id = format!(
+    // and store it. e.g., "happy-cloud-42"
+    let default_prover_id: String = format!(
         "{}-{}-{}",
         random_word::gen(Lang::En),
         random_word::gen(Lang::En),
         rand::thread_rng().next_u32() % 100,
     );
-    match home::home_dir() {
+
+    // setting the prover-id we will use (either from the file or generated)
+    let prover_id: String = match home::home_dir() {
         Some(path) if !path.as_os_str().is_empty() => {
             let nexus_dir = Path::new(&path).join(".nexus");
-            prover_id = match fs::read(nexus_dir.join("prover-id")) {
-                // 1. fs::read attempts to read the prover-id file
+
+            // Try to read the prover-id file
+            match fs::read(nexus_dir.join("prover-id")) {
+                // 1. If file exists and can be read:
                 Ok(buf) => match String::from_utf8(buf) {
-                    Ok(id) => id,
-                    Err(_) => {
-                        eprintln!("Failed to read prover-id file. Using default.");
-                        prover_id // Fall back to generated ID
+                    Ok(id) => id.trim().to_string(), // Trim whitespace
+                    Err(e) => {
+                        eprintln!("Failed to read prover-id file. Using default: {}", e);
+                        default_prover_id // Fall back to generated ID, if file has invalid UTF-8
                     },
                 },
-                // 2. If the file doesn't exist, we'll get an error
-                Err(_) => {
-                    // 3. We try to create the .nexus directory
-                    if let Err(e) = fs::create_dir(nexus_dir.clone()) {
-                        eprintln!("Failed to create .nexus directory: {:?}", e);
+                // 2. If file doesn't exist or can't be read:
+                Err(e) => {
+                    eprintln!("Could not read prover-id file: {}", e);
+
+                    // if the error is because the file doesn't exist
+                    // Try to save the generated prover-id to the file
+                    if e.kind() == std::io::ErrorKind::NotFound {
+
+                        // Try to create the .nexus directory
+                        match fs::create_dir(nexus_dir.clone()) {
+                            Ok(_) => {
+                                // Only try to write file if directory was created successfully
+                                if let Err(e) = fs::write(nexus_dir.join("prover-id"), &default_prover_id) {
+                                    eprintln!("Warning: Could not save prover-id: {}", e);
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("Failed to create .nexus directory: {}", e);
+                            },
+                        }
                     }
 
-                    // 4. We try to write the prover-id to the file
-                    if let Err(e) = fs::write(nexus_dir.join("prover-id"), &prover_id) {
-                        eprintln!("Warning: Could not save prover-id: {}", e);
-                    }
-                    prover_id
+                    // Use the previously generated prover-id
+                    default_prover_id
                 }
             }
         }
         _ => {
-            println!("Unable to get home dir.");
+            println!("Unable to determine home directory. Using temporary prover-id.");
+            default_prover_id
         }
     };
 
