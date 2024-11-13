@@ -18,10 +18,11 @@ use generated::pb::{
     self, compiled_program::Program, proof, prover_request, vm_program_input::Input, Progress,
     ProverRequest, ProverRequestRegistration, ProverResponse, ProverType,
 };
+use std::time::Instant;
 use prost::Message as _;
 use random_word::Lang;
 use serde_json::json;
-use std::{fs, path::Path, time::SystemTime};
+use std::{fs, path::Path};
 // Network connection types for WebSocket communication
 use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
 
@@ -405,7 +406,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 "prover_id": prover_id,
             }),
         );
-        let start_time = SystemTime::now();
+        let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
@@ -419,22 +420,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     steps_proven,
                 })),
             };
-            let progress_duration = match SystemTime::now().duration_since(progress_time) {
-                Ok(duration) => duration,
-                Err(e) => {
-                    track(
-                        "time_error".into(),
-                        "Error calculating progress duration".into(),
-                        &ws_addr_string,
-                        json!({
-                            "prover_id": &prover_id,
-                            "error": e.to_string(),
-                        }),
-                    );
-                    // Use a fallback duration or return error
-                    return Err("Failed to calculate progress duration: clock may have gone backwards".into());
-                }
-            };
+            let progress_duration = progress_time.elapsed();
             let cycles_proven = steps_proven * 4;
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
             track(
@@ -456,7 +442,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     "prover_id": prover_id,
                 }),
             );
-            progress_time = SystemTime::now();
+            progress_time = Instant::now();
 
             let mut retries = 0;
             let max_retries = 5;
@@ -492,21 +478,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                         proof: Some(proof::Proof::NovaBytes(buf)),
                     })),
                 };
-                let duration = match SystemTime::now().duration_since(start_time) {
-                    Ok(duration) => duration,
-                    Err(e) => {
-                        track(
-                            "time_error".into(),
-                            "Error calculating proof duration".into(),
-                            &ws_addr_string,
-                            json!({
-                                "prover_id": &prover_id,
-                                "error": e.to_string(),
-                            }),
-                        );
-                        return Err("Failed to calculate proof duration: clock may have gone backwards".into());
-                    }   
-                };
+                let duration = start_time.elapsed();
+            
                 let proof_cycles_hertz =
                     cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
                 
