@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    name: Lint CLI
+    name: Lint CLI and run cargotests
     runs-on: ubuntu-latest
 
     steps:
