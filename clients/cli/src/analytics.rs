@@ -70,9 +70,8 @@ pub fn track(
             for (k, v) in obj {
                 properties[k] = v.clone();
             }
-            Ok(())
         },
-        None => Err("event_properties is not a valid JSON object")
+        None => eprintln!("Warning: event_properties is not a valid JSON object")
     }
 
     // Firebase format for events
