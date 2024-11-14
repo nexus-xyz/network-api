@@ -3,10 +3,14 @@
 mod analytics;
 mod config;
 mod generated;
+mod connection;
+
 
 use crate::analytics::track;
 
 use std::borrow::Cow;
+
+use crate::connection::{connect_to_orchestrator_with_retry};
 
 use clap::Parser;
 use futures::{SinkExt, StreamExt};
@@ -14,13 +18,36 @@ use generated::pb::{
     self, compiled_program::Program, proof, prover_request, vm_program_input::Input, Progress,
     ProverRequest, ProverRequestRegistration, ProverResponse, ProverType,
 };
+use std::time::Instant;
 use prost::Message as _;
 use random_word::Lang;
 use serde_json::json;
-use std::{fs, path::Path, time::SystemTime};
-use tokio_tungstenite::tungstenite::protocol::{frame::coding::CloseCode, CloseFrame, Message};
+use std::{fs, path::Path};
+// Network connection types for WebSocket communication
+use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
+
+use tokio_tungstenite::{
+    // WebSocketStream: Manages WebSocket protocol (messages, frames, etc.)
+    // - Built on top of TcpStream
+    // - Handles WebSocket handshake
+    // - Provides async send/receive
+    WebSocketStream,
+
+    // MaybeTlsStream: Wrapper for secure/insecure connections
+    // - Handles both ws:// and wss:// URLs
+    // - Provides TLS encryption when needed
+    MaybeTlsStream,
+};
+
+// WebSocket protocol types for message handling
+use tokio_tungstenite::tungstenite::protocol::{
+    frame::coding::CloseCode,  // Status codes for connection closure (e.g., 1000 for normal)
+    CloseFrame,               // Frame sent when closing connection (includes code and reason)
+    Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
+};
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
+
 
 use nexus_core::{
     nvm::{
@@ -50,7 +77,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -72,27 +99,59 @@ async fn main() {
         .expect("error generating public parameters");
 
     // If the prover_id file is found, use the contents, otherwise generate a new random id
-    // and store it.
-    let mut prover_id = format!(
+    // and store it. e.g., "happy-cloud-42"
+    let default_prover_id: String = format!(
         "{}-{}-{}",
         random_word::gen(Lang::En),
         random_word::gen(Lang::En),
         rand::thread_rng().next_u32() % 100,
     );
-    match home::home_dir() {
+
+    // setting the prover-id we will use (either from the file or generated)
+    let prover_id: String = match home::home_dir() {
         Some(path) if !path.as_os_str().is_empty() => {
             let nexus_dir = Path::new(&path).join(".nexus");
-            prover_id = match fs::read(nexus_dir.join("prover-id")) {
-                Ok(buf) => String::from_utf8(buf).unwrap(),
-                Err(_) => {
-                    let _ = fs::create_dir(nexus_dir.clone());
-                    fs::write(nexus_dir.join("prover-id"), prover_id.clone()).unwrap();
-                    prover_id
+
+            // Try to read the prover-id file
+            match fs::read(nexus_dir.join("prover-id")) {
+                // 1. If file exists and can be read:
+                Ok(buf) => match String::from_utf8(buf) {
+                    Ok(id) => id.trim().to_string(), // Trim whitespace
+                    Err(e) => {
+                        eprintln!("Failed to read prover-id file. Using default: {}", e);
+                        default_prover_id // Fall back to generated ID, if file has invalid UTF-8
+                    },
+                },
+                // 2. If file doesn't exist or can't be read:
+                Err(e) => {
+                    eprintln!("Could not read prover-id file: {}", e);
+
+                    // if the error is because the file doesn't exist
+                    // Try to save the generated prover-id to the file
+                    if e.kind() == std::io::ErrorKind::NotFound {
+
+                        // Try to create the .nexus directory
+                        match fs::create_dir(nexus_dir.clone()) {
+                            Ok(_) => {
+                                // Only try to write file if directory was created successfully
+                                if let Err(e) = fs::write(nexus_dir.join("prover-id"), &default_prover_id) {
+                                    eprintln!("Warning: Could not save prover-id: {}", e);
+                                }
+                            },
+                            Err(e) => {
+                                eprintln!("Failed to create .nexus directory: {}", e);
+                            },
+                        }
+                    }
+
+                    // Use the previously generated prover-id
+                    default_prover_id
                 }
             }
         }
         _ => {
-            println!("Unable to get home dir.");
+            println!("Unable to determine home directory. Using temporary prover-id.");
+            default_prover_id
         }
     };
 
@@ -103,16 +162,8 @@ async fn main() {
         json!({"prover_id": prover_id}),
     );
 
-    let (mut client, _) = tokio_tungstenite::connect_async(&ws_addr_string)
-        .await
-        .unwrap();
-
-    track(
-        "connected".into(),
-        "Connected.".into(),
-        &ws_addr_string,
-        json!({"prover_id": prover_id}),
-    );
+    // Connect to the Orchestrator with exponential backoff
+    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
     let registration = ProverRequest {
         contents: Some(prover_request::Contents::Registration(
@@ -155,22 +206,123 @@ async fn main() {
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
     loop {
-        let program_message = match client.next().await.unwrap().unwrap() {
-            Message::Binary(b) => b,
-            _ => panic!("Unexpected message type"),
-        };
-        let program = ProverResponse::decode(program_message.as_slice()).unwrap();
 
-        let Program::Rv32iElfBytes(elf_bytes) = program
+        async fn receive_program_message(
+            client: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
+            ws_addr: &str,
+            prover_id: &str,
+        ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+            match client.next().await {
+                 // Stream has ended (connection closed)
+                None => {
+                    Err("WebSocket connection closed unexpectedly".into())
+                },
+                Some(Ok(Message::Binary(bytes))) => Ok(bytes),
+                Some(Ok(other)) => {
+                    track(
+                        "unexpected_message".into(),
+                        "Unexpected message type".into(),
+                        ws_addr,
+                        json!({ 
+                            "prover_id": prover_id,
+                            "message_type": format!("{:?}", other) 
+                        }),
+                    );
+                    Err("Unexpected message type".into())
+                },
+                Some(Err(e)) => {
+                    track(
+                        "websocket_error".into(),
+                        format!("WebSocket error: {}", e),
+                        ws_addr,
+                        json!({
+                            "prover_id": prover_id,
+                            "error": e.to_string(),
+                        }),
+                    );
+                    Err(format!("WebSocket error: {}", e).into())
+                }
+            }
+        }
+
+
+
+        let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
+            Ok(message) => message,
+            Err(e) => {
+                eprintln!("Failed to receive program message: {}", e);
+                continue;  // Skip rest of this iteration, try to receive next message
+            }
+        };
+
+        let program = match ProverResponse::decode(program_message.as_slice()) {
+            Ok(program) => program,
+            Err(e) => {
+                track(
+                    "decode_error".into(),
+                    format!("Failed to decode prover response: {}", e),
+                    &ws_addr_string,
+                    json!({
+                        "prover_id": &prover_id,
+                        "error": e.to_string(),
+                        "message_size": program_message.len(),
+                    }),
+                );
+                eprintln!("Failed to decode program message: {}", e);
+                return Err("Decode error".into());     // Exit with error
+
+                // return Err(e.into());
+            }
+        };
+
+        let program_enum = program
             .to_prove
-            .clone()
-            .unwrap()
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("No program to prove")?              // handle first Option
             .program
-            .unwrap()
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("Program field is None")?            // handle second Option
             .program
-            .unwrap();
-        let to_prove = program.to_prove.unwrap();
-        let Input::RawBytes(input) = to_prove.input.unwrap().input.unwrap();
+            .as_ref()                                   // Borrow instead of move
+            .ok_or("Program inner field is None")?;      // handle third Option
+        
+        // Then extract the ELF bytes with proper error handling
+        // let elf_bytes = match program_enum {
+        //     Program::Rv32iElfBytes(bytes) => bytes
+        // };
+        let Program::Rv32iElfBytes(elf_bytes) = program_enum;
+
+
+        let to_prove = match program.to_prove.clone() {
+            Some(to_prove) => to_prove,
+            None => {
+                // Log the error
+                track(
+                    "program_error".into(),
+                    "No program to prove".into(),
+                    &ws_addr_string,
+                    json!({
+                        "prover_id": &prover_id,
+                        "error": "to_prove is None"
+                    }),
+                );
+                // Return error instead of panicking
+                return Err("No program to prove".into());
+            }
+        };
+
+        // First handle the nested Options with proper error messages
+        let input_enum = to_prove
+            .input
+            .as_ref()
+            .ok_or("No input provided")?
+            .input
+            .as_ref()
+            .ok_or("Input field is None")?;
+
+        // Then match on the Input enum variant
+        let Input::RawBytes(bytes) = input_enum;
+        let input = bytes.clone();
 
         track(
             "program".into(),
@@ -213,10 +365,24 @@ async fn main() {
                 steps_proven: 0,
             })),
         };
-        client
-            .send(Message::Binary(initial_progress.encode_to_vec()))
-            .await
-            .unwrap();
+
+        // Send with error handling
+        if let Err(e) = client.send(Message::Binary(initial_progress.encode_to_vec())).await {
+            eprintln!("Failed to send progress update: {}", e);
+            track(
+                "send_error".into(),
+                format!("Failed to send progress message: {}", e),
+                &ws_addr_string,
+                json!({
+                    "prover_id": prover_id,
+                    "error": e.to_string(),
+                }),
+            );
+            // TODO: Depending on error type, might want to:
+            // 1. Try to reconnect
+            // 2. Return error
+            // 3. Continue with next operation
+        }
 
         let z_st = tr.input(start).expect("error starting circuit trace");
         let mut proof = IVCProof::new(&z_st);
@@ -240,7 +406,7 @@ async fn main() {
                 "prover_id": prover_id,
             }),
         );
-        let start_time = SystemTime::now();
+        let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
@@ -254,7 +420,7 @@ async fn main() {
                     steps_proven,
                 })),
             };
-            let progress_duration = SystemTime::now().duration_since(progress_time).unwrap();
+            let progress_duration = progress_time.elapsed();
             let cycles_proven = steps_proven * 4;
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
             track(
@@ -276,7 +442,7 @@ async fn main() {
                     "prover_id": prover_id,
                 }),
             );
-            progress_time = SystemTime::now();
+            progress_time = Instant::now();
 
             let mut retries = 0;
             let max_retries = 5;
@@ -312,13 +478,26 @@ async fn main() {
                         proof: Some(proof::Proof::NovaBytes(buf)),
                     })),
                 };
-                let duration = SystemTime::now().duration_since(start_time).unwrap();
+                let duration = start_time.elapsed();
+            
                 let proof_cycles_hertz =
                     cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
+                
                 client
                     .send(Message::Binary(response.encode_to_vec()))
                     .await
-                    .unwrap();
+                    .map_err(|e| {
+                        track(
+                            "send_error".into(),
+                            "Failed to send response".into(),
+                            &ws_addr_string,
+                            json!({
+                                "prover_id": &prover_id,
+                                "error": e.to_string(),
+                            }),
+                        );
+                        format!("Failed to send response: {}", e)
+                    })?;
                 track(
                     "proof".into(),
                     format!(
@@ -351,11 +530,23 @@ async fn main() {
             reason: Cow::Borrowed("Finished proving."),
         }))
         .await
-        .unwrap();
+        .map_err(|e| {
+            track(
+                "close_error".into(),
+                "Failed to close WebSocket connection".into(),
+                &ws_addr_string,
+                json!({
+                    "prover_id": &prover_id,
+                    "error": e.to_string(),
+                }),
+            );
+            format!("Failed to close WebSocket connection: {}", e)
+        })?;
     track(
         "disconnect".into(),
         "Sent proof and closed connection...".into(),
         &ws_addr_string,
         json!({ "prover_id": prover_id }),
     );
+    Ok(())
 }

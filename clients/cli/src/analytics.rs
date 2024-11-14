@@ -62,21 +62,42 @@ pub fn track(
     tokio::spawn(async move {
         let client = reqwest::Client::new();
 
-        let _ = client
-            // URL is the Google Analytics endpoint for Firebase: https://stackoverflow.com/questions/50355752/firebase-analytics-from-remote-rest-api
-            .post(format!(
-                "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
-                firebase_app_id,
-                firebase_api_key
-            ))
+        let url = format!(
+            "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
+            firebase_app_id,
+            firebase_api_key
+        );
+
+        match client
+            .post(&url)
             .body(format!("[{}]", body))
             .header(ACCEPT, "text/plain")
             .header(CONTENT_TYPE, "application/json")
             .send()
             .await
-            .unwrap()
-            .text()
-            .await
-            .unwrap();
+        {
+            Ok(response) => {
+                match response.text().await {
+                    Ok(_) => {
+                        
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Failed to read analytics response for event '{}': {}", 
+                            event_name, 
+                            e
+                        );
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "Failed to send analytics request for event '{}' to {}: {}", 
+                    event_name,
+                    url,
+                    e
+                );
+            }
+        }
     });
 }
