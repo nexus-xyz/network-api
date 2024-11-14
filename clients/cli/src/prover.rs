@@ -4,6 +4,7 @@ mod analytics;
 mod config;
 mod generated;
 mod connection;
+mod prover_id_manager;
 
 
 use crate::analytics::track;
@@ -20,9 +21,7 @@ use generated::pb::{
 };
 use std::time::Instant;
 use prost::Message as _;
-use random_word::Lang;
 use serde_json::json;
-use std::{fs, path::Path};
 // Network connection types for WebSocket communication
 use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
 
@@ -59,7 +58,6 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
-use rand::RngCore;
 use zstd::stream::Encoder;
 
 #[derive(Parser, Debug)]
@@ -98,62 +96,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
         .expect("error generating public parameters");
 
-    // If the prover_id file is found, use the contents, otherwise generate a new random id
-    // and store it. e.g., "happy-cloud-42"
-    let default_prover_id: String = format!(
-        "{}-{}-{}",
-        random_word::gen(Lang::En),
-        random_word::gen(Lang::En),
-        rand::thread_rng().next_u32() % 100,
-    );
-
-    // setting the prover-id we will use (either from the file or generated)
-    let prover_id: String = match home::home_dir() {
-        Some(path) if !path.as_os_str().is_empty() => {
-            let nexus_dir = Path::new(&path).join(".nexus");
-
-            // Try to read the prover-id file
-            match fs::read(nexus_dir.join("prover-id")) {
-                // 1. If file exists and can be read:
-                Ok(buf) => match String::from_utf8(buf) {
-                    Ok(id) => id.trim().to_string(), // Trim whitespace
-                    Err(e) => {
-                        eprintln!("Failed to read prover-id file. Using default: {}", e);
-                        default_prover_id // Fall back to generated ID, if file has invalid UTF-8
-                    },
-                },
-                // 2. If file doesn't exist or can't be read:
-                Err(e) => {
-                    eprintln!("Could not read prover-id file: {}", e);
-
-                    // if the error is because the file doesn't exist
-                    // Try to save the generated prover-id to the file
-                    if e.kind() == std::io::ErrorKind::NotFound {
-
-                        // Try to create the .nexus directory
-                        match fs::create_dir(nexus_dir.clone()) {
-                            Ok(_) => {
-                                // Only try to write file if directory was created successfully
-                                if let Err(e) = fs::write(nexus_dir.join("prover-id"), &default_prover_id) {
-                                    eprintln!("Warning: Could not save prover-id: {}", e);
-                                }
-                            },
-                            Err(e) => {
-                                eprintln!("Failed to create .nexus directory: {}", e);
-                            },
-                        }
-                    }
-
-                    // Use the previously generated prover-id
-                    default_prover_id
-                }
-            }
-        }
-        _ => {
-            println!("Unable to determine home directory. Using temporary prover-id.");
-            default_prover_id
-        }
-    };
+    // get or generate the prover id
+    let prover_id = prover_id_manager::get_or_generate_prover_id();
 
     track(
         "connect".into(),
