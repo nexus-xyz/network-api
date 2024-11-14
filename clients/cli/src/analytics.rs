@@ -31,8 +31,23 @@ pub fn track(
     // Firebase format for properties for Measurement protocol: 
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
+    
+
+    let system_time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_else(|e| {
+            eprintln!("Error calculating system time: {}", e);
+            std::time::Duration::from_secs(0) // fallback to epoch start
+        })
+        .as_millis();
+
+    let timezone = iana_time_zone::get_timezone().ok().map_or_else(
+        || String::from("UTC"), // fallback to UTC
+        |tz| tz
+    );
+    
     let mut properties = json!({
-        "time": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis(),
+        "time": system_time,
         // app_instance_id is the standard key Firebase uses this key to track the same user across sessions
         // It is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
         // I still left the distinct_id key as well for backwards compatibility
@@ -41,13 +56,22 @@ pub fn track(
         "prover_type": "volunteer",
         "client_type": "cli",
         "operating_system": env::consts::OS,
-        "time_zone": iana_time_zone::get_timezone().unwrap(),
+        "time_zone": timezone,
         "local_hour": local_now.hour(),
         "local_weekday_number_from_monday": local_now.weekday().number_from_monday(),
         "ws_addr_string": ws_addr_string,
     });
-    for (k, v) in event_properties.as_object().unwrap() {
-        properties[k] = v.clone();
+
+    // Add event properties to the properties JSON
+    // This is done by iterating over the key-value pairs in the event_properties JSON object
+    // but checking that it is a valid JSON object first
+    match event_properties.as_object() {   
+        Some(obj) => {
+            for (k, v) in obj {
+                properties[k] = v.clone();
+            }
+        },
+        None => eprintln!("Warning: event_properties is not a valid JSON object")
     }
 
     // Firebase format for events
