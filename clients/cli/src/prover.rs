@@ -109,16 +109,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
-    let registration = ClientProgramProofRequest {
-        contents: Some(prover_request::Contents::Registration(
-            ProverRequestRegistration {
-                prover_type: ProverType::Volunteer.into(),
-                prover_id: prover_id.clone(),
-                estimated_proof_cycles_hertz: None,
-            },
-        )),
-    };
-
     let mut retries = 0;
     let max_retries = 5;
 

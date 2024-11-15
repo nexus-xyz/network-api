@@ -8,7 +8,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => return Err(e.into()),
     };
 
-    // match Command::new("protoc --version").spawn() {
     match Command::new("protoc")
         .arg("--version")
         .output() { 
