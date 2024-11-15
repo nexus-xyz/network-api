@@ -17,7 +17,7 @@ use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use generated::pb::{
     self, compiled_program::Program, proof, prover_request, vm_program_input::Input, Progress,
-    ProverRequest, ProverRequestRegistration, ProverResponse, ProverType,
+    ProverRequestRegistration, ProverResponse, ProverType, ClientProgramProofRequest
 };
 use std::time::Instant;
 use prost::Message as _;
@@ -109,7 +109,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
-    let registration = ProverRequest {
+    let registration = ClientProgramProofRequest {
         contents: Some(prover_request::Contents::Registration(
             ProverRequestRegistration {
                 prover_type: ProverType::Volunteer.into(),
@@ -301,7 +301,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             end = total_steps
         }
 
-        let initial_progress = ProverRequest {
+        let initial_progress = ClientProgramProofRequest {
             contents: Some(prover_request::Contents::Progress(Progress {
                 completed_fraction: 0.0,
                 steps_in_trace: total_steps as i32,
@@ -356,7 +356,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
-            let progress = ProverRequest {
+            let progress = ClientProgramProofRequest {
                 contents: Some(prover_request::Contents::Progress(Progress {
                     completed_fraction,
                     steps_in_trace: total_steps as i32,
@@ -417,7 +417,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     .expect("failed to compress proof");
                 encoder.finish().expect("failed to finish encoder");
 
-                let response = ProverRequest {
+                let response = ClientProgramProofRequest {
                     contents: Some(prover_request::Contents::Proof(pb::Proof {
                         proof: Some(proof::Proof::NovaBytes(buf)),
                     })),
