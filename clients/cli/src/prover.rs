@@ -5,16 +5,18 @@ mod config;
 mod generated;
 mod connection;
 mod prover_id_manager;
+mod websocket; 
 
 
 use crate::analytics::track;
+use crate::websocket::receive_program_message;
 
 use std::borrow::Cow;
 
 use crate::connection::{connect_to_orchestrator_with_retry};
 
 use clap::Parser;
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt};
 use generated::pb::{
     compiled_program::Program,
      ProverResponse, ClientProgramProofRequest, vm_program_input::Input
@@ -23,20 +25,6 @@ use std::time::Instant;
 use prost::Message as _;
 use serde_json::json;
 // Network connection types for WebSocket communication
-use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
-
-use tokio_tungstenite::{
-    // WebSocketStream: Manages WebSocket protocol (messages, frames, etc.)
-    // - Built on top of TcpStream
-    // - Handles WebSocket handshake
-    // - Provides async send/receive
-    WebSocketStream,
-
-    // MaybeTlsStream: Wrapper for secure/insecure connections
-    // - Handles both ws:// and wss:// URLs
-    // - Provides TLS encryption when needed
-    MaybeTlsStream,
-};
 
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
@@ -117,43 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     );
     loop {
 
-        async fn receive_program_message(
-            client: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-            ws_addr: &str,
-            prover_id: &str,
-        ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-            match client.next().await {
-                 // Stream has ended (connection closed)
-                None => {
-                    Err("WebSocket connection closed unexpectedly".into())
-                },
-                Some(Ok(Message::Binary(bytes))) => Ok(bytes),
-                Some(Ok(other)) => {
-                    track(
-                        "unexpected_message".into(),
-                        "Unexpected message type".into(),
-                        ws_addr,
-                        json!({ 
-                            "prover_id": prover_id,
-                            "message_type": format!("{:?}", other) 
-                        }),
-                    );
-                    Err("Unexpected message type".into())
-                },
-                Some(Err(e)) => {
-                    track(
-                        "websocket_error".into(),
-                        format!("WebSocket error: {}", e),
-                        ws_addr,
-                        json!({
-                            "prover_id": prover_id,
-                            "error": e.to_string(),
-                        }),
-                    );
-                    Err(format!("WebSocket error: {}", e).into())
-                }
-            }
-        }
+        
 
 
 
