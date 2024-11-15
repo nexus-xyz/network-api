@@ -109,11 +109,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
-    let mut retries = 0;
-    let max_retries = 5;
-
- 
-
     track(
         "register".into(),
         format!("Your assigned prover identifier is {}.", prover_id),
@@ -329,6 +324,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
   
+            
+
+            let progress_duration = progress_time.elapsed();
+            let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
+            
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
                 steps_proven: steps_proven as i32,
@@ -338,10 +338,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
                 proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
             };
-
-            let progress_duration = progress_time.elapsed();
-            let cycles_proven = steps_proven * 4;
-            let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
+            
             track(
                 "progress".into(),
                 format!(
@@ -390,14 +387,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 proof
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
-                encoder.finish().expect("failed to finish encoder");
-
-              
-                let duration = start_time.elapsed();
-            
-                let proof_cycles_hertz =
-                    cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
-                
+                encoder.finish().expect("failed to finish encoder");        
    
             }
         }
