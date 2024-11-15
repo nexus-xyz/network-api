@@ -331,7 +331,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
-                steps_proven: steps_proven as i32,
+                steps_proven,
                 step_to_start: start as i32,
                 program_id: String::new(),  // TODO: pass program id
                 client_id_token: String::new(),  // TODO: pass client id token
