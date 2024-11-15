@@ -8,15 +8,22 @@ fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => return Err(e.into()),
     };
 
-    match Command::new("protoc --version").spawn() {
+    match Command::new("protoc")
+        .arg("--version")
+        .output() { 
         Ok(_) => prost_build::Config::new()
             .out_dir(out_dir)
             .protoc_arg("--experimental_allow_proto3_optional")
             .compile_protos(&[&proto_file], &[proto_dir])?,
-        Err(_) => {
+        Err(e) => {
             // Skipping protobuf compilation.
+            println!("cargo:warning=Failed to run protoc: {}", e);
+            return Err(e.into());
         }
     }
+
+     // Tell Cargo to rerun this script if the proto file changes
+     println!("cargo:rerun-if-changed={}", proto_file.display());
 
     Ok(())
 }

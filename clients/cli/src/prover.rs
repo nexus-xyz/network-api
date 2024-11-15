@@ -5,38 +5,26 @@ mod config;
 mod generated;
 mod connection;
 mod prover_id_manager;
+mod websocket; 
 
 
 use crate::analytics::track;
+use crate::websocket::receive_program_message;
 
 use std::borrow::Cow;
 
 use crate::connection::{connect_to_orchestrator_with_retry};
 
 use clap::Parser;
-use futures::{SinkExt, StreamExt};
+use futures::{SinkExt};
 use generated::pb::{
-    self, compiled_program::Program, proof, prover_request, vm_program_input::Input, Progress,
-    ProverRequest, ProverRequestRegistration, ProverResponse, ProverType,
+    compiled_program::Program,
+     ProverResponse, ClientProgramProofRequest, vm_program_input::Input
 };
 use std::time::Instant;
 use prost::Message as _;
 use serde_json::json;
 // Network connection types for WebSocket communication
-use tokio::net::TcpStream;  // Async TCP connection - the base transport layer
-
-use tokio_tungstenite::{
-    // WebSocketStream: Manages WebSocket protocol (messages, frames, etc.)
-    // - Built on top of TcpStream
-    // - Handles WebSocket handshake
-    // - Provides async send/receive
-    WebSocketStream,
-
-    // MaybeTlsStream: Wrapper for secure/insecure connections
-    // - Handles both ws:// and wss:// URLs
-    // - Provides TLS encryption when needed
-    MaybeTlsStream,
-};
 
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
@@ -109,40 +97,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
 
-    let registration = ProverRequest {
-        contents: Some(prover_request::Contents::Registration(
-            ProverRequestRegistration {
-                prover_type: ProverType::Volunteer.into(),
-                prover_id: prover_id.clone(),
-                estimated_proof_cycles_hertz: None,
-            },
-        )),
-    };
-
-    let mut retries = 0;
-    let max_retries = 5;
-
-    while let Err(e) = client
-        .send(Message::Binary(registration.encode_to_vec()))
-        .await
-    {
-        eprintln!(
-            "Failed to send message: {:?}, attempt {}/{}",
-            e,
-            retries + 1,
-            max_retries
-        );
-
-        retries += 1;
-        if retries >= max_retries {
-            eprintln!("Max retries reached, exiting...");
-            break;
-        }
-
-        // Add a delay before retrying
-        tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
-    }
-
     track(
         "register".into(),
         format!("Your assigned prover identifier is {}.", prover_id),
@@ -151,43 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     );
     loop {
 
-        async fn receive_program_message(
-            client: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-            ws_addr: &str,
-            prover_id: &str,
-        ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-            match client.next().await {
-                 // Stream has ended (connection closed)
-                None => {
-                    Err("WebSocket connection closed unexpectedly".into())
-                },
-                Some(Ok(Message::Binary(bytes))) => Ok(bytes),
-                Some(Ok(other)) => {
-                    track(
-                        "unexpected_message".into(),
-                        "Unexpected message type".into(),
-                        ws_addr,
-                        json!({ 
-                            "prover_id": prover_id,
-                            "message_type": format!("{:?}", other) 
-                        }),
-                    );
-                    Err("Unexpected message type".into())
-                },
-                Some(Err(e)) => {
-                    track(
-                        "websocket_error".into(),
-                        format!("WebSocket error: {}", e),
-                        ws_addr,
-                        json!({
-                            "prover_id": prover_id,
-                            "error": e.to_string(),
-                        }),
-                    );
-                    Err(format!("WebSocket error: {}", e).into())
-                }
-            }
-        }
+        
 
 
 
@@ -301,13 +219,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             end = total_steps
         }
 
-        let initial_progress = ProverRequest {
-            contents: Some(prover_request::Contents::Progress(Progress {
-                completed_fraction: 0.0,
-                steps_in_trace: total_steps as i32,
-                steps_to_prove: (end - start) as i32,
-                steps_proven: 0,
-            })),
+        let initial_progress = ClientProgramProofRequest {
+            steps_in_trace: total_steps as i32,
+            steps_proven: 0,
+            step_to_start: start as i32,
+            program_id: String::new(),  // TODO: pass program id
+            client_id_token: String::new(),  // TODO: pass client id token
+            proof_duration_millis: 0,
+            proof_speed_hz: 0.0,
         };
 
         // Send with error handling
@@ -356,17 +275,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
-            let progress = ProverRequest {
-                contents: Some(prover_request::Contents::Progress(Progress {
-                    completed_fraction,
-                    steps_in_trace: total_steps as i32,
-                    steps_to_prove: steps_to_prove as i32,
-                    steps_proven,
-                })),
-            };
+  
+            
+
             let progress_duration = progress_time.elapsed();
-            let cycles_proven = steps_proven * 4;
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
+            
+            let progress = ClientProgramProofRequest {
+                steps_in_trace: total_steps as i32,
+                steps_proven,
+                step_to_start: start as i32,
+                program_id: String::new(),  // TODO: pass program id
+                client_id_token: String::new(),  // TODO: pass client id token
+                proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
+                proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
+            };
+            
             track(
                 "progress".into(),
                 format!(
@@ -415,47 +339,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 proof
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
-                encoder.finish().expect("failed to finish encoder");
-
-                let response = ProverRequest {
-                    contents: Some(prover_request::Contents::Proof(pb::Proof {
-                        proof: Some(proof::Proof::NovaBytes(buf)),
-                    })),
-                };
-                let duration = start_time.elapsed();
-            
-                let proof_cycles_hertz =
-                    cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
-                
-                client
-                    .send(Message::Binary(response.encode_to_vec()))
-                    .await
-                    .map_err(|e| {
-                        track(
-                            "send_error".into(),
-                            "Failed to send response".into(),
-                            &ws_addr_string,
-                            json!({
-                                "prover_id": &prover_id,
-                                "error": e.to_string(),
-                            }),
-                        );
-                        format!("Failed to send response: {}", e)
-                    })?;
-                track(
-                    "proof".into(),
-                    format!(
-                        "Proof sent! Overall speed was {:.2} proof cycles/sec.",
-                        proof_cycles_hertz
-                    ),
-                    &ws_addr_string,
-                    json!({
-                        "proof_duration_sec": duration.as_secs(),
-                        "proof_duration_millis": duration.as_millis(),
-                        "proof_cycles_hertz": proof_cycles_hertz,
-                        "prover_id": prover_id,
-                    }),
-                );
+                encoder.finish().expect("failed to finish encoder");        
+   
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
