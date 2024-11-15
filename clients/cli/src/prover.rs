@@ -16,8 +16,8 @@ use crate::connection::{connect_to_orchestrator_with_retry};
 use clap::Parser;
 use futures::{SinkExt, StreamExt};
 use generated::pb::{
-    self, compiled_program::Program, proof, prover_request, vm_program_input::Input, Progress,
-    ProverRequestRegistration, ProverResponse, ProverType, ClientProgramProofRequest
+    compiled_program::Program,
+     ProverResponse, ClientProgramProofRequest, vm_program_input::Input
 };
 use std::time::Instant;
 use prost::Message as _;
@@ -112,26 +112,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     let mut retries = 0;
     let max_retries = 5;
 
-    while let Err(e) = client
-        .send(Message::Binary(registration.encode_to_vec()))
-        .await
-    {
-        eprintln!(
-            "Failed to send message: {:?}, attempt {}/{}",
-            e,
-            retries + 1,
-            max_retries
-        );
-
-        retries += 1;
-        if retries >= max_retries {
-            eprintln!("Max retries reached, exiting...");
-            break;
-        }
-
-        // Add a delay before retrying
-        tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
-    }
+ 
 
     track(
         "register".into(),
@@ -292,12 +273,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         }
 
         let initial_progress = ClientProgramProofRequest {
-            contents: Some(prover_request::Contents::Progress(Progress {
-                completed_fraction: 0.0,
-                steps_in_trace: total_steps as i32,
-                steps_to_prove: (end - start) as i32,
-                steps_proven: 0,
-            })),
+            steps_in_trace: total_steps as i32,
+            steps_proven: 0,
+            step_to_start: start as i32,
+            program_id: String::new(),  // TODO: pass program id
+            client_id_token: String::new(),  // TODO: pass client id token
+            proof_duration_millis: 0,
+            proof_speed_hz: 0.0,
         };
 
         // Send with error handling
@@ -346,14 +328,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
+  
             let progress = ClientProgramProofRequest {
-                contents: Some(prover_request::Contents::Progress(Progress {
-                    completed_fraction,
-                    steps_in_trace: total_steps as i32,
-                    steps_to_prove: steps_to_prove as i32,
-                    steps_proven,
-                })),
+                steps_in_trace: total_steps as i32,
+                steps_proven: steps_proven as i32,
+                step_to_start: start as i32,
+                program_id: String::new(),  // TODO: pass program id
+                client_id_token: String::new(),  // TODO: pass client id token
+                proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
+                proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
             };
+
             let progress_duration = progress_time.elapsed();
             let cycles_proven = steps_proven * 4;
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
@@ -407,45 +392,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     .expect("failed to compress proof");
                 encoder.finish().expect("failed to finish encoder");
 
-                let response = ClientProgramProofRequest {
-                    contents: Some(prover_request::Contents::Proof(pb::Proof {
-                        proof: Some(proof::Proof::NovaBytes(buf)),
-                    })),
-                };
+              
                 let duration = start_time.elapsed();
             
                 let proof_cycles_hertz =
                     cycles_proven as f64 * 1000.0 / duration.as_millis() as f64;
                 
-                client
-                    .send(Message::Binary(response.encode_to_vec()))
-                    .await
-                    .map_err(|e| {
-                        track(
-                            "send_error".into(),
-                            "Failed to send response".into(),
-                            &ws_addr_string,
-                            json!({
-                                "prover_id": &prover_id,
-                                "error": e.to_string(),
-                            }),
-                        );
-                        format!("Failed to send response: {}", e)
-                    })?;
-                track(
-                    "proof".into(),
-                    format!(
-                        "Proof sent! Overall speed was {:.2} proof cycles/sec.",
-                        proof_cycles_hertz
-                    ),
-                    &ws_addr_string,
-                    json!({
-                        "proof_duration_sec": duration.as_secs(),
-                        "proof_duration_millis": duration.as_millis(),
-                        "proof_cycles_hertz": proof_cycles_hertz,
-                        "prover_id": prover_id,
-                    }),
-                );
+   
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
