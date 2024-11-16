@@ -173,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
         };
 
-        //Create the inputs for the program
+        // Create the inputs for the program
         use rand::Rng;  // Required for .gen() methods
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(),rng.gen::<u8>()];
