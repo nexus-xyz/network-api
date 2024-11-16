@@ -19,7 +19,7 @@ use clap::Parser;
 use futures::{SinkExt};
 use generated::pb::{
     compiled_program::Program,
-     ProverResponse, ClientProgramProofRequest, vm_program_input::Input
+     ProverResponse, ClientProgramProofRequest,
 };
 use std::time::Instant;
 use prost::Message as _;
@@ -173,18 +173,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             }
         };
 
-        // First handle the nested Options with proper error messages
-        let input_enum = to_prove
-            .input
-            .as_ref()
-            .ok_or("No input provided")?
-            .input
-            .as_ref()
-            .ok_or("Input field is None")?;
-
-        // Then match on the Input enum variant
-        let Input::RawBytes(bytes) = input_enum;
-        let input = bytes.clone();
+        // Create the inputs for the program
+        use rand::Rng;  // Required for .gen() methods
+        let mut rng = rand::thread_rng();
+        let input = vec![5, rng.gen::<u8>(),rng.gen::<u8>()];
 
         track(
             "program".into(),
