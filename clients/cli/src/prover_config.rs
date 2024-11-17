@@ -5,43 +5,20 @@ use crate::prover_id_manager;
 // use crate::analytics::track;
 // use crate::connection::{connect_to_orchestrator_with_retry};
 
-// use clap::Parser;
-// // use futures::{SinkExt};
-// // use generated::pb::{
-// //      ProverResponse, ClientProgramProofRequest,
-// // };
-// use prost::Message as _;
-// use serde_json::json;
-// use tokio::net::TcpStream;
-// use tokio_tungstenite::{
-//     WebSocketStream,
-//     MaybeTlsStream,
-// };
-
-// use nexus_core::{
-//     // prover::nova::{
-//     //      key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
-//     // },
-// };
-
 use nexus_core::{
-    nvm::{
-        interactive::{parse_elf, trace},
-        memory::MerkleTrie,
-        NexusVM,
-    },
     prover::nova::{
-        init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
+        pp::gen_vm_pp, 
+        types::{seq, C1, G1, G2, C2, RO, SC, PublicParams}
     },
 };
 
 
 pub struct ProverConfig {
     pub prover_id: String,
-    // // pub public_parameters: PublicParams<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>,
     // pub client: WebSocketStream<MaybeTlsStream<TcpStream>>,
     pub k: i32,
     pub ws_addr_string: String,
+    pub public_parameters: PublicParams<G1, G2, C1, C2, RO, SC, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>,
 }
 
 pub async fn initialize(hostname: String, port: u16) -> Result<ProverConfig, Box<dyn std::error::Error>> {
@@ -62,14 +39,21 @@ pub async fn initialize(hostname: String, port: u16) -> Result<ProverConfig, Box
     // This ID uniquely identifies this prover instance
     let prover_id = prover_id_manager::get_or_generate_prover_id();
 
-    let public_parameters = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
-    .expect("error generating public parameters");
-
+    // Generate the public parameters for the proving system
+    let public_parameters: PublicParams<G1, G2, C1, C2, RO, SC, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>> = 
+        match gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(
+            k as usize, 
+            &()
+        ) {
+            Ok(params) => params,
+            Err(e) => return Err(format!("Failed to generate public parameters: {}", e).into())
+        };
 
     // Construct and return the ProverConfig with the initialized values
     Ok(ProverConfig {
         ws_addr_string,
         k,
-        prover_id
+        prover_id,
+        public_parameters
     })
 }

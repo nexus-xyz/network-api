@@ -47,10 +47,8 @@ use nexus_core::{
     prover::nova::{
         init_circuit_trace, 
         key::CanonicalSerialize, 
-        pp::gen_vm_pp, 
         prove_seq_step, 
-        types::{seq, C1, G1, G2, C2, RO, SC, IVCProof}
-        // types::*,
+        types::{IVCProof}
     },
 };
 use zstd::stream::Encoder;
@@ -79,14 +77,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let args = Args::parse();
 
-    let ProverConfig { ws_addr_string, k, prover_id } = prover_config::initialize(
+    let ProverConfig { 
+        ws_addr_string, 
+        k, 
+        prover_id,
+        public_parameters 
+    } = prover_config::initialize(
         args.hostname,
         args.port
     ).await?;
 
     // TODO(collinjackson): Get parameters from a file or URL.
-    let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
-        .expect("error generating public parameters");
+    // let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
+    //     .expect("error generating public parameters");
 
 
 
@@ -272,7 +275,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
-            proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
+            // proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
+            proof = prove_seq_step(Some(proof), &public_parameters, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
   
