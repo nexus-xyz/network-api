@@ -48,7 +48,6 @@ mod firebase {
 // Release versions (existing code)
 #[cfg(not(debug_assertions))]
 pub fn analytics_id(ws_addr_string: &str) -> String {
-
     // Determine the environment from the web socket string (ws_addr_string)
     let env = match ws_addr_string {
         web_socket_urls::DEV => Environment::Dev,
@@ -56,7 +55,7 @@ pub fn analytics_id(ws_addr_string: &str) -> String {
         web_socket_urls::BETA => Environment::Beta,
         _ => Environment::Unknown,
     };
-    
+
     // Return the appropriate Firebase App ID based on the environment
     match env {
         Environment::Dev => firebase::DEV_APP_ID.to_string(),
@@ -75,4 +74,3 @@ pub fn analytics_api_key(ws_addr_string: &str) -> String {
         _ => String::new(),
     }
 }
-

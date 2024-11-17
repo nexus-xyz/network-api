@@ -6,8 +6,6 @@ use nexus_core::prover::nova::{
     types::{seq, PublicParams, C1, C2, G1, G2, RO, SC},
 };
 use serde_json::json;
-// use serial_test::serial;
-// use std::sync::Once;
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
 
