@@ -2,41 +2,38 @@
 
 mod analytics;
 mod config;
-mod generated;
 mod connection;
-mod prover_id_manager;
-mod websocket; 
+mod generated;
 mod prover_config;
-
+mod prover_id_manager;
+mod websocket;
 
 use crate::analytics::track;
 use crate::websocket::receive_program_message;
 
 use std::borrow::Cow;
 
-use crate::connection::{connect_to_orchestrator_with_retry};
+use crate::connection::connect_to_orchestrator_with_retry;
 use crate::prover_config::ProverConfig;
 
 use clap::Parser;
-use futures::{SinkExt};
+use futures::SinkExt;
 use generated::pb::{
-    compiled_program::Program,
-     ProverResponse, ClientProgramProofRequest, vm_program_input::Input
+    compiled_program::Program, vm_program_input::Input, ClientProgramProofRequest, ProverResponse,
 };
-use std::time::Instant;
 use prost::Message as _;
 use serde_json::json;
+use std::time::Instant;
 // Network connection types for WebSocket communication
 
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
-    frame::coding::CloseCode,  // Status codes for connection closure (e.g., 1000 for normal)
+    frame::coding::CloseCode, // Status codes for connection closure (e.g., 1000 for normal)
     CloseFrame,               // Frame sent when closing connection (includes code and reason)
     Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
 };
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
-
 
 use nexus_core::{
     nvm::{
@@ -44,12 +41,7 @@ use nexus_core::{
         memory::MerkleTrie,
         NexusVM,
     },
-    prover::nova::{
-        init_circuit_trace, 
-        key::CanonicalSerialize, 
-        prove_seq_step, 
-        types::{IVCProof}
-    },
+    prover::nova::{init_circuit_trace, key::CanonicalSerialize, prove_seq_step, types::IVCProof},
 };
 use zstd::stream::Encoder;
 
@@ -68,7 +60,7 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>>{
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -77,48 +69,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let args = Args::parse();
 
-    let ProverConfig { 
-        ws_addr_string, 
-        k, 
+    let ProverConfig {
+        ws_addr_string,
+        k,
         prover_id,
-        public_parameters 
-    } = prover_config::initialize(
-        args.hostname,
-        args.port
-    ).await?;
-
-    // TODO(collinjackson): Get parameters from a file or URL.
-    // let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
-    //     .expect("error generating public parameters");
-
-
-
-    track(
-        "connect".into(),
-        format!("Connecting to {}...", &ws_addr_string),
-        &ws_addr_string,
-        json!({"prover_id": prover_id}),
-    );
+        public_parameters,
+    } = prover_config::initialize(args.hostname, args.port).await?;
 
     // Connect to the Orchestrator with exponential backoff
-    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
+    let mut client: tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
+    > = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
 
-    track(
-        "register".into(),
-        format!("Your assigned prover identifier is {}.", prover_id),
-        &ws_addr_string,
-        json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
-    );
     loop {
-
-
-        let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
-            Ok(message) => message,
-            Err(e) => {
-                eprintln!("Failed to receive program message: {}", e);
-                continue;  // Skip rest of this iteration, try to receive next message
-            }
-        };
+        let program_message =
+            match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
+                Ok(message) => message,
+                Err(e) => {
+                    eprintln!("Failed to receive program message: {}", e);
+                    continue; // Skip rest of this iteration, try to receive next message
+                }
+            };
 
         let program = match ProverResponse::decode(program_message.as_slice()) {
             Ok(program) => program,
@@ -134,7 +105,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                     }),
                 );
                 eprintln!("Failed to decode program message: {}", e);
-                return Err("Decode error".into());     // Exit with error
+                return Err("Decode error".into()); // Exit with error
 
                 // return Err(e.into());
             }
@@ -142,21 +113,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
         let program_enum = program
             .to_prove
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("No program to prove")?              // handle first Option
+            .as_ref() // Borrow instead of move
+            .ok_or("No program to prove")? // handle first Option
             .program
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("Program field is None")?            // handle second Option
+            .as_ref() // Borrow instead of move
+            .ok_or("Program field is None")? // handle second Option
             .program
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("Program inner field is None")?;      // handle third Option
-        
+            .as_ref() // Borrow instead of move
+            .ok_or("Program inner field is None")?; // handle third Option
+
         // Then extract the ELF bytes with proper error handling
         // let elf_bytes = match program_enum {
         //     Program::Rv32iElfBytes(bytes) => bytes
         // };
         let Program::Rv32iElfBytes(elf_bytes) = program_enum;
-
 
         let to_prove = match program.to_prove.clone() {
             Some(to_prove) => to_prove,
@@ -226,14 +196,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             steps_in_trace: total_steps as i32,
             steps_proven: 0,
             step_to_start: start as i32,
-            program_id: String::new(),  // TODO: pass program id
-            client_id_token: String::new(),  // TODO: pass client id token
+            program_id: String::new(),      // TODO: pass program id
+            client_id_token: String::new(), // TODO: pass client id token
             proof_duration_millis: 0,
             proof_speed_hz: 0.0,
         };
 
         // Send with error handling
-        if let Err(e) = client.send(Message::Binary(initial_progress.encode_to_vec())).await {
+        if let Err(e) = client
+            .send(Message::Binary(initial_progress.encode_to_vec()))
+            .await
+        {
             eprintln!("Failed to send progress update: {}", e);
             track(
                 "send_error".into(),
@@ -276,25 +249,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let mut progress_time = start_time;
         for step in start..end {
             // proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
-            proof = prove_seq_step(Some(proof), &public_parameters, &tr).expect("error proving step");
+            proof =
+                prove_seq_step(Some(proof), &public_parameters, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
-  
-            
 
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
-            
+
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
                 steps_proven,
                 step_to_start: start as i32,
-                program_id: String::new(),  // TODO: pass program id
-                client_id_token: String::new(),  // TODO: pass client id token
+                program_id: String::new(),      // TODO: pass program id
+                client_id_token: String::new(), // TODO: pass client id token
                 proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
                 proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
             };
-            
+
             track(
                 "progress".into(),
                 format!(
@@ -343,8 +315,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 proof
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
-                encoder.finish().expect("failed to finish encoder");        
-   
+                encoder.finish().expect("failed to finish encoder");
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
