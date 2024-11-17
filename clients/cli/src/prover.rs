@@ -6,6 +6,7 @@ mod generated;
 mod connection;
 mod prover_id_manager;
 mod websocket; 
+mod prover_config;
 
 
 use crate::analytics::track;
@@ -14,6 +15,7 @@ use crate::websocket::receive_program_message;
 use std::borrow::Cow;
 
 use crate::connection::{connect_to_orchestrator_with_retry};
+use crate::prover_config::ProverConfig;
 
 use clap::Parser;
 use futures::{SinkExt};
@@ -43,7 +45,12 @@ use nexus_core::{
         NexusVM,
     },
     prover::nova::{
-        init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
+        init_circuit_trace, 
+        key::CanonicalSerialize, 
+        pp::gen_vm_pp, 
+        prove_seq_step, 
+        types::{seq, C1, G1, G2, C2, RO, SC, IVCProof}
+        // types::*,
     },
 };
 use zstd::stream::Encoder;
@@ -72,20 +79,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
 
     let args = Args::parse();
 
-    let ws_addr_string = format!(
-        "{}://{}:{}/prove",
-        if args.port == 443 { "wss" } else { "ws" },
+    let ProverConfig { ws_addr_string, k, prover_id } = prover_config::initialize(
         args.hostname,
         args.port
-    );
+    ).await?;
 
-    let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.
     let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
         .expect("error generating public parameters");
 
-    // get or generate the prover id
-    let prover_id = prover_id_manager::get_or_generate_prover_id();
+
 
     track(
         "connect".into(),
@@ -104,9 +107,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
     loop {
-
-        
-
 
 
         let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
