@@ -1,20 +1,17 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
-mod analytics;
 mod config;
-mod connection;
 mod generated;
-mod prover_config;
-mod prover_id_manager;
-mod websocket;
+mod network;
+mod utils;
 
-use crate::analytics::track;
-use crate::websocket::receive_program_message;
+use crate::network::websocket::receive_program_message;
+use crate::utils::analytics::track;
 
 use std::borrow::Cow;
 
-use crate::connection::connect_to_orchestrator_with_retry;
-use crate::prover_config::ProverConfig;
+use crate::config::prover::ProverConfig;
+use crate::network::connection::connect_to_orchestrator_with_retry;
 
 use clap::Parser;
 use futures::SinkExt;
@@ -32,8 +29,8 @@ use tokio_tungstenite::tungstenite::protocol::{
     CloseFrame,               // Frame sent when closing connection (includes code and reason)
     Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
 };
-use tracing_subscriber::fmt::format::FmtSpan;
-use tracing_subscriber::EnvFilter;
+// use tracing_subscriber::fmt::format::FmtSpan;
+// use tracing_subscriber::EnvFilter;
 
 use nexus_core::{
     nvm::{
@@ -61,12 +58,7 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Configure the tracing subscriber
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .with_span_events(FmtSpan::CLOSE)
-        .init();
-
+    // 1. INITIAL SETUP
     let args = Args::parse();
 
     let ProverConfig {
@@ -74,14 +66,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         k,
         prover_id,
         public_parameters,
-    } = prover_config::initialize(args.hostname, args.port).await?;
+    } = config::prover::initialize(args.hostname, args.port).await?;
 
-    // Connect to the Orchestrator with exponential backoff
+    // 2. ESTABLISH WEBSOCKETSCONNECTION TO THE ORCHESTRATOR
     let mut client: tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     > = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
 
+    // Track the connection event
+    track(
+        "connect".into(),
+        format!("Connecting to {}...", &ws_addr_string),
+        &ws_addr_string,
+        json!({"prover_id": prover_id}),
+    );
+
     loop {
+        // 3. RECEIVE AND DECODE PROGRAM MESSAGE
         let program_message =
             match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
                 Ok(message) => message,
@@ -91,6 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             };
 
+        // 4. EXTRACT PROGRAM AND INPUT DATA
         let program = match ProverResponse::decode(program_message.as_slice()) {
             Ok(program) => program,
             Err(e) => {
@@ -170,6 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             json!({"prover_id": prover_id}),
         );
 
+        // 5. INITIALIZE VM AND GENERATE TRACE
         let mut vm: NexusVM<MerkleTrie> =
             parse_elf(elf_bytes.as_ref()).expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
@@ -178,6 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let completed_trace = trace(&mut vm, k as usize, false).expect("error generating trace");
         let tr = init_circuit_trace(completed_trace).expect("error initializing circuit trace");
 
+        // 6. SETUP PROOF PARAMETERS
         let total_steps = tr.steps();
         let start: usize = match to_prove.step_to_start {
             Some(step) => step as usize,
@@ -202,6 +206,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             proof_speed_hz: 0.0,
         };
 
+        // 7. SEND INITIAL PROGRESS UPDATE
         // Send with error handling
         if let Err(e) = client
             .send(Message::Binary(initial_progress.encode_to_vec()))
@@ -321,6 +326,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // TODO(collinjackson): Consider verifying the proof before sending it
         // proof.verify(&public_params, proof.step_num() as _).expect("error verifying execution")
 
+        // 9. CHECK FOR COMPLETION
         if args.just_once {
             break;
         } else {
@@ -328,6 +334,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    // 10. GRACEFUL SHUTDOWN
     client
         .close(Some(CloseFrame {
             code: CloseCode::Normal,

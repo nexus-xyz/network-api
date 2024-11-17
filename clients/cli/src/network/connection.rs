@@ -1,4 +1,4 @@
-use crate::analytics::track;
+use crate::utils::analytics::track;
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -32,12 +32,6 @@ pub async fn connect_to_orchestrator_with_retry(
                     json!({"prover_id": prover_id}),
                 );
 
-                track(
-                    "register".into(),
-                    format!("Your assigned prover identifier is {}.", prover_id),
-                    ws_addr,
-                    json!({"ws_addr": ws_addr, "prover_id": prover_id}),
-                );
                 return client;
             }
             Err(_) => {
