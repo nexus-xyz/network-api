@@ -25,6 +25,7 @@ pub struct ProverConfig {
     pub prover_id: String,
     pub k: i32,
     pub ws_addr_string: String,
+    #[allow(clippy::type_complexity)]
     pub public_parameters:
         PublicParams<G1, G2, C1, C2, RO, SC, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>,
 }
@@ -67,6 +68,7 @@ pub async fn initialize(
     );
 
     // Generate the public parameters for the proving system
+    #[allow(clippy::type_complexity)]
     let public_parameters: PublicParams<
         G1,
         G2,

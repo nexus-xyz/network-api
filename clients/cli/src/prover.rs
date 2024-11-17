@@ -21,7 +21,6 @@ use generated::pb::{
 use prost::Message as _;
 use serde_json::json;
 use std::time::Instant;
-// Network connection types for WebSocket communication
 
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
@@ -29,8 +28,6 @@ use tokio_tungstenite::tungstenite::protocol::{
     CloseFrame,               // Frame sent when closing connection (includes code and reason)
     Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
 };
-// use tracing_subscriber::fmt::format::FmtSpan;
-// use tracing_subscriber::EnvFilter;
 
 use nexus_core::{
     nvm::{

@@ -1,4 +1,4 @@
-use crate::config::general::{analytics_api_key, analytics_id};
+use crate::config::env_config::{analytics_api_key, analytics_id};
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
