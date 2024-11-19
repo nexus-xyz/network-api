@@ -1,13 +1,11 @@
-
 use crate::analytics::track;
 use serde_json::json;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    WebSocketStream,
-    MaybeTlsStream,
-};
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
-pub async fn connect_to_orchestrator(ws_addr: &str) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
+pub async fn connect_to_orchestrator(
+    ws_addr: &str,
+) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
     let (client, _) = tokio_tungstenite::connect_async(ws_addr)
         .await
         .map_err(|e| {
@@ -18,7 +16,10 @@ pub async fn connect_to_orchestrator(ws_addr: &str) -> Result<WebSocketStream<Ma
     Ok(client)
 }
 
-pub async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
+pub async fn connect_to_orchestrator_with_retry(
+    ws_addr: &str,
+    prover_id: &str,
+) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
     let mut attempt = 1;
 
     loop {
@@ -31,17 +32,16 @@ pub async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) 
                     json!({"prover_id": prover_id}),
                 );
                 return client;
-            },
+            }
             Err(_) => {
                 eprintln!(
-                    "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...", 
+                    "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...",
                     attempt,
                     2u64.pow(attempt.min(6)),
                 );
-                
-                tokio::time::sleep(
-                    tokio::time::Duration::from_secs(2u64.pow(attempt.min(6)))
-                ).await;
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(attempt.min(6))))
+                    .await;
 
                 attempt += 1;
             }
@@ -51,7 +51,7 @@ pub async fn connect_to_orchestrator_with_retry(ws_addr: &str, prover_id: &str) 
 
 #[cfg(test)]
 mod tests {
-    use super::connect_to_orchestrator;  // Just the function we're testing
+    use super::connect_to_orchestrator; // Just the function we're testing
     use futures::{SinkExt, StreamExt};
     use tokio::net::TcpListener;
     use tokio_tungstenite::tungstenite::Message;
@@ -67,16 +67,16 @@ mod tests {
         let server_handle = tokio::spawn(async move {
             let (stream, _) = listener.accept().await?;
             let mut ws_stream = tokio_tungstenite::accept_async(stream).await?;
-            
+
             // SinkExt::send is available because of the import above
             ws_stream.send(Message::Text("test".into())).await?;
-            
+
             Ok::<_, Box<dyn std::error::Error + Send + Sync>>(())
         });
 
         // Connect client
         let mut client = connect_to_orchestrator(&ws_addr).await?;
-        
+
         // StreamExt::next is available for receiving
         if let Some(msg) = client.next().await {
             assert_eq!(msg?.into_text()?, "test");
