@@ -10,7 +10,6 @@ mod websocket;
 
 
 use crate::analytics::track;
-use crate::websocket::receive_program_message;
 
 use std::borrow::Cow;
 
@@ -18,10 +17,7 @@ use crate::connection::{connect_to_orchestrator_with_retry};
 
 use clap::Parser;
 use futures::{SinkExt};
-use generated::pb::{
-    compiled_program::Program,
-     ProverResponse, ClientProgramProofRequest,
-};
+use generated::pb::ClientProgramProofRequest;
 use std::time::Instant;
 use prost::Message as _;
 use serde_json::json;
@@ -67,10 +63,10 @@ struct Args {
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
-    let mut f = File::open(&filename).expect("no file found");
-    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+    let mut f = File::open(filename).expect("no file found");
+    let metadata = fs::metadata(filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
-    f.read(&mut buffer).expect("buffer overflow");
+    f.read_exact(&mut buffer).expect("buffer overflow");
 
     buffer
 }
@@ -125,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let input = vec![5, rng.gen::<u8>(),rng.gen::<u8>()];
 
         let mut vm: NexusVM<MerkleTrie> =
-            parse_elf(get_file_as_byte_vec("src/generated/fast-fib".into()).as_ref()).expect("error loading and parsing RISC-V instruction");
+            parse_elf(get_file_as_byte_vec("src/generated/fast-fib").as_ref()).expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
 
         // TODO(collinjackson): Get outputs

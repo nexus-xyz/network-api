@@ -21,44 +21,6 @@ use tokio_tungstenite::tungstenite::protocol::{
 use futures::StreamExt;
 
 
-pub async fn receive_program_message(
-    client: &mut WebSocketStream<MaybeTlsStream<TcpStream>>,
-    ws_addr: &str,
-    prover_id: &str,
-) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
-    match client.next().await {
-         // Stream has ended (connection closed)
-        None => {
-            Err("WebSocket connection closed unexpectedly".into())
-        },
-        Some(Ok(Message::Binary(bytes))) => Ok(bytes),
-        Some(Ok(other)) => {
-            track(
-                "unexpected_message".into(),
-                "Unexpected message type".into(),
-                ws_addr,
-                json!({ 
-                    "prover_id": prover_id,
-                    "message_type": format!("{:?}", other) 
-                }),
-            );
-            Err("Unexpected message type".into())
-        },
-        Some(Err(e)) => {
-            track(
-                "websocket_error".into(),
-                format!("WebSocket error: {}", e),
-                ws_addr,
-                json!({
-                    "prover_id": prover_id,
-                    "error": e.to_string(),
-                }),
-            );
-            Err(format!("WebSocket error: {}", e).into())
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
