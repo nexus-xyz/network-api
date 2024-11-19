@@ -1,4 +1,4 @@
-use crate::config::{analytics_id, analytics_api_key};
+use crate::config::{analytics_api_key, analytics_id};
 use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
@@ -25,13 +25,12 @@ pub fn track(
 
     // For tracking events, we use the Firebase Measurement Protocol
     // Firebase is mostly designed for mobile and web apps, but for our use case of a CLI,
-    // we can use the Measurement Protocol to track events by POST to a URL. 
+    // we can use the Measurement Protocol to track events by POST to a URL.
     // The only thing that may be unexpected is that the URL we use includes a firebase key
 
-    // Firebase format for properties for Measurement protocol: 
+    // Firebase format for properties for Measurement protocol:
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload
     // https://developers.google.com/analytics/devguides/collection/protocol/ga4/reference?client_type=firebase#payload_query_parameters
-    
 
     let system_time = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -43,15 +42,15 @@ pub fn track(
 
     let timezone = iana_time_zone::get_timezone().ok().map_or_else(
         || String::from("UTC"), // fallback to UTC
-        |tz| tz
+        |tz| tz,
     );
-    
+
     let mut properties = json!({
         "time": system_time,
         // app_instance_id is the standard key Firebase uses this key to track the same user across sessions
         // It is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
         // I still left the distinct_id key as well for backwards compatibility
-        "app_instance_id": event_properties["prover_id"],  
+        "app_instance_id": event_properties["prover_id"],
         "distinct_id": event_properties["prover_id"],
         "prover_type": "volunteer",
         "client_type": "cli",
@@ -65,13 +64,13 @@ pub fn track(
     // Add event properties to the properties JSON
     // This is done by iterating over the key-value pairs in the event_properties JSON object
     // but checking that it is a valid JSON object first
-    match event_properties.as_object() {   
+    match event_properties.as_object() {
         Some(obj) => {
             for (k, v) in obj {
                 properties[k] = v.clone();
             }
-        },
-        None => eprintln!("Warning: event_properties is not a valid JSON object")
+        }
+        None => eprintln!("Warning: event_properties is not a valid JSON object"),
     }
 
     // Firebase format for events
@@ -88,8 +87,7 @@ pub fn track(
 
         let url = format!(
             "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
-            firebase_app_id,
-            firebase_api_key
+            firebase_app_id, firebase_api_key
         );
 
         match client
@@ -100,26 +98,19 @@ pub fn track(
             .send()
             .await
         {
-            Ok(response) => {
-                match response.text().await {
-                    Ok(_) => {
-                        
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "Failed to read analytics response for event '{}': {}", 
-                            event_name, 
-                            e
-                        );
-                    }
+            Ok(response) => match response.text().await {
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!(
+                        "Failed to read analytics response for event '{}': {}",
+                        event_name, e
+                    );
                 }
-            }
+            },
             Err(e) => {
                 eprintln!(
-                    "Failed to send analytics request for event '{}' to {}: {}", 
-                    event_name,
-                    url,
-                    e
+                    "Failed to send analytics request for event '{}' to {}: {}",
+                    event_name, url, e
                 );
             }
         }

@@ -2,36 +2,33 @@
 
 mod analytics;
 mod config;
-mod generated;
 mod connection;
+mod generated;
 mod prover_id_manager;
-mod websocket; 
-
-
+mod websocket;
 
 use crate::analytics::track;
 
 use std::borrow::Cow;
 
-use crate::connection::{connect_to_orchestrator_with_retry};
+use crate::connection::connect_to_orchestrator_with_retry;
 
 use clap::Parser;
-use futures::{SinkExt};
+use futures::SinkExt;
 use generated::pb::ClientProgramProofRequest;
-use std::time::Instant;
 use prost::Message as _;
 use serde_json::json;
+use std::time::Instant;
 // Network connection types for WebSocket communication
 
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
-    frame::coding::CloseCode,  // Status codes for connection closure (e.g., 1000 for normal)
+    frame::coding::CloseCode, // Status codes for connection closure (e.g., 1000 for normal)
     CloseFrame,               // Frame sent when closing connection (includes code and reason)
     Message,                  // Different types of WebSocket messages (Binary, Text, Ping, etc.)
 };
 use tracing_subscriber::fmt::format::FmtSpan;
 use tracing_subscriber::EnvFilter;
-
 
 use nexus_core::{
     nvm::{
@@ -43,10 +40,10 @@ use nexus_core::{
         init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
     },
 };
-use zstd::stream::Encoder;
-use std::fs::File;
 use std::fs;
+use std::fs::File;
 use std::io::Read;
+use zstd::stream::Encoder;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -72,7 +69,7 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>>{
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -104,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     );
 
     // Connect to the Orchestrator with exponential backoff
-    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;    
+    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
 
     track(
         "register".into(),
@@ -113,15 +110,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
     loop {
-
-
         // Create the inputs for the program
-        use rand::Rng;  // Required for .gen() methods
+        use rand::Rng; // Required for .gen() methods
         let mut rng = rand::thread_rng();
-        let input = vec![5, rng.gen::<u8>(),rng.gen::<u8>()];
+        let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
         let mut vm: NexusVM<MerkleTrie> =
-            parse_elf(get_file_as_byte_vec("src/generated/fast-fib").as_ref()).expect("error loading and parsing RISC-V instruction");
+            parse_elf(get_file_as_byte_vec("src/generated/fast-fib").as_ref())
+                .expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
 
         // TODO(collinjackson): Get outputs
@@ -140,14 +136,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             steps_in_trace: total_steps as i32,
             steps_proven: 0,
             step_to_start: start as i32,
-            program_id: String::new(),  // TODO: pass program id
-            client_id_token: String::new(),  // TODO: pass client id token
+            program_id: String::new(),      // TODO: pass program id
+            client_id_token: String::new(), // TODO: pass client id token
             proof_duration_millis: 0,
             proof_speed_hz: 0.0,
         };
 
         // Send with error handling
-        if let Err(e) = client.send(Message::Binary(initial_progress.encode_to_vec())).await {
+        if let Err(e) = client
+            .send(Message::Binary(initial_progress.encode_to_vec()))
+            .await
+        {
             eprintln!("Failed to send progress update: {}", e);
             track(
                 "send_error".into(),
@@ -192,22 +191,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
-  
-            
 
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
-            
+
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
                 steps_proven,
                 step_to_start: start as i32,
-                program_id: String::new(),  // TODO: pass program id
-                client_id_token: String::new(),  // TODO: pass client id token
+                program_id: String::new(),      // TODO: pass program id
+                client_id_token: String::new(), // TODO: pass client id token
                 proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
                 proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
             };
-            
+
             track(
                 "progress".into(),
                 format!(
@@ -256,8 +253,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
                 proof
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
-                encoder.finish().expect("failed to finish encoder");        
-   
+                encoder.finish().expect("failed to finish encoder");
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
