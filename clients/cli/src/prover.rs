@@ -8,6 +8,7 @@ mod prover_id_manager;
 mod websocket; 
 
 
+
 use crate::analytics::track;
 use crate::websocket::receive_program_message;
 
@@ -47,6 +48,9 @@ use nexus_core::{
     },
 };
 use zstd::stream::Encoder;
+use std::fs::File;
+use std::fs;
+use std::io::Read;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -60,6 +64,15 @@ struct Args {
     /// Whether to hang up after the first proof
     #[arg(short, long, default_value_t = false)]
     just_once: bool,
+}
+
+fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
+    let mut f = File::open(&filename).expect("no file found");
+    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer).expect("buffer overflow");
+
+    buffer
 }
 
 #[tokio::main]
@@ -105,92 +118,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
     );
     loop {
 
-        
-
-
-
-        let program_message = match receive_program_message(&mut client, &ws_addr_string, &prover_id).await {
-            Ok(message) => message,
-            Err(e) => {
-                eprintln!("Failed to receive program message: {}", e);
-                continue;  // Skip rest of this iteration, try to receive next message
-            }
-        };
-
-        let program = match ProverResponse::decode(program_message.as_slice()) {
-            Ok(program) => program,
-            Err(e) => {
-                track(
-                    "decode_error".into(),
-                    format!("Failed to decode prover response: {}", e),
-                    &ws_addr_string,
-                    json!({
-                        "prover_id": &prover_id,
-                        "error": e.to_string(),
-                        "message_size": program_message.len(),
-                    }),
-                );
-                eprintln!("Failed to decode program message: {}", e);
-                return Err("Decode error".into());     // Exit with error
-
-                // return Err(e.into());
-            }
-        };
-
-        let program_enum = program
-            .to_prove
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("No program to prove")?              // handle first Option
-            .program
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("Program field is None")?            // handle second Option
-            .program
-            .as_ref()                                   // Borrow instead of move
-            .ok_or("Program inner field is None")?;      // handle third Option
-        
-        // Then extract the ELF bytes with proper error handling
-        // let elf_bytes = match program_enum {
-        //     Program::Rv32iElfBytes(bytes) => bytes
-        // };
-        let Program::Rv32iElfBytes(elf_bytes) = program_enum;
-
-
-        let to_prove = match program.to_prove.clone() {
-            Some(to_prove) => to_prove,
-            None => {
-                // Log the error
-                track(
-                    "program_error".into(),
-                    "No program to prove".into(),
-                    &ws_addr_string,
-                    json!({
-                        "prover_id": &prover_id,
-                        "error": "to_prove is None"
-                    }),
-                );
-                // Return error instead of panicking
-                return Err("No program to prove".into());
-            }
-        };
 
         // Create the inputs for the program
         use rand::Rng;  // Required for .gen() methods
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(),rng.gen::<u8>()];
 
-        track(
-            "program".into(),
-            format!(
-                "Received a {} byte program to prove with {} bytes of input",
-                elf_bytes.len(),
-                input.len()
-            ),
-            &ws_addr_string,
-            json!({"prover_id": prover_id}),
-        );
-
         let mut vm: NexusVM<MerkleTrie> =
-            parse_elf(elf_bytes.as_ref()).expect("error loading and parsing RISC-V instruction");
+            parse_elf(get_file_as_byte_vec("src/generated/fast-fib".into()).as_ref()).expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
 
         // TODO(collinjackson): Get outputs
@@ -198,14 +133,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>>{
         let tr = init_circuit_trace(completed_trace).expect("error initializing circuit trace");
 
         let total_steps = tr.steps();
-        let start: usize = match to_prove.step_to_start {
-            Some(step) => step as usize,
-            None => 0,
-        };
-        let steps_to_prove = match to_prove.steps_to_prove {
-            Some(steps) => steps as usize,
-            None => total_steps,
-        };
+        let start = 0;
+        let steps_to_prove = 10;
         let mut end: usize = start + steps_to_prove;
         if end > total_steps {
             end = total_steps
