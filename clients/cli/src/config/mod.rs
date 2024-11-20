@@ -1,7 +1,7 @@
 //! Configuration management for the application.
 //!
 //! This module handles various configuration aspects:
-//! * `env_config` - General application settings
+//! * `environment` - Environment-specific configuration (analytics, web socket URLs)
 //! * `prover` - Prover-specific configuration and identity management
 
 pub mod environment;

@@ -1,3 +1,13 @@
+//! Environment-specific configuration management.
+//!
+//! This module handles configuration that varies by environment (dev/staging/beta),
+//! including:
+//! * Analytics identifiers and API keys
+//! * WebSocket connection URLs
+//! * Firebase configuration
+//!
+//! In debug builds, these values are stubbed out for development purposes.
+
 // Debug version of analytics_id
 #[cfg(debug_assertions)]
 pub fn analytics_id(_ws_addr_string: &str) -> String {

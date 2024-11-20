@@ -89,8 +89,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         public_parameters,
     } = config::prover::initialize(args.hostname, args.port).await?;
 
+    // 2. ESTABLISH WEBSOCKETSCONNECTION TO THE ORCHESTRATOR
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
+
+    track(
+        "connect".into(),
+        format!("Connecting to {}...", &ws_addr_string),
+        &ws_addr_string,
+        json!({"prover_id": prover_id}),
+    );
 
     loop {
         // Create the inputs for the program

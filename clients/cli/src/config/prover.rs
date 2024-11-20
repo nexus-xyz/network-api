@@ -1,3 +1,6 @@
+// This file is used to initialize the prover and maintain connection settings
+// throughout the proving lifecycle.
+
 use crate::utils::analytics::track;
 use crate::utils::prover_id::get_or_generate_prover_id;
 
@@ -56,13 +59,6 @@ pub async fn initialize(
     // Retrieve an existing prover ID from storage or generate a new one
     // This ID uniquely identifies this prover instance
     let prover_id = get_or_generate_prover_id();
-
-    track(
-        "connect".into(),
-        format!("Connecting to {}...", &ws_addr_string),
-        &ws_addr_string,
-        json!({"prover_id": prover_id}),
-    );
 
     // Track the registration event
     track(
