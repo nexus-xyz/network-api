@@ -1,7 +1,7 @@
-# Nexus Network CLI
+# network-api
 
-A high-performance command-line interface for contributing proofs to the Nexus network.
-
+This repository contains the Nexus network command-line interface and
+the interface it uses to communicate with Nexus servers.
 
 <figure>
     <a href="https://beta.nexus.xyz/">
