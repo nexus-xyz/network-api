@@ -1,144 +1,106 @@
-// Copyright (c) 2024 Nexus. All rights reserved.
-//
-// If you use this protocol to communicate with Nexus's servers,
-// you must agree to the Terms of Service: https://nexus.xyz/tos
-
 syntax = "proto3";
 
 package nexus.orchestrator;
 
-message ClientProgramProofRequest {
-  // The number of steps in the trace.
-  int32 steps_in_trace = 1;
+service Orchestrator {
+  // Request a proof for a program.
+  rpc RequestProof(ProofRequest) returns (ProofResponse) {}
 
-  // The number of steps in the proof.
-  // 
-  // Clients may batch up several proofs and report
-  // progress this way.
-  int32 steps_proven = 2;
+  // Compile a Rust program to an ELF binary for use by clients that don't
+  // support compiling programs themselves.
+  rpc Compile(CompileRequest) returns (CompileResponse) {}
 
-  // The step where the proof started.
-  int32 step_to_start = 3;
-
-  // A unique string identifier for the 
-  // program being proved.
-  string program_id = 4;
-
-  // Authentication token for client id.
-  optional string client_id_token = 5;
-
-  // Duration of the proof in milliseconds.
-  int32 proof_duration_millis = 6;
-
-  // Network that this proof is intended for.
-  Network network = 7;
-
-  // Number of cycles per step.
-  int32 k = 8;
-
-  // Prover ID for CLI provers
-  optional string cli_prover_id = 9;
+  // Register a supply node with the network of compute governed by the
+  // orchestrator.
+  rpc AddProver(stream ProverRequest) returns (stream ProverResponse) {}
 }
 
-message ClientProgramProofResponse {
+message ProofRequest {
+  CompiledProgram program = 1;
+
+  VMProgramInput input = 2;
 }
 
-enum Network {
-  // Experimental new network types should leave the network unspecified.
-  NETWORK_UNSPECIFIED = 0;
-
-  // A open "playground" for those looking to experience the Nexus protocol
-  // as a proof requestor, prover, app developer, or validator.
-  NETWORK_DEVNET = 1;
-
-  // Environment where recent releases undergo intermittent stress tests
-  // that focus on network performance, stability, and the behavior of
-  // network provers.
-  NETWORK_TESTNET = 2;
-
-  // Reserved for future use.
-  NETWORK_MAINNET = 3;
+message ProofResponse {
+  Proof proof = 1;
 }
 
-// Send a request to the orchestrator backend to request the current leaderboard.
-message LeaderboardRequest {
-  int32 offset = 1; // The offset of the leaderboard to request.
-  int32 limit = 2; // The number of entries to request.
-}
-
-// The response to a leaderboard request.
-message LeaderboardResponse {
-  repeated LeaderboardResponseEntry leaderboard = 1;
-}
-
-// An entry in the leaderboard.
-message LeaderboardResponseEntry {
-  string client_id = 1;
-  int64 total_cycles = 3;
-  double cycles_per_sec = 4;
-  int64 rank = 5;
-}
-
-// Request for the proof speed of the network.
-message NetworkSpeedRequest {
-  // empty because network speed is a global state, no request body
-}
-
-// Response to a network speed request.
-message NetworkSpeedResponse {
-  // The proof speed of the network in cycles per second.
-  double network_cycles_per_sec = 1;
-}
-
-// Request for the total number of cycles proved by the network.
-message TotalCyclesRequest {
-  // empty because total cycles is a global state, no request body
-}
-
-// Response to a total cycles request.
-message TotalCyclesResponse {
-  // The total number of cycles proved by the network.
-  int64 total_cycles_proved = 1;
-}
-
-// Message from client to request the number of cycles proved by a user
-message UserCyclesProvedRequest {
-  // List of all firebase IDs associated with a given email.
-  // This is authenticated through Firebase Admin SDK on the client side
-  // and then passed to the orchestrator backend
-  repeated string client_ids = 1;
-}
-
-// Response to a user cycles proved request.
-message UserCyclesProvedResponse {
-  // The total number of cycles proved by the requesting user.
-  int64 cycles_proved = 1;
-}
-
-// Message from client to request data
-message ClientDataRequest {
-  oneof message {
-    // Request for the proof speed of the network.
-    NetworkSpeedRequest network_speed = 1;
-    // Request for the leaderboard.
-    LeaderboardRequest leaderboard = 2;
-    // Request for the total number of cycles proved by the network.
-    TotalCyclesRequest total_cycles = 3;
-    // Request for the total number of cycles proved by a user.
-    UserCyclesProvedRequest user_cycles_proved = 4;
+// A message that always represents a program runnable on the Nexus VM.
+message CompiledProgram {
+  oneof program {
+    // ELF binary containing a program to be proved, expressed in the RV32I ISA.
+    bytes rv32i_elf_bytes = 1;
   }
 }
 
-// Message returned to client with requested data
-message ClientDataResponse {
-  oneof message {
-    // Response for the proof speed of the network.
-    NetworkSpeedResponse network_speed = 1;
-    // Response for the leaderboard.
-    LeaderboardResponse leaderboard = 2;
-    // Response for the total number of cycles proved by the network.
-    TotalCyclesResponse total_cycles = 3;
-    // Response for the total number of cycles proved by a user.
-    UserCyclesProvedResponse user_cycles_proved = 4;
+message VMProgramInput {
+  oneof input {
+    // Input expressed as raw bytes to be read as-is off of the input tape.
+    bytes raw_bytes = 1;
   }
+}
+
+message Proof {
+  oneof proof {
+    bytes nova_bytes = 1;
+  }
+}
+
+message ProgramSource {
+  // The source code to be compiled. There will be a variety of languages and
+  // ways to express everything a program needs for compilation (dependencies,
+  // multiple files, etc.) as our scope expands.
+  oneof source {
+    // Option to use when the program in question can be expressed as a single
+    // rust file (i.e., a program written in the playground).
+    string rust_single_file = 1;
+  }
+}
+
+message CompileRequest {
+  ProgramSource source = 1;
+}
+
+message CompileResponse {
+  CompiledProgram program = 1;
+}
+
+// Streamed messages sent to the orchestrator to keep it updated with the
+// prover's status.
+message ProverRequest {
+  oneof contents {
+    // Details about this supply node for use by the orchestrator.
+    ProverRequestRegistration registration = 1;
+
+    // A completed proof.
+    Proof proof = 2;
+
+    // Periodic progress update for the current proof. This is currently
+    // expected to be a number between zero and one, inclusive. In the future,
+    // we can deprecate this or augment it with more info.
+    float progress = 3;
+
+    // Periodic liveness indicator when no proof is being computed.
+    Heartbeat heartbeat = 4;
+  }
+}
+
+enum ProverType {
+  PROVER_TYPE_UNSPECIFIED = 0;
+  PROVER_TYPE_VOLUNTEER = 1;
+}
+
+// Metadata that helps the orchestrator schedule work to the requesting compute
+// supplier.
+message ProverRequestRegistration {
+  // What type of prover this is. For now, we only have volunteers.
+  ProverType prover_type = 1;
+}
+
+message ProverResponse {
+  // Forward the literal request for now
+  ProofRequest to_prove = 1;
+}
+
+message Heartbeat {
 }
