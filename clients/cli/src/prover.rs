@@ -81,7 +81,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
-    // 1. INITIAL SETUP
     let args = Args::parse();
 
     let ProverConfig {
@@ -176,11 +175,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 steps_in_trace: total_steps as i32,
                 steps_proven,
                 step_to_start: start as i32,
-                proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
+                proof_duration_millis: progress_duration.as_millis() as i32,
                 k,
                 cli_prover_id: Some(prover_id.clone()),
                 network: 0,
-                // proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
             };
