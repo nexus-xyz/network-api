@@ -1,78 +1,59 @@
-# Nexus Network CLI Implementation
+# Network CLI
 
-This directory contains the implementation of the Nexus Network CLI prover node. For installation and usage instructions, see the [main README](../../README.md).
+The command line interface (CLI) lets you run a prover node and contribute proofs to the Nexus network.
+It is the highest-performance option for proving.
 
-## Development Setup
+## Prerequisites
 
-1. Ensure you have Rust installed:
-```bash
-rustup update stable
-```
+If you don't have these dependencies already, install them first.
 
-2. Build the CLI:
-```bash
-cargo build
-```
-
-3. Run tests:
-```bash
-cargo test
-```
-
-## Project Structure
+### Linux
 
 ```
-cli/
-├── src/
-│   ├── main.rs          # Entry point
-│   ├── prover.rs        # Prover implementation
-│   ├── config.rs        # Configuration handling
-│   └── network.rs       # Network communication
-├── tests/               # Integration tests
-└── examples/            # Usage examples
+sudo apt update
+sudo apt upgrade
+sudo apt install build-essential pkg-config libssl-dev git-all
 ```
 
-## Architecture
+### macOS
 
-The CLI is built around these core components:
-- Prover: Handles proof generation and validation
-- Network Interface: Manages communication with the Nexus network
-- Configuration: Handles user settings and environment setup
+If you have [installed Homebrew](https://brew.sh/) to manage packages on OS X,
+run this command to install Git.
 
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Run tests (`cargo test`)
-4. Commit your changes (`git commit -m 'Add amazing feature'`)
-5. Push to the branch (`git push origin feature/amazing-feature`)
-6. Open a Pull Request
-
-## Local Development
-
-To run the CLI locally:
-```bash
-cargo run -- --help
+```
+brew install git
 ```
 
-For development with local network:
-```bash
-cargo run -- --dev-mode
+### Windows
+
+[Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install),
+then see Linux instructions above.
+
+## Quick start
+
+```
+curl https://cli.nexus.xyz/ | sh
 ```
 
-## Testing
+If you do not already have Rust, you will be prompted to install it.
 
-```bash
-# Run all tests
-cargo test
+## Terms of Use
 
-# Run specific test suite
-cargo test prover
+Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use).
+The first time you run it, it prompts you to accept the terms. To accept the terms
+noninteractively (for example, in a continuous integration environment),
+add `NONINTERACTIVE=1` before `sh`.
 
-# Run with logging
-RUST_LOG=debug cargo test
-```
+## Known issues
 
-## License
+* Only the latest version of the CLI is currently supported.
+* Prebuilt binaries are not yet available.
+* Linking email to prover id is currently available on the web version only.
+* Counting cycles proved is not yet available in the CLI.
+* Only proving is supported. Submitting programs to the network is in private beta.
+To request an API key, contact us at growth@nexus.xyz.
 
-See [LICENSE](../../LICENSE) file in the root directory.
+## Resources
+
+* [Network FAQ](https://nexus.xyz/network#network-faqs)
+* [Discord server](https://discord.gg/nexus-xyz)

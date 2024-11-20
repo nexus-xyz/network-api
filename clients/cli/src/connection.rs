@@ -1,4 +1,4 @@
-use crate::utils::analytics::track;
+use crate::analytics::track;
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
