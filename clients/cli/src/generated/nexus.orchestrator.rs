@@ -19,42 +19,24 @@ pub struct ClientProgramProofRequest {
     #[prost(string, tag = "4")]
     pub program_id: ::prost::alloc::string::String,
     /// Authentication token for client id.
-    #[prost(string, tag = "5")]
-    pub client_id_token: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "5")]
+    pub client_id_token: ::core::option::Option<::prost::alloc::string::String>,
     /// Duration of the proof in milliseconds.
     #[prost(int32, tag = "6")]
     pub proof_duration_millis: i32,
-    /// Speed of the proof in cycles per second.
-    #[prost(float, tag = "7")]
-    pub proof_speed_hz: f32,
+    /// Network that this proof is intended for.
+    #[prost(enumeration = "Network", tag = "7")]
+    pub network: i32,
+    /// Number of cycles per step.
+    #[prost(int32, tag = "8")]
+    pub k: i32,
+    /// Prover ID for CLI provers
+    #[prost(string, optional, tag = "9")]
+    pub cli_prover_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ClientProgramProofResponse {}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProofRequest {
-    #[prost(message, optional, tag = "1")]
-    pub program: ::core::option::Option<CompiledProgram>,
-    #[prost(message, optional, tag = "2")]
-    pub input: ::core::option::Option<VmProgramInput>,
-    /// Step of the trace to start the proof, inclusive.
-    ///
-    /// If missing, proving starts at the beginning of the trace.
-    #[prost(int32, optional, tag = "3")]
-    pub step_to_start: ::core::option::Option<i32>,
-    /// Number of steps for this proof request.
-    ///
-    /// If zero, proving is skipped. If missing, all steps are proved.
-    #[prost(int32, optional, tag = "4")]
-    pub steps_to_prove: ::core::option::Option<i32>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProofResponse {
-    #[prost(message, optional, tag = "1")]
-    pub proof: ::core::option::Option<Proof>,
-}
 /// Send a request to the orchestrator backend to request the current leaderboard.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -79,8 +61,6 @@ pub struct LeaderboardResponse {
 pub struct LeaderboardResponseEntry {
     #[prost(string, tag = "1")]
     pub client_id: ::prost::alloc::string::String,
-    #[prost(int64, tag = "2")]
-    pub prover_id: i64,
     #[prost(int64, tag = "3")]
     pub total_cycles: i64,
     #[prost(double, tag = "4")]
@@ -186,129 +166,6 @@ pub mod client_data_response {
         UserCyclesProved(super::UserCyclesProvedResponse),
     }
 }
-/// A message that always represents a program runnable on the Nexus VM.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CompiledProgram {
-    #[prost(oneof = "compiled_program::Program", tags = "1")]
-    pub program: ::core::option::Option<compiled_program::Program>,
-}
-/// Nested message and enum types in `CompiledProgram`.
-pub mod compiled_program {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Program {
-        /// ELF binary containing a program to be proved, expressed in the RV32I ISA.
-        #[prost(bytes, tag = "1")]
-        Rv32iElfBytes(::prost::alloc::vec::Vec<u8>),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct VmProgramInput {
-    #[prost(oneof = "vm_program_input::Input", tags = "1")]
-    pub input: ::core::option::Option<vm_program_input::Input>,
-}
-/// Nested message and enum types in `VMProgramInput`.
-pub mod vm_program_input {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Input {
-        /// Input expressed as raw bytes to be read as-is off of the input tape.
-        #[prost(bytes, tag = "1")]
-        RawBytes(::prost::alloc::vec::Vec<u8>),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Proof {
-    #[prost(oneof = "proof::Proof", tags = "1")]
-    pub proof: ::core::option::Option<proof::Proof>,
-}
-/// Nested message and enum types in `Proof`.
-pub mod proof {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Proof {
-        #[prost(bytes, tag = "1")]
-        NovaBytes(::prost::alloc::vec::Vec<u8>),
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Progress {
-    /// Completion status expressed as a number between zero and one,
-    /// inclusive.
-    #[prost(float, tag = "1")]
-    pub completed_fraction: f32,
-    /// The total size of the execution trace in steps.
-    #[prost(int32, tag = "2")]
-    pub steps_in_trace: i32,
-    /// The number of steps of the execution trace to be proven.
-    #[prost(int32, tag = "3")]
-    pub steps_to_prove: i32,
-    /// The number of steps proven so far.
-    #[prost(int32, tag = "4")]
-    pub steps_proven: i32,
-}
-/// Streamed messages sent to the orchestrator to keep it updated with the
-/// prover's status.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProverRequest {
-    #[prost(oneof = "prover_request::Contents", tags = "1, 2, 3, 4")]
-    pub contents: ::core::option::Option<prover_request::Contents>,
-}
-/// Nested message and enum types in `ProverRequest`.
-pub mod prover_request {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Oneof)]
-    pub enum Contents {
-        /// Details about this supply node for use by the orchestrator.
-        #[prost(message, tag = "1")]
-        Registration(super::ProverRequestRegistration),
-        /// A completed proof.
-        #[prost(message, tag = "2")]
-        Proof(super::Proof),
-        /// Periodic progress update for the current proof.
-        #[prost(message, tag = "3")]
-        Progress(super::Progress),
-        /// Periodic liveness indicator when no proof is being computed.
-        #[prost(message, tag = "4")]
-        Heartbeat(super::Heartbeat),
-    }
-}
-/// Metadata that helps the orchestrator schedule work to the requesting compute
-/// supplier.
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProverRequestRegistration {
-    /// What type of prover this is.
-    #[prost(enumeration = "ProverType", tag = "1")]
-    pub prover_type: i32,
-    /// A unique identifier for this prover, generated by the prover.
-    ///
-    /// Distinct provers must not share an identifier; do not use a constant value.
-    #[prost(string, tag = "2")]
-    pub prover_id: ::prost::alloc::string::String,
-    /// The number of proof cycles that this prover expects to compute
-    /// over the course of one second. Proof cycles are proof steps times k.
-    #[prost(double, optional, tag = "3")]
-    pub estimated_proof_cycles_hertz: ::core::option::Option<f64>,
-    /// The network to prove on.
-    #[prost(enumeration = "Network", tag = "4")]
-    pub network: i32,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProverResponse {
-    /// Forward the literal request for now
-    #[prost(message, optional, tag = "1")]
-    pub to_prove: ::core::option::Option<ProofRequest>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Heartbeat {}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum Network {
@@ -344,39 +201,6 @@ impl Network {
             "NETWORK_DEVNET" => Some(Self::Devnet),
             "NETWORK_TESTNET" => Some(Self::Testnet),
             "NETWORK_MAINNET" => Some(Self::Mainnet),
-            _ => None,
-        }
-    }
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
-pub enum ProverType {
-    /// Experimental new prover types should leave the prover type unspecified.
-    Unspecified = 0,
-    /// The default prover type, used for volunteered compute resources.
-    Volunteer = 1,
-    /// Provers running on public continuous integration.
-    /// May restrict the types of programs that can be assigned.
-    Ci = 2,
-}
-impl ProverType {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            ProverType::Unspecified => "PROVER_TYPE_UNSPECIFIED",
-            ProverType::Volunteer => "PROVER_TYPE_VOLUNTEER",
-            ProverType::Ci => "PROVER_TYPE_CI",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "PROVER_TYPE_UNSPECIFIED" => Some(Self::Unspecified),
-            "PROVER_TYPE_VOLUNTEER" => Some(Self::Volunteer),
-            "PROVER_TYPE_CI" => Some(Self::Ci),
             _ => None,
         }
     }

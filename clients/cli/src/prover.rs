@@ -136,10 +136,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             steps_in_trace: total_steps as i32,
             steps_proven: 0,
             step_to_start: start as i32,
-            program_id: String::new(),      // TODO: pass program id
-            client_id_token: String::new(), // TODO: pass client id token
+            program_id: String::new(), // TODO: pass program id
+            client_id_token: None,     // TODO: pass client id token
             proof_duration_millis: 0,
-            proof_speed_hz: 0.0,
+            k: k as i32,
+            cli_prover_id: Some(prover_id.clone()),
+            network: 0,
         };
 
         // Send with error handling
@@ -200,10 +202,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 steps_in_trace: total_steps as i32,
                 steps_proven,
                 step_to_start: start as i32,
-                program_id: String::new(),      // TODO: pass program id
-                client_id_token: String::new(), // TODO: pass client id token
+                program_id: String::new(), // TODO: pass program id
+                client_id_token: None,     // TODO: pass client id token
                 proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
-                proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
+                k: k as i32,
+                cli_prover_id: Some(prover_id.clone()),
+                network: 0,
+                // proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
             };
 
             track(
