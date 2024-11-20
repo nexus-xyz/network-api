@@ -4,7 +4,9 @@ A high-performance command-line interface for contributing proofs to the Nexus n
 
 
 <figure>
-    <img src="assets/images/nexus-network-image.png" alt="Nexus Network visualization showing a distributed network of interconnected nodes with a 'Launch Network' button in the center">
+    <a href="https://beta.nexus.xyz/">
+        <img src="assets/images/nexus-network-image.png" alt="Nexus Network visualization showing a distributed network of interconnected nodes with a 'Launch Network' button in the center">
+    </a>
     <figcaption>
         <strong>Verifiable Computation on a Global Scale</strong><br>
         We're building a global distributed prover network to unite the world's computers and power a new and better Internet: the Verifiable Internet. Connect to the beta and give it a try today.
