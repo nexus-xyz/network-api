@@ -184,7 +184,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // proof_speed_hz: proof_cycles_hertz as f32, //TODO: find proof_cycles_hertz
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
-                k,
             };
 
             track(
