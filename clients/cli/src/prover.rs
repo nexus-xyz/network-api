@@ -170,7 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step_to_start: start as i32,
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
-                proof_duration_millis: progress_duration.as_millis() as i32, // TODO: find proof_duration_millis
+                proof_duration_millis: progress_duration.as_millis() as i32,
                 k,
                 cli_prover_id: Some(prover_id.clone()),
             };
