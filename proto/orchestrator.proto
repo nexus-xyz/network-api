@@ -25,13 +25,16 @@ message ClientProgramProofRequest {
   string program_id = 4;
 
   // Authentication token for client id.
-  string client_id_token = 5;
+  optional string client_id_token = 5;
 
   // Duration of the proof in milliseconds.
   int32 proof_duration_millis = 6;
 
-  // Speed of the proof in cycles per second.
-  float proof_speed_hz = 7;
+  // Number of cycles per step.
+  int32 k = 7;
+
+  // Prover ID for CLI provers
+  optional string cli_prover_id = 8;
 }
 
 message ClientProgramProofResponse {
