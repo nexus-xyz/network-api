@@ -110,20 +110,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Continuously receive programs, generate and send proofs
     //
     loop {
-        // Create the inputs for the program
-        use rand::Rng; // Required for .gen() methods
+        // Generate random input data for the program
+        use rand::Rng;
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
+        // Initialize the Nexus Virtual Machine with the program (fast-fib)
+        // and set its input parameters
         let mut vm: NexusVM<MerkleTrie> =
             parse_elf(get_file_as_byte_vec("src/generated/fast-fib").as_ref())
                 .expect("error loading and parsing RISC-V instruction");
         vm.syscalls.set_input(&input);
 
         // TODO(collinjackson): Get outputs
+        // Generate execution trace of the program
         let completed_trace = trace(&mut vm, k as usize, false).expect("error generating trace");
         let tr = init_circuit_trace(completed_trace).expect("error initializing circuit trace");
 
+        // Configure proving parameters
         let total_steps = tr.steps();
         let start = 0;
         let steps_to_prove = 10;
@@ -132,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             end = total_steps
         }
 
+        // Send initial progress update to orchestrator
         let initial_progress = ClientProgramProofRequest {
             steps_in_trace: total_steps as i32,
             steps_proven: 0,
@@ -165,6 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             // 3. Continue with next operation
         }
 
+        // Initialize the proof with starting state
         let z_st = tr.input(start).expect("error starting circuit trace");
         let mut proof = IVCProof::new(&z_st);
 
@@ -190,14 +196,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
+            // Generate proof for current step
             proof =
                 prove_seq_step(Some(proof), &public_parameters, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
 
+            // Calculate performance metrics
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
 
+            // Send progress update to orchestrator
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
                 steps_proven,
@@ -252,6 +261,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
             }
 
+            // On final step, compress and store the proof
             if step == end - 1 {
                 let mut buf = Vec::new();
                 let mut writer = Box::new(&mut buf);
