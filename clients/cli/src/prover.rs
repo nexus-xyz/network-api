@@ -19,7 +19,6 @@ use prost::Message as _;
 use serde_json::json;
 use std::time::Instant;
 // Network connection types for WebSocket communication
-
 // WebSocket protocol types for message handling
 use tokio_tungstenite::tungstenite::protocol::{
     frame::coding::CloseCode, // Status codes for connection closure (e.g., 1000 for normal)
