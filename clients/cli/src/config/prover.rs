@@ -37,11 +37,15 @@ pub async fn initialize(
 ) -> Result<ProverConfig, Box<dyn std::error::Error>> {
     // Configure the tracing subscriber
     // This is a global value so we do not need to pass it around
-    tracing_subscriber::fmt()
+     if tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_span_events(FmtSpan::CLOSE)
-        .init();
-
+        .try_init()
+        .is_err()
+    {
+        eprintln!("Subscriber already initialized");
+    }
+    
     // Construct the WebSocket URL based on the port number
     // Uses secure WebSocket (wss) for port 443, regular WebSocket (ws) otherwise
     let ws_addr_string = format!(
