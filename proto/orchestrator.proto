@@ -30,14 +30,11 @@ message ClientProgramProofRequest {
   // Duration of the proof in milliseconds.
   int32 proof_duration_millis = 6;
 
-  // Network that this proof is intended for.
-  Network network = 7;
-
   // Number of cycles per step.
-  int32 k = 8;
+  int32 k = 7;
 
   // Prover ID for CLI provers
-  optional string cli_prover_id = 9;
+  optional string cli_prover_id = 8;
 }
 
 message ClientProgramProofResponse {
