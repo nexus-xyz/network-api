@@ -1,76 +1,96 @@
-// Debug version of analytics_id
-#[cfg(debug_assertions)]
-pub fn analytics_id(_ws_addr_string: &str) -> String {
-    // Use one of the tokens in the release version if debugging analytics
-    "".into()
+use crate::utils::analytics::track;
+use crate::utils::prover_id::get_or_generate_prover_id;
+
+use nexus_core::prover::nova::{
+    pp::gen_vm_pp,
+    types::{seq, PublicParams, C1, C2, G1, G2, RO, SC},
+};
+use serde_json::json;
+use tracing_subscriber::fmt::format::FmtSpan;
+use tracing_subscriber::EnvFilter;
+
+/// Configuration for the RISC-V zero-knowledge prover
+///
+/// This struct holds essential parameters used throughout the proving process:
+/// - `prover_id`: Unique identifier for this prover instance
+/// - `k`: Step size for the proving system (number of cycles per step)
+/// - `ws_addr_string`: WebSocket address for connecting to the orchestrator
+/// - `public_parameters`: Nova-specific parameters for generating zero-knowledge proofs
+///
+/// Used in main.rs to initialize the prover and maintain connection settings
+/// throughout the proving lifecycle.
+pub struct ProverConfig {
+    pub prover_id: String,
+    pub k: i32,
+    pub ws_addr_string: String,
+    #[allow(clippy::type_complexity)]
+    pub public_parameters:
+        PublicParams<G1, G2, C1, C2, RO, SC, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>,
 }
 
-// Debug version of analytics_api_key
-#[cfg(debug_assertions)]
-pub fn analytics_api_key(_ws_addr_string: &str) -> String {
-    // Use one of the tokens in the release version if debugging analytics
-    "".into()
-}
+pub async fn initialize(
+    hostname: String,
+    port: u16,
+) -> Result<ProverConfig, Box<dyn std::error::Error>> {
+    // Configure the tracing subscriber
+    // This is a global value so we do not need to pass it around
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .with_span_events(FmtSpan::CLOSE)
+        .init();
 
-// The following enum is used to determine the environment from the web socket string
-#[derive(Debug)]
-#[cfg(not(debug_assertions))]
-enum Environment {
-    Dev,
-    Staging,
-    Beta,
-    Unknown,
-}
+    // Construct the WebSocket URL based on the port number
+    // Uses secure WebSocket (wss) for port 443, regular WebSocket (ws) otherwise
+    let ws_addr_string = format!(
+        "{}://{}:{}/prove",
+        if port == 443 { "wss" } else { "ws" },
+        hostname,
+        port
+    );
 
-// The web socket addresses for the different environments
-#[cfg(not(debug_assertions))]
-mod web_socket_urls {
-    pub const DEV: &str = "wss://dev.orchestrator.nexus.xyz:443/";
-    pub const STAGING: &str = "wss://staging.orchestrator.nexus.xyz:443/";
-    pub const BETA: &str = "wss://beta.orchestrator.nexus.xyz:443/";
-}
+    // Set the constant k value used for proof generation
+    // This determines the size/complexity of the proving system
+    // Higher values increase proof generation speed but require more memory
+    let k = 4;
 
-// the firebase APP IDS by environment
-#[cfg(not(debug_assertions))]
-mod firebase {
-    pub const DEV_APP_ID: &str = "1:954530464230:web:f0a14de14ef7bcdaa99627";
-    pub const STAGING_APP_ID: &str = "1:222794630996:web:1758d64a85eba687eaaac1";
-    pub const BETA_APP_ID: &str = "1:279395003658:web:04ee2c524474d683d75ef3";
+    // Retrieve an existing prover ID from storage or generate a new one
+    // This ID uniquely identifies this prover instance
+    let prover_id = get_or_generate_prover_id();
 
-    // Analytics keys for the different environments
-    // These are keys that allow the measurement protocol to write to the analytics database
-    // They are not sensitive. Worst case, if a malicious actor obtains the secret, they could potentially send false or misleading data to your GA4 property
-    pub const DEV_API_SECRET: &str = "8ySxiKrtT8a76zClqqO8IQ";
-    pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
-    pub const BETA_API_SECRET: &str = "gxxzKAQLSl-uYI0eKbIi_Q";
-}
+    track(
+        "connect".into(),
+        format!("Connecting to {}...", &ws_addr_string),
+        &ws_addr_string,
+        json!({"prover_id": prover_id}),
+    );
 
-// Release versions (existing code)
-#[cfg(not(debug_assertions))]
-pub fn analytics_id(ws_addr_string: &str) -> String {
-    // Determine the environment from the web socket string (ws_addr_string)
-    let env = match ws_addr_string {
-        web_socket_urls::DEV => Environment::Dev,
-        web_socket_urls::STAGING => Environment::Staging,
-        web_socket_urls::BETA => Environment::Beta,
-        _ => Environment::Unknown,
+    // Track the registration event
+    track(
+        "register".into(),
+        format!("Your assigned prover identifier is {}.", prover_id),
+        &ws_addr_string,
+        json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
+    );
+
+    // Generate the public parameters for the proving system
+    #[allow(clippy::type_complexity)]
+    let public_parameters: PublicParams<
+        G1,
+        G2,
+        C1,
+        C2,
+        RO,
+        SC,
+        seq::SetupParams<(G1, G2, C1, C2, RO, SC)>,
+    > = match gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &()) {
+        Ok(params) => params,
+        Err(e) => return Err(format!("Failed to generate public parameters: {}", e).into()),
     };
 
-    // Return the appropriate Firebase App ID based on the environment
-    match env {
-        Environment::Dev => firebase::DEV_APP_ID.to_string(),
-        Environment::Staging => firebase::STAGING_APP_ID.to_string(),
-        Environment::Beta => firebase::BETA_APP_ID.to_string(),
-        Environment::Unknown => String::new(),
-    }
-}
-
-#[cfg(not(debug_assertions))]
-pub fn analytics_api_key(ws_addr_string: &str) -> String {
-    match ws_addr_string {
-        web_socket_urls::DEV => firebase::DEV_API_SECRET.to_string(),
-        web_socket_urls::STAGING => firebase::STAGING_API_SECRET.to_string(),
-        web_socket_urls::BETA => firebase::BETA_API_SECRET.to_string(),
-        _ => String::new(),
-    }
+    Ok(ProverConfig {
+        ws_addr_string,
+        k,
+        prover_id,
+        public_parameters,
+    })
 }

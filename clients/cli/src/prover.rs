@@ -6,12 +6,12 @@ mod network;
 mod utils;
 
 use crate::utils::analytics::track;
-use crate::utils::prover_id;
 
 use std::borrow::Cow;
 
 use crate::network::connection::connect_to_orchestrator_with_retry;
 
+use crate::config::prover::ProverConfig;
 use clap::Parser;
 use futures::SinkExt;
 use generated::pb::ClientProgramProofRequest;
@@ -36,7 +36,11 @@ use nexus_core::{
         NexusVM,
     },
     prover::nova::{
-        init_circuit_trace, key::CanonicalSerialize, pp::gen_vm_pp, prove_seq_step, types::*,
+        init_circuit_trace,
+        key::CanonicalSerialize,
+        // pp::gen_vm_pp,
+        prove_seq_step,
+        types::IVCProof, // types::*,
     },
 };
 use std::fs;
@@ -75,39 +79,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_span_events(FmtSpan::CLOSE)
         .init();
 
+    // 1. INITIAL SETUP
     let args = Args::parse();
 
-    let ws_addr_string = format!(
-        "{}://{}:{}/prove",
-        if args.port == 443 { "wss" } else { "ws" },
-        args.hostname,
-        args.port
-    );
-
-    let k = 4;
-    // TODO(collinjackson): Get parameters from a file or URL.
-    let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
-        .expect("error generating public parameters");
-
-    // get or generate the prover id
-    let prover_id = prover_id::get_or_generate_prover_id();
-
-    track(
-        "connect".into(),
-        format!("Connecting to {}...", &ws_addr_string),
-        &ws_addr_string,
-        json!({"prover_id": prover_id}),
-    );
+    let ProverConfig {
+        ws_addr_string,
+        k,
+        prover_id,
+        public_parameters,
+    } = config::prover::initialize(args.hostname, args.port).await?;
 
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
 
-    track(
-        "register".into(),
-        format!("Your assigned prover identifier is {}.", prover_id),
-        &ws_addr_string,
-        json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
-    );
     loop {
         // Create the inputs for the program
         use rand::Rng; // Required for .gen() methods
@@ -187,7 +171,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
-            proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
+            proof =
+                prove_seq_step(Some(proof), &public_parameters, &tr).expect("error proving step");
             steps_proven += 1;
             completed_fraction = steps_proven as f32 / steps_to_prove as f32;
 
