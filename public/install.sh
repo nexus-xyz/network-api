@@ -3,7 +3,7 @@
 rustc --version || curl https://sh.rustup.rs -sSf | sh
 NEXUS_HOME=$HOME/.nexus
 
-while [ -z "$NONINTERACTIVE" ]; do
+while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/prover-id" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     case $yn in
         [Nn]* ) exit;;
@@ -22,7 +22,7 @@ fi
 
 if [ -d "$NEXUS_HOME/network-api" ]; then
   echo "$NEXUS_HOME/network-api exists. Updating.";
-  (cd $NEXUS_HOME/network-api && git pull)
+  (cd $NEXUS_HOME/network-api && git stash save && git pull)
 else
   mkdir -p $NEXUS_HOME
   (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
