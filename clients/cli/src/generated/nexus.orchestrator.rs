@@ -19,14 +19,17 @@ pub struct ClientProgramProofRequest {
     #[prost(string, tag = "4")]
     pub program_id: ::prost::alloc::string::String,
     /// Authentication token for client id.
-    #[prost(string, tag = "5")]
-    pub client_id_token: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "5")]
+    pub client_id_token: ::core::option::Option<::prost::alloc::string::String>,
     /// Duration of the proof in milliseconds.
     #[prost(int32, tag = "6")]
     pub proof_duration_millis: i32,
-    /// Speed of the proof in cycles per second.
-    #[prost(float, tag = "7")]
-    pub proof_speed_hz: f32,
+    /// Number of cycles per step.
+    #[prost(int32, tag = "7")]
+    pub k: i32,
+    /// Prover ID for CLI provers
+    #[prost(string, optional, tag = "8")]
+    pub cli_prover_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
