@@ -1,17 +1,16 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
-mod analytics;
 mod config;
-mod connection;
 mod generated;
-mod prover_id_manager;
-mod websocket;
+mod network;
+mod utils;
 
-use crate::analytics::track;
+use crate::utils::analytics::track;
+use crate::utils::prover_id;
 
 use std::borrow::Cow;
 
-use crate::connection::connect_to_orchestrator_with_retry;
+use crate::network::connection::connect_to_orchestrator_with_retry;
 
 use clap::Parser;
 use futures::SinkExt;
@@ -91,7 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("error generating public parameters");
 
     // get or generate the prover id
-    let prover_id = prover_id_manager::get_or_generate_prover_id();
+    let prover_id = prover_id::get_or_generate_prover_id();
 
     track(
         "connect".into(),
