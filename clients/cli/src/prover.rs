@@ -73,7 +73,10 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Configure the tracing subscriber
+    //
+    // 1. INITIALIZATION AND SETUP
+    // Configure tracing, parse arguments, and load prover configuration
+    //
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .with_span_events(FmtSpan::CLOSE)
@@ -89,8 +92,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         public_parameters,
     } = config::prover::initialize(args.hostname, args.port).await?;
 
-    // 2. ESTABLISH WEBSOCKETSCONNECTION TO THE ORCHESTRATOR
-    // Connect to the Orchestrator with exponential backoff
+    //
+    // 2. NETWORK SETUP
+    // Establish WebSocket connection to orchestrator with retry logic
+    //
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
 
     track(
@@ -100,6 +105,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         json!({"prover_id": prover_id}),
     );
 
+    //
+    // 3. MAIN PROVING LOOP
+    // Continuously receive programs, generate and send proofs
+    //
     loop {
         // Create the inputs for the program
         use rand::Rng; // Required for .gen() methods
@@ -258,6 +267,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
+    //
+    // 4. CLEANUP AND SHUTDOWN
+    // Clean termination of WebSocket connection
+    //
     client
         .close(Some(CloseFrame {
             code: CloseCode::Normal,
