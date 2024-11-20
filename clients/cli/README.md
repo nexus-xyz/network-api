@@ -1,59 +1,78 @@
-# Network CLI
+# Nexus Network CLI Implementation
 
-The command line interface (CLI) lets you run a prover node and contribute proofs to the Nexus network.
-It is the highest-performance option for proving.
+This directory contains the implementation of the Nexus Network CLI prover node. For installation and usage instructions, see the [main README](../../README.md).
 
-## Prerequisites
+## Development Setup
 
-If you don't have these dependencies already, install them first.
-
-### Linux
-
-```
-sudo apt update
-sudo apt upgrade
-sudo apt install build-essential pkg-config libssl-dev git-all
+1. Ensure you have Rust installed:
+```bash
+rustup update stable
 ```
 
-### macOS
-
-If you have [installed Homebrew](https://brew.sh/) to manage packages on OS X,
-run this command to install Git.
-
-```
-brew install git
+2. Build the CLI:
+```bash
+cargo build
 ```
 
-### Windows
-
-[Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install),
-then see Linux instructions above.
-
-## Quick start
-
-```
-curl https://cli.nexus.xyz/ | sh
+3. Run tests:
+```bash
+cargo test
 ```
 
-If you do not already have Rust, you will be prompted to install it.
+## Project Structure
 
-## Terms of Use
+```
+cli/
+├── src/
+│   ├── main.rs          # Entry point
+│   ├── prover.rs        # Prover implementation
+│   ├── config.rs        # Configuration handling
+│   └── network.rs       # Network communication
+├── tests/               # Integration tests
+└── examples/            # Usage examples
+```
 
-Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use).
-The first time you run it, it prompts you to accept the terms. To accept the terms
-noninteractively (for example, in a continuous integration environment),
-add `NONINTERACTIVE=1` before `sh`.
+## Architecture
 
-## Known issues
+The CLI is built around these core components:
+- Prover: Handles proof generation and validation
+- Network Interface: Manages communication with the Nexus network
+- Configuration: Handles user settings and environment setup
 
-* Only the latest version of the CLI is currently supported.
-* Prebuilt binaries are not yet available.
-* Linking email to prover id is currently available on the web version only.
-* Counting cycles proved is not yet available in the CLI.
-* Only proving is supported. Submitting programs to the network is in private beta.
-To request an API key, contact us at growth@nexus.xyz.
+## Contributing
 
-## Resources
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Run tests (`cargo test`)
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
 
-* [Network FAQ](https://nexus.xyz/network#network-faqs)
-* [Discord server](https://discord.gg/nexus-xyz)
+## Local Development
+
+To run the CLI locally:
+```bash
+cargo run -- --help
+```
+
+For development with local network:
+```bash
+cargo run -- --dev-mode
+```
+
+## Testing
+
+```bash
+# Run all tests
+cargo test
+
+# Run specific test suite
+cargo test prover
+
+# Run with logging
+RUST_LOG=debug cargo test
+```
+
+## License
+
+See [LICENSE](../../LICENSE) file in the root directory.
