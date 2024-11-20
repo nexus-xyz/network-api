@@ -24,14 +24,11 @@ pub struct ClientProgramProofRequest {
     /// Duration of the proof in milliseconds.
     #[prost(int32, tag = "6")]
     pub proof_duration_millis: i32,
-    /// Network that this proof is intended for.
-    #[prost(enumeration = "Network", tag = "7")]
-    pub network: i32,
     /// Number of cycles per step.
-    #[prost(int32, tag = "8")]
+    #[prost(int32, tag = "7")]
     pub k: i32,
     /// Prover ID for CLI provers
-    #[prost(string, optional, tag = "9")]
+    #[prost(string, optional, tag = "8")]
     pub cli_prover_id: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

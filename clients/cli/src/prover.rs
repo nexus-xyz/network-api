@@ -178,7 +178,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 proof_duration_millis: progress_duration.as_millis() as i32,
                 k,
                 cli_prover_id: Some(prover_id.clone()),
-                network: 0,
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
             };
