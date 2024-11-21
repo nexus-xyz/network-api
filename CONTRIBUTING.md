@@ -18,7 +18,7 @@ Instances of violations of the Code of Conduct can be reported by contacting the
 
 There are three main ways to contribute:
 
-1. **By reporting an issue:** If you believe that you have uncovered a bug in the Nexus zkVM, report it by creating a new issue in the [Github][gh] issue tracker. See below for an extended discussion on how to make a bug report most helpful.
+1. **By reporting an issue:** If you believe that you have uncovered a bug in this repository, report it by creating a new issue in the [GitHub][gh] issue tracker. See below for an extended discussion on how to make a bug report most helpful.
 2. **By adding information:** Even if collaborators are already aware of your issue, you can always provide additional context, such as further evidence in the form of reproduction steps, screenshots, code snippets, or logging outputs.
 3. **By resolving an issue:** Typically this is done in the form of either demonstrating that the issue reported is not a problem after all in a polite, thoughtfully explained, and evidence supported manner, or by opening a pull request that fixes the underlying problem and participating in its review and refinement.
 
