@@ -65,7 +65,7 @@ network-api/
 ├── assets/       # Media for documentation
 ├── clients/
 │   └── cli/      # Main CLI implementation
-├── proto/        # Shared network interface code
+├── proto/        # Shared network interface definition
 └── public/       # Files hosted at cli.nexus.xyz
 ```
 
