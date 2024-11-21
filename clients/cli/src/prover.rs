@@ -207,26 +207,46 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
             if timer_since_last_orchestrator_update.elapsed().as_secs() > 180 {
-                //send the update to the orchestrator
+                // Check connection and attempt to send message with retries
                 let mut retries = 0;
                 let max_retries = 5;
-                while let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
-                    eprintln!(
-                        "Failed to send message: {:?}, attempt {}/{}",
-                        e,
-                        retries + 1,
-                        max_retries
-                    );
-
-                    retries += 1;
-                    if retries >= max_retries {
-                        eprintln!("Max retries reached, exiting...");
-                        break;
+                loop {
+                    // Check if client is still connected by attempting to send a ping
+                    if let Err(_) = client.send(Message::Ping(vec![])).await {
+                        // Connection lost, attempt to reconnect
+                        client =
+                            connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
+                        track(
+                            "reconnect".into(),
+                            "Reconnected to orchestrator".into(),
+                            &ws_addr_string,
+                            json!({"prover_id": prover_id}),
+                        );
                     }
 
-                    // Add a delay before retrying
-                    tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries)))
-                        .await;
+                    match client.send(Message::Binary(progress.encode_to_vec())).await {
+                        Ok(_) => break, // Message sent successfully
+                        Err(e) => {
+                            eprintln!(
+                                "Failed to send message: {:?}, attempt {}/{}",
+                                e,
+                                retries + 1,
+                                max_retries
+                            );
+
+                            retries += 1;
+                            if retries >= max_retries {
+                                eprintln!("Max retries reached, exiting...");
+                                break;
+                            }
+
+                            // Add a delay before retrying
+                            tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(
+                                2, retries,
+                            )))
+                            .await;
+                        }
+                    }
                 }
                 //reset the timer
                 timer_since_last_orchestrator_update = Instant::now()
