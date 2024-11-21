@@ -102,13 +102,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
-
     track(
         "register".into(),
         format!("Your assigned prover identifier is {}.", prover_id),
         &ws_addr_string,
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
+
+    let mut queued_proof_duration_millis = 0;
+    let mut queued_steps_proven: i32 = 0;
+
     loop {
         // Create the inputs for the program
         use rand::Rng; // Required for .gen() methods
@@ -137,6 +140,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut completed_fraction = 0.0;
         let mut steps_proven = 0;
+        let mut timer_since_last_orchestrator_update = Instant::now();
+
         track(
             "progress".into(),
             format!(
@@ -164,13 +169,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
 
+            //update the queued variables
+            queued_proof_duration_millis += progress_duration.as_millis() as i32;
+            queued_steps_proven += steps_proven;
+
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
-                steps_proven,
+                steps_proven: queued_steps_proven,
                 step_to_start: start as i32,
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
-                proof_duration_millis: progress_duration.as_millis() as i32,
+                proof_duration_millis: queued_proof_duration_millis,
                 k,
                 cli_prover_id: Some(prover_id.clone()),
             };
@@ -196,24 +205,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             progress_time = Instant::now();
 
-            let mut retries = 0;
-            let max_retries = 5;
-            while let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
-                eprintln!(
-                    "Failed to send message: {:?}, attempt {}/{}",
-                    e,
-                    retries + 1,
-                    max_retries
-                );
+            //If it has been three minutes since the last orchestrator update, send the orchestator the update
+            if timer_since_last_orchestrator_update.elapsed().as_secs() > 180 {
+                //send the update to the orchestrator
+                let mut retries = 0;
+                let max_retries = 5;
+                while let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
+                    eprintln!(
+                        "Failed to send message: {:?}, attempt {}/{}",
+                        e,
+                        retries + 1,
+                        max_retries
+                    );
 
-                retries += 1;
-                if retries >= max_retries {
-                    eprintln!("Max retries reached, exiting...");
-                    break;
+                    retries += 1;
+                    if retries >= max_retries {
+                        eprintln!("Max retries reached, exiting...");
+                        break;
+                    }
+
+                    // Add a delay before retrying
+                    tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries)))
+                        .await;
                 }
-
-                // Add a delay before retrying
-                tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
+                //reset the timer
+                timer_since_last_orchestrator_update = Instant::now()
             }
 
             if step == end - 1 {
