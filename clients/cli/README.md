@@ -66,12 +66,12 @@ To run the CLI with tracing enabled, run:
 To test against dev environment of the orchestrator, run:
 
 ```sh
-cargo run -- wss://dev.orchestrator.nexus.xyz:443/prove
+cargo run -- dev.orchestrator.nexus.xyz
 ```
 
 To test against beta environment of the orchestrator, run:
 ```sh
-cargo run -- wss://beta.orchestrator.nexus.xyz:443/prove
+cargo run -- beta.orchestrator.nexus.xyz
 ```
 
 ## Resources
