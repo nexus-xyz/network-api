@@ -56,7 +56,7 @@ NONINTERACTIVE=1 sh
 
 - [Network FAQ](https://nexus.xyz/network#network-faqs)
 - [Discord Community](https://discord.gg/nexus-xyz)
-- Technical issues? [Open an issue](https://github.com/nexus-labs/network-api/issues)
+- Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
 
 ## Repository Structure
 
