@@ -62,9 +62,11 @@ NONINTERACTIVE=1 sh
 
 ```
 network-api/
+├── assets/       # Media for documentation
 ├── clients/
 │   └── cli/      # Main CLI implementation
-└── src/          # Shared network interface code
+├── proto/        # Shared network interface code
+└── public/       # Files hosted at cli.nexus.xyz
 ```
 
 ## Contributing
