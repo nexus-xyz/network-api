@@ -58,7 +58,7 @@ To request an API key, contact us at growth@nexus.xyz.
 The curl command in the quick start section downloads this repo to $HOME/.nexus/network-api.
 If you want to modify the CLI, it's better to clone the GitHub repo somewhere else.
 
-To test against beta environment of the orchestrator, run the following command in clients/cli:
+To run an optimized build using Nexus servers, run the following command in clients/cli:
 
 ```
 cargo run --release -- beta.orchestrator.nexus.xyz
