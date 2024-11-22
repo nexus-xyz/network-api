@@ -34,10 +34,16 @@ trap cleanup TERM
 TEST_DIR=$(mktemp -d)
 echo "Setting up test in $TEST_DIR"
 
-# Copy necessary files to test directory
+# Copy your local files to test directory
+cd $PROJECT_ROOT
+cp -r . $TEST_DIR/
 cd $TEST_DIR
-git clone $PROJECT_ROOT .
-git checkout 0.3.5  # Safe to do in the clone
+
+# Initialize git for the test
+git init
+git add .
+git commit -m "Initial commit"
+git tag 0.3.5  # Start with old version
 
 # Build and start CLI
 cd clients/cli
