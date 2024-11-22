@@ -68,6 +68,7 @@ echo "updated" > test.txt
 git add test.txt
 git commit -m "Update"
 git tag $TEST_NEW_VERSION # Use a version higher than current
+echo "[test-updater] new code added and committed. New tag version: $TEST_NEW_VERSION"
 
 # Wait for auto-update to happen
 echo "[test-updater] Waiting for auto-update..."
