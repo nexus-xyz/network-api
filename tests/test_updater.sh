@@ -39,7 +39,8 @@ cd $PROJECT_ROOT
 cp -r . $TEST_DIR/
 cd $TEST_DIR
 
-# Initialize git for the test
+# Remove existing .git and start fresh
+rm -rf .git
 git init
 git add .
 git commit -m "Initial commit"
@@ -50,7 +51,7 @@ cd clients/cli
 cargo build --release
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
 
-# Start CLI and store its PID and its starting commit
+# Start CLI and store its PID
 echo "Starting CLI v1.0..."
 STARTING_COMMIT=$(git rev-parse HEAD)  # Store the commit where we start
 $INSTALL_PATH $ORCHESTRATOR_HOST &
@@ -61,7 +62,7 @@ echo "Original PID: $ORIGINAL_PID"
 echo "updated" > test.txt
 git add test.txt
 git commit -m "Update"
-git tag $TEST_NEW_VERSION # Use a version higher than current
+git tag $TEST_NEW_VERSION
 
 # Give CLI time to start the proving from prover.rs
 sleep 30 
