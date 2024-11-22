@@ -53,6 +53,20 @@ add `NONINTERACTIVE=1` before `sh`.
 * Only proving is supported. Submitting programs to the network is in private beta.
 To request an API key, contact us at growth@nexus.xyz.
 
+## Building and running from source
+
+```
+cargo build
+cargo run --release
+```
+
+To run the CLI with tracing enabled, run:
+
+To test against beta environment of the orchestrator, run:
+```sh
+cargo run -- beta.orchestrator.nexus.xyz
+```
+
 ## Resources
 
 * [Network FAQ](https://nexus.xyz/network#network-faqs)

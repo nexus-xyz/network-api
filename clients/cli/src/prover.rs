@@ -11,10 +11,13 @@ use crate::analytics::track;
 
 use std::borrow::Cow;
 
-use crate::connection::connect_to_orchestrator_with_retry;
+use crate::connection::{
+    connect_to_orchestrator_with_infinite_retry, connect_to_orchestrator_with_limited_retry,
+};
 
 use clap::Parser;
-use futures::SinkExt;
+use futures::{SinkExt, StreamExt};
+
 use generated::pb::ClientProgramProofRequest;
 use prost::Message as _;
 use serde_json::json;
@@ -44,6 +47,9 @@ use std::fs;
 use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
+
+// The interval at which to send updates to the orchestrator
+const UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -101,7 +107,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Connect to the Orchestrator with exponential backoff
-    let mut client = connect_to_orchestrator_with_retry(&ws_addr_string, &prover_id).await;
+    let mut client = connect_to_orchestrator_with_infinite_retry(&ws_addr_string, &prover_id).await;
 
     track(
         "register".into(),
@@ -109,6 +115,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         &ws_addr_string,
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
+
+    let mut queued_proof_duration_millis = 0;
+    let mut queued_steps_proven: i32 = 0;
+    let mut timer_since_last_orchestrator_update = Instant::now();
+
     loop {
         // Create the inputs for the program
         use rand::Rng; // Required for .gen() methods
@@ -137,6 +148,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut completed_fraction = 0.0;
         let mut steps_proven = 0;
+
         track(
             "progress".into(),
             format!(
@@ -164,13 +176,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
 
+            //update the queued variables
+            queued_proof_duration_millis += progress_duration.as_millis() as i32;
+            queued_steps_proven += steps_proven;
+
             let progress = ClientProgramProofRequest {
                 steps_in_trace: total_steps as i32,
-                steps_proven,
+                steps_proven: queued_steps_proven,
                 step_to_start: start as i32,
                 program_id: "fast-fib".to_string(),
                 client_id_token: None,
-                proof_duration_millis: progress_duration.as_millis() as i32,
+                proof_duration_millis: queued_proof_duration_millis,
                 k,
                 cli_prover_id: Some(prover_id.clone()),
             };
@@ -196,24 +212,95 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
             progress_time = Instant::now();
 
-            let mut retries = 0;
-            let max_retries = 5;
-            while let Err(e) = client.send(Message::Binary(progress.encode_to_vec())).await {
-                eprintln!(
-                    "Failed to send message: {:?}, attempt {}/{}",
-                    e,
-                    retries + 1,
-                    max_retries
+            //If it has been three minutes since the last orchestrator update, send the orchestator the update
+            if timer_since_last_orchestrator_update.elapsed().as_secs() > UPDATE_INTERVAL_IN_SECONDS
+            {
+                println!(
+                    "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
+                    queued_steps_proven
                 );
 
-                retries += 1;
-                if retries >= max_retries {
-                    eprintln!("Max retries reached, exiting...");
-                    break;
+                // Send ping to the websocket connection and wait for pong
+                match client.send(Message::Ping(vec![])).await {
+                    //The ping was succesfully sent...
+                    Ok(_) => {
+                        //...wait for pong response from websocket with timeout...
+                        match tokio::time::timeout(std::time::Duration::from_secs(5), client.next())
+                            .await
+                        {
+                            //... and the pong was received
+                            Ok(Some(Ok(Message::Pong(_)))) => {
+                                // Connection is verified working
+                                match client.send(Message::Binary(progress.encode_to_vec())).await {
+                                    Ok(_) => {
+                                        // println!("\t\tSuccesfully sent progress to orchestrator\n");
+                                        // println!("{:#?}", progress);
+
+                                        // Reset the queued values only after successful send
+                                        queued_steps_proven = 0;
+                                        queued_proof_duration_millis = 0;
+                                    }
+                                    Err(_) => {
+                                        client = match connect_to_orchestrator_with_limited_retry(
+                                            &ws_addr_string,
+                                            &prover_id,
+                                        )
+                                        .await
+                                        {
+                                            Ok(new_client) => new_client,
+                                            Err(_) => {
+                                                // Continue using the existing client and try again next update
+                                                client
+                                            }
+                                        };
+
+                                        // Don't reset queued values on failure
+                                    }
+                                }
+                            }
+                            //... and the pong was not received
+                            _ => {
+                                // println!(
+                                //     "\t\tNo pong from websockets connection received. Will reconnect to orchestrator..."
+                                // );
+                                client = match connect_to_orchestrator_with_limited_retry(
+                                    &ws_addr_string,
+                                    &prover_id,
+                                )
+                                .await
+                                {
+                                    Ok(new_client) => new_client,
+                                    Err(_) => {
+                                        // Continue using the existing client and try again next update
+                                        client
+                                    }
+                                };
+                            }
+                        }
+                    }
+                    //The ping failed to send...
+                    Err(_) => {
+                        // println!(
+                        //     "\t\tPing failed, will attempt to reconnect to orchestrator: {:?}",
+                        //     e
+                        // );
+                        client = match connect_to_orchestrator_with_limited_retry(
+                            &ws_addr_string,
+                            &prover_id,
+                        )
+                        .await
+                        {
+                            Ok(new_client) => new_client,
+                            Err(_) => {
+                                // Continue using the existing client and try again next update
+                                client
+                            }
+                        };
+                    }
                 }
 
-                // Add a delay before retrying
-                tokio::time::sleep(tokio::time::Duration::from_secs(u64::pow(2, retries))).await;
+                //reset the timer regardless of success (to avoid spam)
+                timer_since_last_orchestrator_update = Instant::now()
             }
 
             if step == end - 1 {

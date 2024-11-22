@@ -16,7 +16,7 @@ pub async fn connect_to_orchestrator(
     Ok(client)
 }
 
-pub async fn connect_to_orchestrator_with_retry(
+pub async fn connect_to_orchestrator_with_infinite_retry(
     ws_addr: &str,
     prover_id: &str,
 ) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
@@ -33,10 +33,57 @@ pub async fn connect_to_orchestrator_with_retry(
                 );
                 return client;
             }
-            Err(_) => {
+            Err(_e) => {
                 eprintln!(
                     "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...",
                     attempt,
+                    2u64.pow(attempt.min(6)),
+                );
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(attempt.min(6))))
+                    .await;
+
+                attempt += 1;
+            }
+        }
+    }
+}
+
+pub async fn connect_to_orchestrator_with_limited_retry(
+    ws_addr: &str,
+    prover_id: &str,
+) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
+    let max_attempts = 5;
+    let mut attempt = 1;
+
+    loop {
+        if attempt >= max_attempts {
+            return Err(format!("Failed to connect after {} attempts", max_attempts).into());
+        }
+
+        match connect_to_orchestrator(ws_addr).await {
+            Ok(client) => {
+                track(
+                    "connected".into(),
+                    "Connected.".into(),
+                    ws_addr,
+                    json!({"prover_id": prover_id}),
+                );
+                return Ok(client);
+            }
+            Err(e) => {
+                if attempt >= max_attempts {
+                    return Err(format!(
+                        "Failed to connect after {} attempts: {}",
+                        max_attempts, e
+                    )
+                    .into());
+                }
+
+                eprintln!(
+                    "Could not connect to orchestrator (attempt {}/{}). Retrying in {} seconds...",
+                    attempt,
+                    max_attempts,
                     2u64.pow(attempt.min(6)),
                 );
 
