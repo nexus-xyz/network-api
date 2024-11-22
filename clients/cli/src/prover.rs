@@ -17,6 +17,7 @@ use crate::connection::{
 
 use clap::Parser;
 use futures::{SinkExt, StreamExt};
+
 use generated::pb::ClientProgramProofRequest;
 use prost::Message as _;
 use serde_json::json;
@@ -240,10 +241,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         queued_proof_duration_millis = 0;
                                     }
                                     Err(_) => {
-                                        // eprintln!(
-                                        //     "\t\tFailed to send message. Will try again next update: {:?}\n",
-                                        //     e
-                                        // );
                                         client = match connect_to_orchestrator_with_limited_retry(
                                             &ws_addr_string,
                                             &prover_id,
@@ -252,10 +249,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         {
                                             Ok(new_client) => new_client,
                                             Err(_) => {
-                                                // eprintln!(
-                                                //     "Failed to reconnect to orchestrator: {}",
-                                                //     e
-                                                // );
                                                 // Continue using the existing client and try again next update
                                                 client
                                             }
@@ -278,7 +271,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 {
                                     Ok(new_client) => new_client,
                                     Err(_) => {
-                                        // eprintln!("Failed to reconnect to orchestrator: {}", e);
                                         // Continue using the existing client and try again next update
                                         client
                                     }
@@ -300,7 +292,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         {
                             Ok(new_client) => new_client,
                             Err(_) => {
-                                // eprintln!("Failed to reconnect to orchestrator: {}", e);
                                 // Continue using the existing client and try again next update
                                 client
                             }
@@ -310,11 +301,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 //reset the timer regardless of success (to avoid spam)
                 timer_since_last_orchestrator_update = Instant::now()
-            } else {
-                println!(
-                    "\tNot sending update to orchestrator yet. Only {} seconds have elapsed\n",
-                    timer_since_last_orchestrator_update.elapsed().as_secs()
-                );
             }
 
             if step == end - 1 {
