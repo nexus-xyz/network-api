@@ -37,14 +37,16 @@ echo "Setting up test in $TEST_DIR"
 # Copy necessary files to test directory
 cd $TEST_DIR
 git clone $PROJECT_ROOT .
+git checkout 0.3.5  # Safe to do in the clone
 
 # Build and start CLI
-cd clients/cli  # This is where Cargo.toml is
+cd clients/cli
 cargo build --release
-INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"  # Updated path
+INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
 
-# Start CLI and store its PID
+# Start CLI and store its PID and its starting commit
 echo "Starting CLI v1.0..."
+STARTING_COMMIT=$(git rev-parse HEAD)  # Store the commit where we start
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
 echo "Original PID: $ORIGINAL_PID"
@@ -97,7 +99,7 @@ fi
 # If the new PID is the same as the original PID, the CLI was not restarted (same process)
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
     echo "❌ CLI was not restarted (PID unchanged)"
-    echo "Original version: $(git describe --tags)"
+    echo "Original version: $(git describe --tags $STARTING_COMMIT)"  # Check version at start
     echo "Expected version: $TEST_NEW_VERSION"
     exit 1
 fi
