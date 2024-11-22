@@ -62,13 +62,6 @@ cargo run --release
 
 To run the CLI with tracing enabled, run:
 
-
-To test against dev environment of the orchestrator, run:
-
-```sh
-cargo run -- dev.orchestrator.nexus.xyz
-```
-
 To test against beta environment of the orchestrator, run:
 ```sh
 cargo run -- beta.orchestrator.nexus.xyz
