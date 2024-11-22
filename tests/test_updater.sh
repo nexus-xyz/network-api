@@ -3,6 +3,7 @@ set -e  # Exit on any error
 
 # Configuration
 ORCHESTRATOR_HOST="beta.orchestrator.nexus.xyz"
+TEST_NEW_VERSION="0.9.9"  # Define version once here
 
 # Find project root (assuming script is in tests/)
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -52,7 +53,7 @@ echo "Original PID: $ORIGINAL_PID"
 echo "updated" > test.txt
 git add test.txt
 git commit -m "Update"
-git tag 0.3.6  # Use a version higher than current 0.3.5
+git tag $TEST_NEW_VERSION # Use a version higher than current
 
 # Give CLI time to start the proving from prover.rs
 sleep 30 
@@ -68,7 +69,7 @@ for i in {1..60}; do
     
     # Check if version has changed (using same command as updater.rs)
     CURRENT_VERSION=$(cd "$TEST_DIR" && git describe --tags --abbrev=0)
-    if [ "$CURRENT_VERSION" = "0.3.6" ]; then
+    if [ "$CURRENT_VERSION" = "$TEST_NEW_VERSION" ]; then
         break
     fi
     echo "Current version: $CURRENT_VERSION, waiting... (attempt $i/60)"
@@ -76,10 +77,10 @@ for i in {1..60}; do
 done
 
 # If the version is not updated from v1.0 to v2.0, the test fails
-if [ "$CURRENT_VERSION" != "0.3.6" ]; then
+if [ "$CURRENT_VERSION" != "$TEST_NEW_VERSION" ]; then
     echo "❌ Version did not update after 60 seconds"
     echo "Current version: $CURRENT_VERSION"
-    echo "Expected version: 0.3.6"
+    echo "Expected version: $TEST_NEW_VERSION"
     exit 1
 fi
 
@@ -97,7 +98,7 @@ fi
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
     echo "❌ CLI was not restarted (PID unchanged)"
     echo "Original version: $(git describe --tags)"
-    echo "Expected version: 0.3.6"
+    echo "Expected version: $TEST_NEW_VERSION"
     exit 1
 fi
 
