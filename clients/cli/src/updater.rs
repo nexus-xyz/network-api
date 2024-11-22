@@ -10,10 +10,12 @@ pub fn start_periodic_updates() {
     println!("Starting periodic CLI updates...");
 
     thread::spawn(|| {
+        println!("\tUpdate checker thread started!");
         loop {
             if let Err(e) = check_and_update() {
                 eprintln!("Update check failed: {}", e);
             }
+            println!("\tSleeping for {} seconds...", UPDATE_INTERVAL);
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL)); // 60 seconds (for testing)
         }
     });

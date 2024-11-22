@@ -9,7 +9,6 @@ mod updater;
 mod websocket;
 
 use crate::analytics::track;
-use crate::updater::check_and_update;
 
 use std::borrow::Cow;
 

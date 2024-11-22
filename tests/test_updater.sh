@@ -36,25 +36,23 @@ echo "Setting up test in $TEST_DIR"
 # Copy necessary files to test directory
 cd $TEST_DIR
 git clone $PROJECT_ROOT .
-git remote remove origin  # Disconnect from original repo
 
-# Change to CLI directory where Cargo.toml is
-cd clients/cli
-
-# Use existing repo instead of creating new one
-git tag v1.0
-git checkout v1.0
+# Build and start CLI
+cd clients/cli  # This is where Cargo.toml is
 cargo build --release
-INSTALL_PATH="$TEST_DIR/test_installed_prover"
-cp target/release/prover $INSTALL_PATH
+INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"  # Updated path
 
 # Start CLI and store its PID
 echo "Starting CLI v1.0..."
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
+echo "Original PID: $ORIGINAL_PID"
 
-# Create new version (v2.0)
-git tag v2.0  # Tag the current commit as v2.0
+# Create new version with higher number than 0.3.5
+echo "updated" > test.txt
+git add test.txt
+git commit -m "Update"
+git tag 0.3.6  # Use a version higher than current 0.3.5
 
 # Give CLI time to start the proving from prover.rs
 sleep 30 
@@ -70,7 +68,7 @@ for i in {1..60}; do
     
     # Check if version has changed (using same command as updater.rs)
     CURRENT_VERSION=$(cd "$TEST_DIR" && git describe --tags --abbrev=0)
-    if [ "$CURRENT_VERSION" = "v2.0" ]; then
+    if [ "$CURRENT_VERSION" = "0.3.6" ]; then
         break
     fi
     echo "Current version: $CURRENT_VERSION, waiting... (attempt $i/60)"
@@ -78,10 +76,10 @@ for i in {1..60}; do
 done
 
 # If the version is not updated from v1.0 to v2.0, the test fails
-if [ "$CURRENT_VERSION" != "v2.0" ]; then
+if [ "$CURRENT_VERSION" != "0.3.6" ]; then
     echo "❌ Version did not update after 60 seconds"
     echo "Current version: $CURRENT_VERSION"
-    echo "Expected version: v2.0"
+    echo "Expected version: 0.3.6"
     exit 1
 fi
 
@@ -99,7 +97,7 @@ fi
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
     echo "❌ CLI was not restarted (PID unchanged)"
     echo "Original version: $(git describe --tags)"
-    echo "Expected version: v2.0"
+    echo "Expected version: 0.3.6"
     exit 1
 fi
 
