@@ -5,9 +5,11 @@ mod config;
 mod connection;
 mod generated;
 mod prover_id_manager;
+mod updater;
 mod websocket;
 
 use crate::analytics::track;
+use crate::updater::check_and_update;
 
 use std::borrow::Cow;
 
@@ -76,6 +78,10 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Check for CLI updates periodically
+    // This runs in a separate thread continuously in intervals
+    updater::start_periodic_updates();
+
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -319,7 +325,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.just_once {
             break;
         } else {
-            println!("Waiting for another program to prove...");
+            println!("\n\nWaiting for a new program to prove...");
         }
     }
 
