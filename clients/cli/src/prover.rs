@@ -48,7 +48,7 @@ use std::io::Read;
 use zstd::stream::Encoder;
 
 // The interval at which to send updates to the orchestrator
-const UPDATE_INTERVAL: u64 = 5; // 3 minutes
+const UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -212,7 +212,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             progress_time = Instant::now();
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
-            if timer_since_last_orchestrator_update.elapsed().as_secs() > UPDATE_INTERVAL {
+            if timer_since_last_orchestrator_update.elapsed().as_secs() > UPDATE_INTERVAL_IN_SECONDS
+            {
                 println!(
                     "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
                     queued_steps_proven
@@ -231,18 +232,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 // Connection is verified working
                                 match client.send(Message::Binary(progress.encode_to_vec())).await {
                                     Ok(_) => {
-                                        println!("\t\tSuccesfully sent progress to orchestrator\n");
-                                        println!("{:#?}", progress);
+                                        // println!("\t\tSuccesfully sent progress to orchestrator\n");
+                                        // println!("{:#?}", progress);
 
                                         // Reset the queued values only after successful send
                                         queued_steps_proven = 0;
                                         queued_proof_duration_millis = 0;
                                     }
-                                    Err(e) => {
-                                        eprintln!(
-                                            "\t\tFailed to send message. Will try again next update: {:?}\n",
-                                            e
-                                        );
+                                    Err(_) => {
+                                        // eprintln!(
+                                        //     "\t\tFailed to send message. Will try again next update: {:?}\n",
+                                        //     e
+                                        // );
                                         client = match connect_to_orchestrator_with_limited_retry(
                                             &ws_addr_string,
                                             &prover_id,
@@ -250,11 +251,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         .await
                                         {
                                             Ok(new_client) => new_client,
-                                            Err(e) => {
-                                                eprintln!(
-                                                    "Failed to reconnect to orchestrator: {}",
-                                                    e
-                                                );
+                                            Err(_) => {
+                                                // eprintln!(
+                                                //     "Failed to reconnect to orchestrator: {}",
+                                                //     e
+                                                // );
                                                 // Continue using the existing client and try again next update
                                                 client
                                             }
@@ -266,9 +267,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             //... and the pong was not received
                             _ => {
-                                println!(
-                                    "\t\tNo pong from websockets connection received. Will reconnect to orchestrator..."
-                                );
+                                // println!(
+                                //     "\t\tNo pong from websockets connection received. Will reconnect to orchestrator..."
+                                // );
                                 client = match connect_to_orchestrator_with_limited_retry(
                                     &ws_addr_string,
                                     &prover_id,
@@ -276,8 +277,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .await
                                 {
                                     Ok(new_client) => new_client,
-                                    Err(e) => {
-                                        eprintln!("Failed to reconnect to orchestrator: {}", e);
+                                    Err(_) => {
+                                        // eprintln!("Failed to reconnect to orchestrator: {}", e);
                                         // Continue using the existing client and try again next update
                                         client
                                     }
@@ -286,11 +287,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                     }
                     //The ping failed to send...
-                    Err(e) => {
-                        println!(
-                            "\t\tPing failed, will attempt to reconnect to orchestrator: {:?}",
-                            e
-                        );
+                    Err(_) => {
+                        // println!(
+                        //     "\t\tPing failed, will attempt to reconnect to orchestrator: {:?}",
+                        //     e
+                        // );
                         client = match connect_to_orchestrator_with_limited_retry(
                             &ws_addr_string,
                             &prover_id,
@@ -298,8 +299,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .await
                         {
                             Ok(new_client) => new_client,
-                            Err(e) => {
-                                eprintln!("Failed to reconnect to orchestrator: {}", e);
+                            Err(_) => {
+                                // eprintln!("Failed to reconnect to orchestrator: {}", e);
                                 // Continue using the existing client and try again next update
                                 client
                             }
