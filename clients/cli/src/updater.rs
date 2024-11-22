@@ -7,15 +7,18 @@ static mut MOCK_LATEST_TAG: Option<String> = None;
 const UPDATE_INTERVAL: u64 = 20; // 20 seconds
 
 pub fn start_periodic_updates() {
-    println!("Starting periodic CLI updates...");
+    println!("\t[start_periodic_updates] Starting periodic CLI updates...");
 
     thread::spawn(|| {
-        println!("\tUpdate checker thread started!");
+        println!("\t[start_periodic_updates]Update checker thread started!");
         loop {
             if let Err(e) = check_and_update() {
-                eprintln!("Update check failed: {}", e);
+                eprintln!("\t[start_periodic_updates] Update check failed: {}", e);
             }
-            println!("\tSleeping for {} seconds...", UPDATE_INTERVAL);
+            println!(
+                "\t[start_periodic_updates] Sleeping for {} seconds...",
+                UPDATE_INTERVAL
+            );
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL)); // 60 seconds (for testing)
         }
     });
@@ -23,38 +26,27 @@ pub fn start_periodic_updates() {
 
 pub fn check_and_update() -> Result<(), Box<dyn std::error::Error>> {
     let (repo_path, _) = get_paths()?;
+    println!("[updater] Checking git repo at: {}", repo_path);
 
-    // Get current version of the code
+    // Get current version
     let current = Command::new("git")
         .args(["describe", "--tags", "--abbrev=0"])
         .current_dir(&repo_path)
         .output()?;
-
     let current = String::from_utf8_lossy(&current.stdout).trim().to_string();
-    println!("Updater: Current version is {}", current); // Debug print
+    println!("[updater] Current version is {}", current);
 
-    // Get latest version (real or mocked)
-    let latest = if cfg!(test) {
-        unsafe { MOCK_LATEST_TAG.clone().unwrap_or(current.clone()) }
-    } else {
-        // Get latest tag name using git describe
-        // Example repo state:
-        //   * abc123 (tag: v2.0) Latest commit
-        //   * def456 (tag: v1.1) Older commit
-        //   * ghi789 (tag: v1.0) First commit
-        //
-        // Command will return: v2.0
-        let latest = Command::new("git")
-            .args(["describe", "--tags", "--abbrev=0"])
-            .current_dir(&repo_path)
-            .output()?;
-        String::from_utf8_lossy(&latest.stdout).trim().to_string()
-    };
-    println!("Updater: Latest version is {}", latest); // Debug print
+    // Get latest version
+    let latest = Command::new("git")
+        .args(["describe", "--tags", "--abbrev=0"])
+        .current_dir(&repo_path)
+        .output()?;
+    let latest = String::from_utf8_lossy(&latest.stdout).trim().to_string();
+    println!("[updater] Latest version is {}", latest);
 
     if current != latest {
-        println!("Updater: Update needed! {} -> {}", current, latest);
-        println!("Update found! Rebuilding...");
+        println!("[updater] Update needed! {} -> {}", current, latest);
+        println!("[updater] Update found! Rebuilding...");
 
         // Pull latest changes
         Command::new("git")
