@@ -24,11 +24,12 @@ pub fn start_periodic_updates() {
 pub fn check_and_update() -> Result<(), Box<dyn std::error::Error>> {
     let (repo_path, _) = get_paths()?;
 
-    // Get current version
+    // Get current version of the code
     let current = Command::new("git")
         .args(["describe", "--tags", "--abbrev=0"])
         .current_dir(&repo_path)
         .output()?;
+
     let current = String::from_utf8_lossy(&current.stdout).trim().to_string();
     println!("Updater: Current version is {}", current); // Debug print
 

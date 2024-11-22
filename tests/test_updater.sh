@@ -34,56 +34,32 @@ trap cleanup TERM
 TEST_DIR=$(mktemp -d)
 echo "Setting up test in $TEST_DIR"
 
-# Copy your local files to test directory
-cd $PROJECT_ROOT
-cp -r . $TEST_DIR/
+# Copy necessary files to test directory
 cd $TEST_DIR
-
-# Remove existing .git and start fresh
-rm -rf .git
-git init
-git add .
-git commit -m "Initial commit"
-git tag 0.3.5  # Start with old version
+git clone $PROJECT_ROOT .
+git checkout 0.3.5  # Safe to do in the clone
 
 # Build and start CLI
 cd clients/cli
 cargo build --release
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
 
-# Start CLI and store its PID
+# Start CLI and store its PID and its starting commit
 echo "Starting CLI v1.0..."
 STARTING_COMMIT=$(git rev-parse HEAD)  # Store the commit where we start
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
 echo "Original PID: $ORIGINAL_PID"
 
-# Create new version with higher number than 0.3.5
-echo "updated" > test.txt
-git add test.txt
-git commit -m "Update"
-git tag $TEST_NEW_VERSION
 
 # Give CLI time to start the proving from prover.rs
 sleep 30 
 
-# Wait for auto-update
-echo "Waiting for auto-update..."
-# This will check every second (for upto 60 seconds) if the version has changed
-for i in {1..60}; do
-    # Check if process is still running
-    if ! ps -p $ORIGINAL_PID > /dev/null; then
-        echo "Warning: Original process $ORIGINAL_PID is not running!"
-    fi
-    
-    # Check if version has changed (using same command as updater.rs)
-    CURRENT_VERSION=$(cd "$TEST_DIR" && git describe --tags --abbrev=0)
-    if [ "$CURRENT_VERSION" = "$TEST_NEW_VERSION" ]; then
-        break
-    fi
-    echo "Current version: $CURRENT_VERSION, waiting... (attempt $i/60)"
-    sleep 1
-done
+# Create new version with higher number than 0.3.5
+echo "updated" > test.txt
+git add test.txt
+git commit -m "Update"
+git tag $TEST_NEW_VERSION # Use a version higher than current
 
 # If the version is not updated from v1.0 to v2.0, the test fails
 if [ "$CURRENT_VERSION" != "$TEST_NEW_VERSION" ]; then
