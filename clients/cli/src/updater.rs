@@ -1,3 +1,4 @@
+use std::os::unix::process::CommandExt;
 use std::sync::Arc;
 use std::{
     fs,
@@ -25,7 +26,7 @@ fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
     match read_version_from_file() {
         Ok(version) => {
             println!(
-                "{}[auto-updater]{} Read version from file: {}",
+                "{}[auto-updater thread]{} Read version from file: {}",
                 BLUE,
                 RESET,
                 number_to_version(version)
@@ -36,14 +37,14 @@ fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
             // If file doesn't exist, try getting from git
             let git_version = get_git_version()?;
             println!(
-                "{}[auto-updater]{} Read version from git: {}",
+                "{}[auto-updater thread]{} Read version from git: {}",
                 BLUE, RESET, git_version
             );
             let version_num = version_to_number(&git_version);
             // Save it to file for next time
             write_version_to_file(&git_version)?;
             println!(
-                "{}[auto-updater]{} Wrote git_version version to file: {}",
+                "{}[auto-updater thread]{} Wrote git_version version to file: {}",
                 BLUE,
                 RESET,
                 number_to_version(version_num)
@@ -55,7 +56,7 @@ fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
 
 pub fn start_periodic_updates() {
     println!(
-        "{}[auto-updater]{} Starting periodic CLI updates...",
+        "{}[auto-updater thread]{} Starting periodic CLI updates...",
         BLUE, RESET
     );
 
@@ -80,7 +81,7 @@ pub fn start_periodic_updates() {
                 );
             }
             println!(
-                "{}[auto-updater thread]{} Checking for updates in {} seconds...",
+                "{}[auto-updater thread]{} Checking for new CLI updated version in {} seconds...",
                 BLUE, RESET, UPDATE_INTERVAL
             );
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL));
@@ -159,11 +160,13 @@ pub fn check_and_update(
         // Write new version to file before restarting
         write_version_to_file(&latest)?;
 
-        // Build and restart
+        // Build and restart as a new detached process
+        // By making it a separate process (not just a thread), it will survive when the parent process exits
         Command::new("cargo")
-            .args(["run", "--release", "--"]) // -- separates cargo args from program args
-            .arg(&args[0]) // Only pass the first argument (hostname)
+            .args(["run", "--release", "--"])
+            .arg(&args[0])
             .current_dir(format!("{}/clients/cli", repo_path))
+            .process_group(0) // Create new process group
             .spawn()?;
 
         // Exit the current process
