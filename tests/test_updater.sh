@@ -3,9 +3,10 @@ set -e  # Exit on any error
 
 # Configuration
 ORCHESTRATOR_HOST="beta.orchestrator.nexus.xyz"
-TEST_NEW_VERSION="0.9.9"  # Define version once here
+# The new version number used to test the updater
+TEST_NEW_VERSION="0.9.9" 
 
-# Add at top after shebang
+# Variables used for pretty printing in colors
 ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
 
@@ -30,6 +31,7 @@ cleanup() {
 }
 
 # Trap cleanup on script exit, interrupts (Ctrl+C), and termination
+# This ensures that the cleanup is called even if the script is interrupted or terminated
 trap cleanup EXIT
 trap cleanup INT
 trap cleanup TERM
@@ -56,7 +58,7 @@ git add .
 git commit -m "Initial commit"
 git tag 0.3.5  # Start with old version
 
-# Build and start CLI
+# Build and start the CLI
 cd clients/cli
 echo " "
 echo -e "${ORANGE}[test-updater script] Building with cargo...${NC}"
@@ -66,17 +68,18 @@ $CARGO_CMD || exit 1
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
 echo -e "${ORANGE}[test-updater script] Binary path: $INSTALL_PATH${NC}"
 
-# Start CLI and store its PID
+# Start CLI and store its PID in the memory of this bash script 
+# note: the PID is ALSO stored in the .prover.pid file by the updater.rs, but this one is just for in-memory testing/validating
 echo " "
 echo -e "${ORANGE}Starting CLI v1.0...${NC}"
 echo " "
 STARTING_COMMIT=$(git rev-parse HEAD)
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
-echo -e "${ORANGE}[test-updater script]Original PID: $ORIGINAL_PID${NC}"
+echo -e "${ORANGE}[test-updater script] Original PID: $ORIGINAL_PID${NC}"
 echo " "
 
-# Give CLI time to start the proving from prover.rs
+# Give CLI some timee to start the proving by starting the main thread at prover.rs
 sleep 30 
 
 # Create new version with higher number than 0.3.5
@@ -92,7 +95,7 @@ echo -e "${ORANGE}[test-updater script] new code added and committed. New tag ve
 # Wait for auto-update to happen
 echo -e "${ORANGE}[test-updater script] Waiting for auto-update to catch the new version...${NC}"
 echo " "
-sleep 60  # Give updater time to detect and apply update (it checks every 20 seconds)
+sleep 60  # Give the updater time to detect and apply update (it checks every 20 seconds)
 echo -e "${ORANGE}[test-updater script] Checking if the updater applied the update...${NC}"
 echo " "
 
@@ -115,8 +118,8 @@ fi
 
 # If the new PID is the same as the original PID, the CLI was not restarted (same process)
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
-    echo -e "${ORANGE}[test-updater script] ❌ CLI was not restarted (PID unchanged)${NC}"
-    echo -e "${ORANGE}[test-updater script] Original version: $(git describe --tags $STARTING_COMMIT)${NC}"  # Check version at start
+    echo -e "${ORANGE}[test-updater script] ❌ CLI was not restarted \(PID unchanged\)${NC}"
+    echo -e "${ORANGE}[test-updater script] Original version: $(git describe --tags $STARTING_COMMIT)${NC}"
     echo -e "${ORANGE}[test-updater script] Expected version: $TEST_NEW_VERSION${NC}"
     exit 1
 fi

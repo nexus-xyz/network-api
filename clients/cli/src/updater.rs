@@ -8,15 +8,11 @@ use std::{
     time::Duration,
 };
 
-// // For testing: mock latest tag
-// static mut MOCK_LATEST_TAG: Option<String> = None;
-
 //constant for update interval
-const UPDATE_INTERVAL: u64 = 20; // 20 seconds
+const UPDATE_INTERVAL_IN_SECONDS: u64 = 20; // 20 seconds
 
-// Add at the top with other constants
+// ANSI escape codes for colors for pretty printing
 const BLUE: &str = "\x1b[34m"; // Normal blue
-                               // or use "\x1b[1;34m" for bright blue
 const RESET: &str = "\x1b[0m";
 
 const VERSION_FILE: &str = ".current_version";
@@ -82,9 +78,9 @@ pub fn start_periodic_updates() {
             }
             println!(
                 "{}[auto-updater thread]{} Checking for new CLI updated version in {} seconds...",
-                BLUE, RESET, UPDATE_INTERVAL
+                BLUE, RESET, UPDATE_INTERVAL_IN_SECONDS
             );
-            thread::sleep(Duration::from_secs(UPDATE_INTERVAL));
+            thread::sleep(Duration::from_secs(UPDATE_INTERVAL_IN_SECONDS));
         }
     });
 }
