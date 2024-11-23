@@ -117,12 +117,16 @@ pub fn check_and_update(
 
         // Build and run new version
         Command::new("cargo")
-            .args(["run", "--release", "--", "beta.orchestrator.nexus.xyz"])
-            .args(args) // Pass along original arguments
+            .args(["run", "--release", "--"]) // -- separates cargo args from program args
+            .arg(&args[0]) // Only pass the first argument (hostname)
             .current_dir(format!("{}/clients/cli", repo_path))
             .spawn()?;
 
         // Exit the current process
+        println!(
+            "{}[auto-updater]{} Restarting with new version...",
+            BLUE, RESET
+        );
         std::process::exit(0); // This will stop the main thread
     }
 
