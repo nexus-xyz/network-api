@@ -12,8 +12,16 @@ use std::{
 //constant for update interval
 const UPDATE_INTERVAL: u64 = 20; // 20 seconds
 
+// Add at the top with other constants
+const BLUE: &str = "\x1b[34m"; // Normal blue
+                               // or use "\x1b[1;34m" for bright blue
+const RESET: &str = "\x1b[0m";
+
 pub fn start_periodic_updates() {
-    println!("\t[auto-updater] Starting periodic CLI updates...");
+    println!(
+        "{}[auto-updater]{} Starting periodic CLI updates...",
+        BLUE, RESET
+    );
 
     // Initialize version counter (0.3.5 -> 305, 0.9.9 -> 909)
     let current_version = Arc::new(AtomicU64::new(version_to_number("0.3.5")));
@@ -22,14 +30,17 @@ pub fn start_periodic_updates() {
     let version_for_thread = current_version.clone();
 
     thread::spawn(move || {
-        println!("\t[auto-updater] Update checker thread started!");
+        println!(
+            "{}[auto-updater]{} Update checker thread started!",
+            BLUE, RESET
+        );
         loop {
             if let Err(e) = check_and_update(&version_for_thread) {
-                eprintln!("\t[auto-updater] Update check failed: {}", e);
+                eprintln!("{}[auto-updater]{} Update check failed: {}", BLUE, RESET, e);
             }
             println!(
-                "\t[auto-updater] Checking for updates in {} seconds...",
-                UPDATE_INTERVAL
+                "{}[auto-updater]{} Checking for updates in {} seconds...",
+                BLUE, RESET, UPDATE_INTERVAL
             );
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL));
         }
@@ -57,21 +68,36 @@ pub fn check_and_update(
     current_version: &Arc<AtomicU64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (repo_path, _) = get_paths()?;
-    println!("[auto-updater] Checking git repo at: {}", repo_path);
+    println!(
+        "{}[auto-updater]{} Checking git repo at: {}",
+        BLUE, RESET, repo_path
+    );
 
     // Get current version from memory
     let current_num = current_version.load(Ordering::Relaxed);
     let current = number_to_version(current_num);
-    println!("[auto-updater] Current version is {}", current);
+    println!(
+        "{}[auto-updater]{} Current version is {}",
+        BLUE, RESET, current
+    );
 
     // Get latest version from git
     let latest = get_git_version()?;
     let latest_num = version_to_number(&latest);
-    println!("[auto-updater] Latest version is {}", latest);
+    println!(
+        "{}[auto-updater]{} Latest version is {}",
+        BLUE, RESET, latest
+    );
 
     if current_num != latest_num {
-        println!("[auto-updater] Update needed! {} -> {}", current, latest);
-        println!("[auto-updater] Update found! Rebuilding...");
+        println!(
+            "{}[auto-updater]{} Update needed! {} -> {}",
+            BLUE, RESET, current, latest
+        );
+        println!(
+            "{}[auto-updater]{} Update found! Rebuilding...",
+            BLUE, RESET
+        );
 
         // Pull latest changes
         Command::new("git")
@@ -86,7 +112,10 @@ pub fn check_and_update(
             .output()?;
 
         // Rebuild the project
-        println!("[auto-updater] Rebuilding and running project...");
+        println!(
+            "{}[auto-updater]{} Rebuilding and running project...",
+            BLUE, RESET
+        );
         Command::new("cargo")
             .args(["run", "--release", "--", "beta.orchestrator.nexus.xyz"])
             .current_dir(format!("{}/clients/cli", repo_path)) // CLI directory
@@ -94,7 +123,10 @@ pub fn check_and_update(
 
         // Update the version before restarting
         current_version.store(latest_num, Ordering::Relaxed);
-        println!("[auto-updater] Updated version to: {}", latest);
+        println!(
+            "{}[auto-updater]{} Updated version to: {}",
+            BLUE, RESET, latest
+        );
 
         // Restart self
         let current_exe = std::env::current_exe()?;
