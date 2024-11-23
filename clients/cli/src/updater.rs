@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::{
+    fs,
     process::Command,
     sync::atomic::{AtomicU64, Ordering},
     thread,
@@ -17,29 +18,69 @@ const BLUE: &str = "\x1b[34m"; // Normal blue
                                // or use "\x1b[1;34m" for bright blue
 const RESET: &str = "\x1b[0m";
 
+const VERSION_FILE: &str = ".current_version";
+
+fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
+    // Try reading from file first
+    match read_version_from_file() {
+        Ok(version) => {
+            println!(
+                "{}[auto-updater]{} Read version from file: {}",
+                BLUE,
+                RESET,
+                number_to_version(version)
+            );
+            Ok(version)
+        }
+        Err(_) => {
+            // If file doesn't exist, try getting from git
+            let git_version = get_git_version()?;
+            println!(
+                "{}[auto-updater]{} Read version from git: {}",
+                BLUE, RESET, git_version
+            );
+            let version_num = version_to_number(&git_version);
+            // Save it to file for next time
+            write_version_to_file(&git_version)?;
+            println!(
+                "{}[auto-updater]{} Wrote git_version version to file: {}",
+                BLUE,
+                RESET,
+                number_to_version(version)
+            );
+            Ok(version_num)
+        }
+    }
+}
+
 pub fn start_periodic_updates() {
     println!(
         "{}[auto-updater]{} Starting periodic CLI updates...",
         BLUE, RESET
     );
 
-    // Initialize version counter (0.3.5 -> 305, 0.9.9 -> 909)
-    let current_version = Arc::new(AtomicU64::new(version_to_number("0.3.5")));
+    // Initialize version counter from file or git
+    let current_version = Arc::new(AtomicU64::new(
+        get_current_version().unwrap_or_else(|_| version_to_number("0.3.5")),
+    ));
 
     // Clone Arc for the thread
     let version_for_thread = current_version.clone();
 
     thread::spawn(move || {
         println!(
-            "{}[auto-updater]{} Update checker thread started!",
+            "{}[auto-updater thread]{} Update checker thread started!",
             BLUE, RESET
         );
         loop {
             if let Err(e) = check_and_update(&version_for_thread) {
-                eprintln!("{}[auto-updater]{} Update check failed: {}", BLUE, RESET, e);
+                eprintln!(
+                    "{}[auto-updater thread]{} Update check failed: {}",
+                    BLUE, RESET, e
+                );
             }
             println!(
-                "{}[auto-updater]{} Checking for updates in {} seconds...",
+                "{}[auto-updater thread]{} Checking for updates in {} seconds...",
                 BLUE, RESET, UPDATE_INTERVAL
             );
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL));
@@ -69,7 +110,7 @@ pub fn check_and_update(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let (repo_path, _) = get_paths()?;
     println!(
-        "{}[auto-updater]{} Checking git repo at: {}",
+        "{}[auto-updater thread]{} Checking git repo at: {}",
         BLUE, RESET, repo_path
     );
 
@@ -77,7 +118,7 @@ pub fn check_and_update(
     let current_num = current_version.load(Ordering::Relaxed);
     let current = number_to_version(current_num);
     println!(
-        "{}[auto-updater]{} Current version is {}",
+        "{}[auto-updater thread]{} Current version is {}",
         BLUE, RESET, current
     );
 
@@ -85,13 +126,13 @@ pub fn check_and_update(
     let latest = get_git_version()?;
     let latest_num = version_to_number(&latest);
     println!(
-        "{}[auto-updater]{} Latest version is {}",
+        "{}[auto-updater thread]{} Latest version is {}",
         BLUE, RESET, latest
     );
 
     if current_num != latest_num {
         println!(
-            "{}[auto-updater]{} Update needed! {} -> {}",
+            "{}[auto-updater thread]{} Update needed! {} -> {}",
             BLUE, RESET, current, latest
         );
 
@@ -108,14 +149,17 @@ pub fn check_and_update(
             .output()?;
 
         println!(
-            "{}[auto-updater]{} Rebuilding and running new version...",
+            "{}[auto-updater thread]{} Rebuilding and running new version...",
             BLUE, RESET
         );
 
         // Get original args to pass to new process
         let args: Vec<String> = std::env::args().skip(1).collect();
 
-        // Build and run new version
+        // Write new version to file before restarting
+        write_version_to_file(&latest)?;
+
+        // Build and restart
         Command::new("cargo")
             .args(["run", "--release", "--"]) // -- separates cargo args from program args
             .arg(&args[0]) // Only pass the first argument (hostname)
@@ -124,7 +168,7 @@ pub fn check_and_update(
 
         // Exit the current process
         println!(
-            "{}[auto-updater]{} Restarting with new version...",
+            "{}[auto-updater thread]{} Restarting with new version...",
             BLUE, RESET
         );
         std::process::exit(0); // This will stop the main thread
@@ -157,4 +201,14 @@ fn get_git_version() -> Result<String, Box<dyn std::error::Error>> {
         .output()?;
 
     Ok(String::from_utf8(output.stdout)?.trim().to_string())
+}
+
+fn read_version_from_file() -> Result<u64, Box<dyn std::error::Error>> {
+    let version_str = fs::read_to_string(VERSION_FILE)?;
+    Ok(version_to_number(&version_str))
+}
+
+fn write_version_to_file(version: &str) -> Result<(), Box<dyn std::error::Error>> {
+    fs::write(VERSION_FILE, version)?;
+    Ok(())
 }
