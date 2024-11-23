@@ -162,12 +162,22 @@ pub fn check_and_update(
 
         // Build and restart as a new detached process
         // By making it a separate process (not just a thread), it will survive when the parent process exits
-        Command::new("cargo")
+        let child = Command::new("cargo")
             .args(["run", "--release", "--"])
             .arg(&args[0])
             .current_dir(format!("{}/clients/cli", repo_path))
             .process_group(0) // Create new process group
             .spawn()?;
+
+        // Write the new PID to a file (so it can be read by bash script)
+        std::fs::write(".prover.pid", child.id().to_string())?;
+
+        println!(
+            "{}[auto-updater thread]{} Started new process with PID: {}",
+            BLUE,
+            RESET,
+            child.id()
+        );
 
         // Exit the current process
         println!(

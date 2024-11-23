@@ -58,6 +58,7 @@ git tag 0.3.5  # Start with old version
 
 # Build and start CLI
 cd clients/cli
+echo " "
 echo -e "${ORANGE}[test-updater script] Building with cargo...${NC}"
 CARGO_CMD="cargo build --release"
 $CARGO_CMD || exit 1
@@ -95,13 +96,19 @@ sleep 60  # Give updater time to detect and apply update (it checks every 20 sec
 echo -e "${ORANGE}[test-updater script] Checking if the updater applied the update...${NC}"
 echo " "
 
+# { During this time, he updater should have updated the code and restarted with a new process }
+
+# The updater should have written the new version to the file
+NEW_VERSION=$(cat .current_version)
+echo -e "${ORANGE}[test-updater script] New version: $NEW_VERSION${NC}"
+
 
 # Verify that the new version is running in a new process (e.g. CLI restarted)
-NEW_PID=$(pgrep -f "$INSTALL_PATH" || echo "")
+NEW_PID="$(cat .prover.pid 2>/dev/null || echo "")"  # Read PID from file
 echo -e "${ORANGE}[test-updater script] New PID: $NEW_PID${NC}"
 
 # if the new PID is empty, the CLI is not running
-if [ -z "$NEW_PID" ]; then
+if [ -z "$NEW_PID" ] || ! ps -p "$NEW_PID" > /dev/null; then
     echo -e "${ORANGE}❌ CLI is not running!${NC}"
     exit 1
 fi
