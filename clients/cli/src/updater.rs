@@ -46,7 +46,7 @@ fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
                 "{}[auto-updater]{} Wrote git_version version to file: {}",
                 BLUE,
                 RESET,
-                number_to_version(version)
+                number_to_version(version_num)
             );
             Ok(version_num)
         }

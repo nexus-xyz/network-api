@@ -39,6 +39,8 @@ TEST_DIR=$(mktemp -d)
 echo " "
 echo -e "${ORANGE}[test-updater script] Starting test for auto-updater...${NC}"
 echo -e "${ORANGE}[test-updater script] Setting up test directory in $TEST_DIR${NC}"
+echo -e "${ORANGE}[test-updater script] Setting uo git and files...${NC}"
+
 echo " "
 
 
