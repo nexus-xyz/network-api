@@ -106,8 +106,16 @@ pub fn check_and_update(
 }
 
 fn get_paths() -> Result<(String, String), Box<dyn std::error::Error>> {
-    let repo_path = std::env::current_dir()?.to_string_lossy().to_string();
-    let cli_path = format!("{}/target/release/cli", repo_path);
+    let current_dir = std::env::current_dir()?;
+    // Navigate up from 'clients/cli' to repo root
+    let repo_path = current_dir
+        .parent() // up from cli
+        .and_then(|p| p.parent()) // up from clients
+        .ok_or("Could not find repository root")?
+        .to_string_lossy()
+        .to_string();
+
+    let cli_path = format!("{}/clients/cli", repo_path);
     Ok((repo_path, cli_path))
 }
 
