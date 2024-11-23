@@ -39,9 +39,9 @@ trap cleanup TERM
 # Create clean test directory
 TEST_DIR=$(mktemp -d)
 echo " "
-echo -e "${ORANGE}[test-updater script] Starting test for auto-updater...${NC}"
-echo -e "${ORANGE}[test-updater script] Setting up test directory in $TEST_DIR${NC}"
-echo -e "${ORANGE}[test-updater script] Setting up git and files...${NC}"
+echo -e "${ORANGE}[test-updater script] (1 / 12) Starting test for auto-updater...${NC}"
+echo -e "${ORANGE}[test-updater script] (2 / 12) Setting up test directory in $TEST_DIR${NC}"
+echo -e "${ORANGE}[test-updater script] (3 / 12) Setting up git and files...${NC}"
 
 echo " "
 
@@ -61,22 +61,22 @@ git tag 0.3.5  # Start with old version
 # Build and start the CLI
 cd clients/cli
 echo " "
-echo -e "${ORANGE}[test-updater script] Building with cargo...${NC}"
+echo -e "${ORANGE}[test-updater script] (4 / 12) Building with cargo...${NC}"
 CARGO_CMD="cargo build --release"
 $CARGO_CMD || exit 1
 
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
-echo -e "${ORANGE}[test-updater script] Binary path: $INSTALL_PATH${NC}"
+echo -e "${ORANGE}[test-updater script] (5 / 12) Binary path: $INSTALL_PATH${NC}"
 
 # Start CLI and store its PID in the memory of this bash script 
 # note: the PID is ALSO stored in the .prover.pid file by the updater.rs, but this one is just for in-memory testing/validating
 echo " "
-echo -e "${ORANGE}Starting CLI v1.0...${NC}"
+echo -e "${ORANGE}[test-updater script] (6 / 12) Starting CLI v1.0...${NC}"
 echo " "
 STARTING_COMMIT=$(git rev-parse HEAD)
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
-echo -e "${ORANGE}[test-updater script] Original PID: $ORIGINAL_PID${NC}"
+echo -e "${ORANGE}[test-updater script] (7 / 12) Original PID for the CLI main process: $ORIGINAL_PID${NC}"
 echo " "
 
 # Give CLI some timee to start the proving by starting the main thread at prover.rs
@@ -85,7 +85,7 @@ sleep 30
 # Create new version with higher number than 0.3.5
 # This section represents what may happen in the wild: the code is updated on github with a new tag
 echo " "
-echo -e "${ORANGE}[test-updater script] Adding new code to test auto-update...${NC}"
+echo -e "${ORANGE}[test-updater script] (8 / 12) Adding new code to test auto-update...${NC}"
 echo "updated" > test.txt
 git add test.txt
 git commit -m "Update"
@@ -93,10 +93,10 @@ git tag $TEST_NEW_VERSION # Use a version higher than current
 echo -e "${ORANGE}[test-updater script] new code added and committed. New tag version: $TEST_NEW_VERSION${NC}"
 
 # Wait for auto-update to happen
-echo -e "${ORANGE}[test-updater script] Waiting for auto-update to catch the new version...${NC}"
+echo -e "${ORANGE}[test-updater script] (9 / 12) Waiting for auto-update to catch the new version...${NC}"
 echo " "
 sleep 60  # Give the updater time to detect and apply update (it checks every 20 seconds)
-echo -e "${ORANGE}[test-updater script] Checking if the updater applied the update...${NC}"
+echo -e "${ORANGE}[test-updater script] (10 / 12) Checking if the updater applied the update...${NC}"
 echo " "
 
 # { During this time, he updater should have updated the code and restarted with a new process }
@@ -118,10 +118,10 @@ fi
 
 # If the new PID is the same as the original PID, the CLI was not restarted (same process)
 if [ "$NEW_PID" == "$ORIGINAL_PID" ]; then
-    echo -e "${ORANGE}[test-updater script] ❌ CLI was not restarted \(PID unchanged\)${NC}"
+    echo -e "${ORANGE}[test-updater script] (12 / 12) ❌ CLI was not restarted \(PID unchanged\)${NC}"
     echo -e "${ORANGE}[test-updater script] Original version: $(git describe --tags $STARTING_COMMIT)${NC}"
     echo -e "${ORANGE}[test-updater script] Expected version: $TEST_NEW_VERSION${NC}"
     exit 1
 fi
 
-echo -e "${ORANGE}[test-updater script] ✅ CLI auto-updated and restarted successfully${NC}"
+echo -e "${ORANGE}[test-updater script] (12 / 12) ✅ CLI auto-updated and restarted successfully${NC}"
