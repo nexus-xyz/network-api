@@ -37,8 +37,10 @@ trap cleanup TERM
 # Create clean test directory
 TEST_DIR=$(mktemp -d)
 echo " "
-echo -e "${ORANGE}[test-updater] Starting test... for auto-updater${NC}"
+echo -e "${ORANGE}[test-updater] Starting test for auto-updater...${NC}"
 echo -e "${ORANGE}[test-updater] Setting up test directory in $TEST_DIR${NC}"
+echo " "
+
 
 # Copy your local files to test directory
 cd $PROJECT_ROOT
@@ -54,21 +56,29 @@ git tag 0.3.5  # Start with old version
 
 # Build and start CLI
 cd clients/cli
-cargo build --release
+echo -e "${ORANGE}[test-updater] Building with cargo...${NC}"
+CARGO_CMD="cargo build --release"
+$CARGO_CMD || exit 1
+
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
+echo -e "${ORANGE}[test-updater] Binary path: $INSTALL_PATH${NC}"
 
 # Start CLI and store its PID
+echo " "
 echo -e "${ORANGE}Starting CLI v1.0...${NC}"
+echo " "
 STARTING_COMMIT=$(git rev-parse HEAD)
 $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
 echo -e "${ORANGE}[test-updater]Original PID: $ORIGINAL_PID${NC}"
+echo " "
 
 # Give CLI time to start the proving from prover.rs
 sleep 30 
 
 # Create new version with higher number than 0.3.5
 # This section represents what may happen in the wild: the code is updated on github with a new tag
+echo " "
 echo -e "${ORANGE}[test-updater] Adding new code to test auto-update...${NC}"
 echo "updated" > test.txt
 git add test.txt
@@ -81,6 +91,7 @@ echo -e "${ORANGE}[test-updater] Waiting for auto-update to catch the new versio
 echo " "
 sleep 60  # Give updater time to detect and apply update (it checks every 20 seconds)
 echo -e "${ORANGE}[test-updater] Checking if the updater applied the update...${NC}"
+echo " "
 
 
 # Verify that the new version is running in a new process (e.g. CLI restarted)
