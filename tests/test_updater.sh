@@ -36,6 +36,8 @@ trap cleanup TERM
 
 # Create clean test directory
 TEST_DIR=$(mktemp -d)
+echo " "
+echo -e "${ORANGE}[test-updater] Starting test... for auto-updater${NC}"
 echo -e "${ORANGE}[test-updater] Setting up test directory in $TEST_DIR${NC}"
 
 # Copy your local files to test directory
