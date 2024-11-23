@@ -94,10 +94,6 @@ pub fn check_and_update(
             "{}[auto-updater]{} Update needed! {} -> {}",
             BLUE, RESET, current, latest
         );
-        println!(
-            "{}[auto-updater]{} Update found! Rebuilding...",
-            BLUE, RESET
-        );
 
         // Pull latest changes
         Command::new("git")
@@ -111,27 +107,23 @@ pub fn check_and_update(
             .current_dir(&repo_path)
             .output()?;
 
-        // Rebuild the project
         println!(
-            "{}[auto-updater]{} Rebuilding and running project...",
+            "{}[auto-updater]{} Rebuilding and running new version...",
             BLUE, RESET
         );
+
+        // Get original args to pass to new process
+        let args: Vec<String> = std::env::args().skip(1).collect();
+
+        // Build and run new version
         Command::new("cargo")
             .args(["run", "--release", "--", "beta.orchestrator.nexus.xyz"])
-            .current_dir(format!("{}/clients/cli", repo_path)) // CLI directory
-            .output()?;
+            .args(args) // Pass along original arguments
+            .current_dir(format!("{}/clients/cli", repo_path))
+            .spawn()?;
 
-        // Update the version before restarting
-        current_version.store(latest_num, Ordering::Relaxed);
-        println!(
-            "{}[auto-updater]{} Updated version to: {}",
-            BLUE, RESET, latest
-        );
-
-        // Restart self
-        let current_exe = std::env::current_exe()?;
-        let _ = Command::new(current_exe).spawn()?;
-        std::process::exit(0);
+        // Exit the current process
+        std::process::exit(0); // This will stop the main thread
     }
 
     Ok(())
