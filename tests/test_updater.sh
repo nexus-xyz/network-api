@@ -104,7 +104,7 @@ git tag $TEST_NEW_VERSION # Use a version higher than current
 echo -e "${ORANGE}[test-updater script] new code added and committed. New tag version: $TEST_NEW_VERSION${NC}"
 
 # Wait for auto-update to happen
-echo -e "${ORANGE}[test-updater script] (9 / 18) Waiting for auto-update to catch the new version...${NC}"
+echo -e "${ORANGE}[test-updater script] (9 / 18) Waiting 60 seconds for auto-update to catch the new version...${NC}"
 echo " "
 sleep 60  # Give the updater time to detect and apply update (it checks every 20 seconds)
 echo -e "${ORANGE}[test-updater script] (10 / 18) Checking if the updater applied the update...${NC}"
