@@ -6,8 +6,8 @@ use std::{
     time::Duration,
 };
 
-// For testing: mock latest tag
-static mut MOCK_LATEST_TAG: Option<String> = None;
+// // For testing: mock latest tag
+// static mut MOCK_LATEST_TAG: Option<String> = None;
 
 //constant for update interval
 const UPDATE_INTERVAL: u64 = 20; // 20 seconds
@@ -28,7 +28,7 @@ pub fn start_periodic_updates() {
                 eprintln!("\t[auto-updater] Update check failed: {}", e);
             }
             println!(
-                "\t[auto-updater] Sleeping for {} seconds...",
+                "\t[auto-updater] Checking for updates in {} seconds...",
                 UPDATE_INTERVAL
             );
             thread::sleep(Duration::from_secs(UPDATE_INTERVAL));
@@ -86,10 +86,10 @@ pub fn check_and_update(
             .output()?;
 
         // Rebuild the project
-        println!("[auto-updater] Rebuilding project...");
+        println!("[auto-updater] Rebuilding and running project...");
         Command::new("cargo")
-            .args(["build", "--release"])
-            .current_dir(&repo_path)
+            .args(["run", "--release", "--", "beta.orchestrator.nexus.xyz"])
+            .current_dir(format!("{}/clients/cli", repo_path)) // CLI directory
             .output()?;
 
         // Update the version before restarting

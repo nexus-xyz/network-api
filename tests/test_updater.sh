@@ -64,6 +64,7 @@ sleep 30
 
 # Create new version with higher number than 0.3.5
 # This section represents what may happen in the wild: the code is updated on github with a new tag
+echo "[test-updater] Adding new code to test auto-update..."
 echo "updated" > test.txt
 git add test.txt
 git commit -m "Update"
@@ -71,7 +72,8 @@ git tag $TEST_NEW_VERSION # Use a version higher than current
 echo "[test-updater] new code added and committed. New tag version: $TEST_NEW_VERSION"
 
 # Wait for auto-update to happen
-echo "[test-updater] Waiting for auto-update to catch the new version...\n"
+echo "[test-updater] Waiting for auto-update to catch the new version..."
+echo " "
 sleep 60  # Give updater time to detect and apply update (it checks every 20 seconds)
 echo "[test-updater] Checking if the updater applied the update..."
 
