@@ -15,8 +15,10 @@ const UPDATE_INTERVAL_IN_SECONDS: u64 = 20; // 20 seconds
 const BLUE: &str = "\x1b[34m"; // Normal blue
 const RESET: &str = "\x1b[0m";
 
+// The file to store the current version in
 const VERSION_FILE: &str = ".current_version";
 
+// function to get the current git tag version from the file or git
 fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
     // Try reading from file first
     match read_version_from_file() {
@@ -50,6 +52,8 @@ fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
     }
 }
 
+// function to start the periodic update checker thread
+// This is the function that is called by the main thread in prover.rs
 pub fn start_periodic_updates() {
     println!(
         "{}[auto-updater thread]{} Starting periodic CLI updates...",
@@ -85,6 +89,7 @@ pub fn start_periodic_updates() {
     });
 }
 
+/// function to convert a version string to a number
 fn version_to_number(version: &str) -> u64 {
     // Convert "0.3.5" to 305
     let parts: Vec<&str> = version.split('.').collect();
@@ -94,6 +99,7 @@ fn version_to_number(version: &str) -> u64 {
     major * 100_000 + minor * 1_000 + patch
 }
 
+/// function to convert a number to a version string
 fn number_to_version(num: u64) -> String {
     // Convert 305 back to "0.3.5"
     let major = num / 100_000;
@@ -102,6 +108,7 @@ fn number_to_version(num: u64) -> String {
     format!("{}.{}.{}", major, minor, patch)
 }
 
+/// function to check for updates and apply them if needed
 pub fn check_and_update(
     current_version: &Arc<AtomicU64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -186,6 +193,7 @@ pub fn check_and_update(
     Ok(())
 }
 
+/// function to get the paths to the repo and the cli directory
 fn get_paths() -> Result<(String, String), Box<dyn std::error::Error>> {
     let current_dir = std::env::current_dir()?;
     // Navigate up from 'clients/cli' to repo root
@@ -200,6 +208,7 @@ fn get_paths() -> Result<(String, String), Box<dyn std::error::Error>> {
     Ok((repo_path, cli_path))
 }
 
+/// function to read the current git tag version from git
 fn get_git_version() -> Result<String, Box<dyn std::error::Error>> {
     let (repo_path, _) = get_paths()?;
 
@@ -212,11 +221,13 @@ fn get_git_version() -> Result<String, Box<dyn std::error::Error>> {
     Ok(String::from_utf8(output.stdout)?.trim().to_string())
 }
 
+/// function to read the current git tag version from a file
 fn read_version_from_file() -> Result<u64, Box<dyn std::error::Error>> {
     let version_str = fs::read_to_string(VERSION_FILE)?;
     Ok(version_to_number(&version_str))
 }
 
+/// function to write the current git tagversion to a file so it can be read by the updater thread
 fn write_version_to_file(version: &str) -> Result<(), Box<dyn std::error::Error>> {
     fs::write(VERSION_FILE, version)?;
     Ok(())
