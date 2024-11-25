@@ -20,7 +20,7 @@ if [ $GIT_IS_AVAILABLE != 0 ]; then
   exit 1;
 fi
 
-PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>&1 || echo)
+PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
     echo To receive credit for proving in Nexus testnets, click on your prover id
     echo at https://beta.nexus.xyz/ to copy the full prover id and paste it here.
