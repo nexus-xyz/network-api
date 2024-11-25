@@ -48,7 +48,6 @@ NONINTERACTIVE=1 sh
 
 - Only latest CLI version is supported
 - No prebuilt binaries yet
-- Email linking available on web only
 - Proof cycle counting coming soon
 - Program submission requires API key (contact growth@nexus.xyz)
 
