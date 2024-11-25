@@ -47,10 +47,11 @@ NONINTERACTIVE=1 sh
 ## Prover Id
 
 The CLI will prompt for your web prover id from [beta.nexus.xyz](https://beta.nexus.xyz/)
-It is ok to skip this prompt and a random id will be generated, but you'll be
+on startup. It is ok to skip this prompt and a random id will be generated, but you'll be
 prompted again on startup until your web prover id is entered.
 
-The prompt is disabled when NONINTERACTIVE=1 is set.
+The prover id prompt is disabled when NONINTERACTIVE=1 is set. In a server environment,
+you can manually overwrite $HOME/.nexus/prover-id with your full prover id.
 
 ## Current Limitations
 
