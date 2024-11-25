@@ -111,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     track(
         "register".into(),
-        format!("Your assigned prover identifier is {}.", prover_id),
+        format!("Your current prover identifier is {}.", prover_id),
         &ws_addr_string,
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
     );
