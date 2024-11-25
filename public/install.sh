@@ -23,7 +23,7 @@ fi
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
     echo To receive credit for proving in Nexus testnets, click on your prover id
-    echo (bottom left) at https://beta.nexus.xyz/ to copy the full prover id and
+    echo "(bottom left) at https://beta.nexus.xyz/ to copy the full prover id and"
     echo paste it here. Press Enter to continue.
     read -p "Prover Id (optional)> " PROVER_ID </dev/tty
     while [ ! ${#PROVER_ID} -eq "0" ]; do
