@@ -22,7 +22,7 @@ fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>&1 || echo)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo To receive credit for proving to Nexus testnets, click on your prover id
+    echo To receive credit for proving in Nexus testnets, click on your prover id
     echo at https://beta.nexus.xyz/ to copy the full prover id and paste it here.
     echo Press Enter to continue.
     read -p "Prover Id (optional)> " PROVER_ID </dev/tty
@@ -32,8 +32,8 @@ if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
                 echo Copying $NEXUS_HOME/prover-id to $NEXUS_HOME/prover-id.bak
                 cp $NEXUS_HOME/prover-id $NEXUS_HOME/prover-id.bak
             fi
-            echo Saving $NEXUS_HOME/prover-id.
             echo "$PROVER_ID" > $NEXUS_HOME/prover-id
+            echo Prover id saved to $NEXUS_HOME/prover-id.
             break;
         else
             echo Unable to validate $PROVER_ID. Please make sure the full prover id is copied.
