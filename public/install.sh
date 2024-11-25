@@ -20,6 +20,28 @@ if [ $GIT_IS_AVAILABLE != 0 ]; then
   exit 1;
 fi
 
+PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
+if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
+    echo To receive credit for proving in Nexus testnets, click on your prover id
+    echo (bottom left) at https://beta.nexus.xyz/ to copy the full prover id and
+    echo paste it here. Press Enter to continue.
+    read -p "Prover Id (optional)> " PROVER_ID </dev/tty
+    while [ ! ${#PROVER_ID} -eq "0" ]; do
+        if [ ${#PROVER_ID} -eq "28" ]; then
+            if [ -f "$NEXUS_HOME/prover-id" ]; then
+                echo Copying $NEXUS_HOME/prover-id to $NEXUS_HOME/prover-id.bak
+                cp $NEXUS_HOME/prover-id $NEXUS_HOME/prover-id.bak
+            fi
+            echo "$PROVER_ID" > $NEXUS_HOME/prover-id
+            echo Prover id saved to $NEXUS_HOME/prover-id.
+            break;
+        else
+            echo Unable to validate $PROVER_ID. Please make sure the full prover id is copied.
+        fi
+        read -p "Prover Id (optional)> " PROVER_ID </dev/tty
+    done
+fi
+
 REPO_PATH=$NEXUS_HOME/network-api
 if [ -d "$REPO_PATH" ]; then
   echo "$REPO_PATH exists. Updating.";
