@@ -254,9 +254,7 @@ pub fn download_and_apply_update(
         );
 
         // Get the absolute path to the cli directory
-        let cli_path = std::path::Path::new(&config.repo_path)
-            .join("clients")
-            .join("cli");
+        let cli_path = std::path::Path::new(&config.repo_path);
 
         // 2. Verify the path exists
         if !cli_path.exists() {
@@ -329,9 +327,7 @@ pub fn download_and_apply_update(
         }
 
         // 4. Build the new version
-        let cli_path = std::path::Path::new(&config.repo_path)
-            .join("clients")
-            .join("cli");
+        let cli_path = std::path::Path::new(&config.repo_path);
 
         println!(
             "{}[auto-updater thread]{} Building new version...",
