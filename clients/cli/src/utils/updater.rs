@@ -151,20 +151,20 @@ pub fn restart_cli_process_with_new_version(
 
     let cli_path = std::path::Path::new(&config.repo_path);
 
-    println!(
-        "{}[auto-updater thread]{} Starting from directory: {}",
-        BLUE,
-        RESET,
-        cli_path.display()
-    );
-
     let mode_arg = match config.mode {
         AutoUpdaterMode::Test => "test",
         AutoUpdaterMode::Production => "production",
     };
 
     let child = Command::new("cargo")
-        .args(["run", "--release", "--", &config.hostname, mode_arg])
+        .args([
+            "run",
+            "--release",
+            "--",
+            &config.hostname,
+            "--updater-mode",
+            mode_arg,
+        ])
         .current_dir(&cli_path)
         .process_group(0)
         .spawn()?;
