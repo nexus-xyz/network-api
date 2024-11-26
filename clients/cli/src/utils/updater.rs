@@ -51,8 +51,8 @@ impl UpdaterConfig {
                     .expect("Failed to get current directory")
                     .to_string_lossy()
                     .into_owned(),
-                remote_repo: String::from("../nexus-prover"), // Local development path
-                update_interval: 30,                          // 30 seconds
+                remote_repo: String::from("."),
+                update_interval: 30,
                 hostname,
             },
         }
@@ -245,42 +245,19 @@ pub fn download_and_apply_update(
         BLUE, RESET, config.repo_path
     );
 
-    // For test mode, we're already in the right directory with the right git repo
     if config.mode == AutoUpdaterMode::Test {
-        // 1. Build new version in test mode
+        // 1. Verify repo exists
+        if !std::path::Path::new(&config.repo_path).exists() {
+            return Err(format!("Repository not found at: {}", config.repo_path).into());
+        }
+
+        // 2. Skip build (cargo run will handle it)
         println!(
-            "{}[auto-updater thread]{} Building new version...",
+            "{}[auto-updater thread]{} Starting new version...",
             BLUE, RESET
         );
 
-        // Get the absolute path to the cli directory
-        let cli_path = std::path::Path::new(&config.repo_path);
-
-        // 2. Verify the path exists
-        if !cli_path.exists() {
-            return Err(format!("CLI directory not found at: {}", cli_path.display()).into());
-        }
-
-        println!(
-            "{}[auto-updater thread]{} Building in directory: {}",
-            BLUE,
-            RESET,
-            cli_path.display()
-        );
-
-        // 3. Build the project
-        let output = Command::new("cargo")
-            .args(["build", "--release"])
-            .current_dir(&cli_path)
-            .output()?;
-
-        if !output.status.success() {
-            return Err(
-                format!("Build failed: {}", String::from_utf8_lossy(&output.stderr)).into(),
-            );
-        }
-
-        // 4. Restart with new version
+        // 3. Restart with new version
         restart_cli_process_with_new_version(new_version, current_version, config)?;
         Ok(())
     } else {
