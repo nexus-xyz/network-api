@@ -241,40 +241,118 @@ pub fn download_and_apply_update(
     config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "{}[auto-updater thread]{} Downloading update {} -> {}",
-        BLUE,
-        RESET,
-        num_to_semver(current_version.load(Ordering::Relaxed)),
-        num_to_semver(new_version)
-    );
-
-    // Add debug logging to see what paths we're using
-    println!(
         "{}[auto-updater thread]{} Using repo path: {}",
         BLUE, RESET, config.repo_path
     );
 
-    //1. Download new version
-    update_code_to_new_cli_version(new_version, config)?;
+    // For test mode, we're already in the right directory with the right git repo
+    if config.mode == AutoUpdaterMode::Test {
+        // 1. Build new version in test mode
+        println!(
+            "{}[auto-updater thread]{} Building new version...",
+            BLUE, RESET
+        );
 
-    println!(
-        "{}[auto-updater thread]{} Building new version...",
-        BLUE, RESET
-    );
+        // Get the absolute path to the cli directory
+        let cli_path = std::path::Path::new(&config.repo_path)
+            .join("clients")
+            .join("cli");
 
-    // 2. Build new version
-    Command::new("cargo")
-        .args(["build", "--release"])
-        .current_dir(format!("{}/clients/cli", config.repo_path))
-        .output()?;
+        // 2. Verify the path exists
+        if !cli_path.exists() {
+            return Err(format!("CLI directory not found at: {}", cli_path.display()).into());
+        }
 
-    println!(
-        "{}[auto-updater thread]{} Build complete, restarting CLI...",
-        BLUE, RESET
-    );
+        println!(
+            "{}[auto-updater thread]{} Building in directory: {}",
+            BLUE,
+            RESET,
+            cli_path.display()
+        );
 
-    // 3. Restart CLI with new version
-    restart_cli_process_with_new_version(new_version, current_version, config)?;
+        // 3. Build the project
+        let output = Command::new("cargo")
+            .args(["build", "--release"])
+            .current_dir(&cli_path)
+            .output()?;
 
-    Ok(())
+        if !output.status.success() {
+            return Err(
+                format!("Build failed: {}", String::from_utf8_lossy(&output.stderr)).into(),
+            );
+        }
+
+        // 4. Restart with new version
+        restart_cli_process_with_new_version(new_version, current_version, config)?;
+        Ok(())
+    } else {
+        // Production update logic
+        println!(
+            "{}[auto-updater thread]{} Updating production installation...",
+            BLUE, RESET
+        );
+
+        // 1. Verify existing installation
+        if !std::path::Path::new(&config.repo_path).exists() {
+            return Err(format!(
+                "Repository not found at {}. Please reinstall the CLI.",
+                config.repo_path
+            )
+            .into());
+        }
+
+        // 2. Fetch updates from remote
+        println!("{}[auto-updater thread]{} Fetching updates...", BLUE, RESET);
+        Command::new("git")
+            .args(["fetch", "--all", "--tags", "--prune"])
+            .current_dir(&config.repo_path)
+            .output()?;
+
+        // 3. Checkout the new version
+        println!(
+            "{}[auto-updater thread]{} Checking out version {}...",
+            BLUE,
+            RESET,
+            num_to_semver(new_version)
+        );
+        let checkout_output = Command::new("git")
+            .args(["checkout", &format!("tags/{}", num_to_semver(new_version))])
+            .current_dir(&config.repo_path)
+            .output()?;
+
+        if !checkout_output.status.success() {
+            return Err(format!(
+                "Failed to checkout version: {}",
+                String::from_utf8_lossy(&checkout_output.stderr)
+            )
+            .into());
+        }
+
+        // 4. Build the new version
+        let cli_path = std::path::Path::new(&config.repo_path)
+            .join("clients")
+            .join("cli");
+
+        println!(
+            "{}[auto-updater thread]{} Building new version...",
+            BLUE, RESET
+        );
+
+        let build_output = Command::new("cargo")
+            .args(["build", "--release"])
+            .current_dir(&cli_path)
+            .output()?;
+
+        if !build_output.status.success() {
+            return Err(format!(
+                "Build failed: {}",
+                String::from_utf8_lossy(&build_output.stderr)
+            )
+            .into());
+        }
+
+        // 5. Restart with new version
+        restart_cli_process_with_new_version(new_version, current_version, config)?;
+        Ok(())
+    }
 }
