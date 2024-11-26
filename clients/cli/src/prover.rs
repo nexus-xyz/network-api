@@ -6,6 +6,7 @@ mod connection;
 mod generated;
 mod prover_id_manager;
 mod updater;
+pub mod utils;
 mod websocket;
 
 use crate::analytics::track;

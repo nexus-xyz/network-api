@@ -79,6 +79,7 @@ ark-test-curves = { version = "0.4.2", features = ["bls12_381_curve"] }
 iana-time-zone = "0.1.60"
 chrono = "0.4.38"
 self_update = "0.41.0"
+dirs = "5.0.1"
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }

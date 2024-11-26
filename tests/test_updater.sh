@@ -85,7 +85,7 @@ echo " "
 echo -e "${ORANGE}[test-updater script] (6 / 18) Starting CLI v1.0...${NC}"
 echo " "
 STARTING_COMMIT=$(git rev-parse HEAD)
-$INSTALL_PATH $ORCHESTRATOR_HOST &
+UPDATER_MODE=test $INSTALL_PATH $ORCHESTRATOR_HOST &
 ORIGINAL_PID=$!
 echo -e "${ORANGE}[test-updater script] (7 / 18) Original PID for the CLI main process: $ORIGINAL_PID${NC}"
 echo " "
