@@ -69,19 +69,12 @@ pub fn read_version_from_file() -> Result<u64, Box<dyn std::error::Error>> {
     Ok(version_to_number(&version_str))
 }
 
-/// function to write the current git tagversion to a file so it can be read by the updater thread
+/// function to write the current git tag version to a file so it can be read by the updater thread
+/// We write to a file because storing the version in memory is not persistent across updates
 pub fn write_version_to_file(version: &str) -> Result<(), Box<dyn std::error::Error>> {
     fs::write(VERSION_FILE, version)?;
     Ok(())
 }
-
-// pub fn get_update_interval() -> u64 {
-//     UpdaterConfig::c
-// }
-
-// pub fn get_repo_path() -> String {
-//     Environment::current().repo_path()
-// }
 
 pub fn get_git_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::error::Error>> {
     match config.mode {
