@@ -1,3 +1,14 @@
+//! Core auto-updater functionality and version management
+//!
+//! This module provides the underlying implementation for:
+//! - Version tracking and persistence
+//! - Git-based version detection
+//! - Update application logic
+//! - Process management for CLI restarts
+//!
+//! The code here is used by the auto-updater thread (./updater.rs) to handle the mechanics of
+//! checking versions and applying updates in both test and production environments.
+
 use parking_lot::RwLock;
 use semver::Version;
 use std::os::unix::process::CommandExt;

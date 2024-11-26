@@ -1,3 +1,13 @@
+//! Auto-updater implementation for the CLI
+//!
+//! This module handles automatic updates by running a background thread that:
+//! - Periodically checks for new versions
+//! - Downloads and applies updates when available
+//! - Restarts the CLI with the new version
+//!
+//! The updater runs in a separate thread to avoid blocking the main CLI operations,
+//! allowing users to continue using the CLI while update checks happen in the background.
+
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
