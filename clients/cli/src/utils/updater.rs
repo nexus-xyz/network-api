@@ -84,7 +84,7 @@ impl VersionManager {
 
     pub fn fetch_and_persist_cli_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
         // 1. Get the current git tag version (which depends on the updater mode)
-        let current_git_version = get_cli_version(&self.config)?;
+        let current_git_version = self.get_version(false)?;
 
         // 2. Convert the semver to a number and write it to a file (so it can persist across updates)
         write_version_to_file(&current_git_version)?;
@@ -97,7 +97,7 @@ impl VersionManager {
         Ok(current_git_version)
     }
 
-    fn fetch_latest_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
+    fn get_version(&self, should_write: bool) -> Result<Version, Box<dyn std::error::Error>> {
         let version = match self.config.mode {
             AutoUpdaterMode::Test => {
                 let output = Command::new("git")
@@ -108,7 +108,7 @@ impl VersionManager {
             }
             AutoUpdaterMode::Production => {
                 let output = Command::new("git")
-                    .args(["ls-remote", "--tags", "--refs", &self.config.remote_repo])
+                    .args(["ls-remote", "--tags", "--refs", REMOTE_REPO])
                     .output()?;
                 let tags = String::from_utf8(output.stdout)?;
                 tags.lines()
@@ -116,10 +116,18 @@ impl VersionManager {
                     .and_then(|line| line.split('/').last())
                     .map(|v| v.to_string())
                     .and_then(|v| Version::parse(&v).ok())
-                    .ok_or_else(|| Box::<dyn std::error::Error>::from("No tags found"))?
+                    .ok_or_else(|| "No tags found")?
             }
         };
-        write_version_to_file(&version)?;
+
+        if should_write {
+            write_version_to_file(&version)?;
+            println!(
+                "{}[auto-updater thread]{} Wrote version to file: {}",
+                BLUE, RESET, version
+            );
+        }
+
         Ok(version)
     }
 
@@ -203,7 +211,7 @@ impl VersionManager {
         &self,
     ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         let this_repo_version = self.current_version.read().clone();
-        let latest_version = self.fetch_latest_version()?;
+        let latest_version = self.get_version(false)?;
 
         println!(
             "{}[auto-updater thread]{} Current verrsion of CLI: {} | Latest version of CLI: {}",
@@ -229,35 +237,6 @@ pub fn read_version_from_file() -> Result<Version, Box<dyn std::error::Error>> {
 pub fn write_version_to_file(version: &Version) -> Result<(), Box<dyn std::error::Error>> {
     fs::write(VERSION_FILE, version.to_string())?;
     Ok(())
-}
-
-pub fn get_cli_version(config: &UpdaterConfig) -> Result<Version, Box<dyn std::error::Error>> {
-    match config.mode {
-        AutoUpdaterMode::Test => {
-            // In test mode, we read the git tag directly from the local repository
-            // This is useful during development when working with a local checkout
-            let output = Command::new("git")
-                .args(["describe", "--tags", "--abbrev=0"])
-                .current_dir(&config.repo_path)
-                .output()?;
-            Ok(Version::parse(String::from_utf8(output.stdout)?.trim())?)
-        }
-        AutoUpdaterMode::Production => {
-            // In production mode, we fetch tags from the remote repository
-            // This ensures we get the latest version without needing a local git checkout
-            let output = Command::new("git")
-                .args(["ls-remote", "--tags", "--refs", REMOTE_REPO])
-                .output()?;
-
-            let tags = String::from_utf8(output.stdout)?;
-            tags.lines()
-                .last()
-                .and_then(|line| line.split('/').last())
-                .map(|v| v.to_string())
-                .and_then(|v| Version::parse(&v).ok())
-                .ok_or_else(|| "No tags found".into())
-        }
-    }
 }
 
 pub fn restart_cli_process_with_new_version(
