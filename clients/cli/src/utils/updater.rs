@@ -2,11 +2,7 @@ use parking_lot::RwLock;
 use semver::Version;
 use std::os::unix::process::CommandExt;
 use std::sync::Arc;
-use std::{
-    fs,
-    process::Command,
-    // sync::atomic::{AtomicU64, Ordering},
-};
+use std::{fs, process::Command};
 
 // Constants
 
@@ -89,7 +85,7 @@ impl VersionManager {
     /// Fetch the current version of the CLI and persist it to a file
     pub fn fetch_and_persist_cli_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
         // 1. Get the current git tag version (which depends on the updater mode)
-        let current_git_version = self.get_version(false)?;
+        let current_git_version = self.get_cli_release_version(false)?;
 
         // 2. Convert the semver to a number and write it to a file (so it can persist across updates)
         write_version_to_file(&current_git_version)?;
@@ -102,7 +98,10 @@ impl VersionManager {
         Ok(current_git_version)
     }
 
-    fn get_version(&self, should_write: bool) -> Result<Version, Box<dyn std::error::Error>> {
+    fn get_cli_release_version(
+        &self,
+        should_write: bool,
+    ) -> Result<Version, Box<dyn std::error::Error>> {
         let version = match self.config.mode {
             AutoUpdaterMode::Test => {
                 let output = Command::new("git")
@@ -112,19 +111,34 @@ impl VersionManager {
                 Version::parse(String::from_utf8(output.stdout)?.trim())?
             }
             AutoUpdaterMode::Production => {
+                // Get only version tags (X.Y.Z format) from remote
+                // This filters out non-release tags using git's pattern matching
+                // Example matches: "1.2.3", "0.3.5"
+                // Won't match: "latest", "stable", or other non-version tags
                 let output = Command::new("git")
-                    .args(["ls-remote", "--tags", "--refs", REMOTE_REPO])
+                    .args([
+                        "ls-remote",
+                        "--refs",
+                        &self.config.remote_repo,
+                        "refs/tags/[0-9]*.[0-9]*.[0-9]*", // Only match semantic version tags
+                    ])
                     .output()?;
+
                 let tags = String::from_utf8(output.stdout)?;
+
+                // Process the version tags:
+                // 1. Split each line and get the tag name
+                // 2. Parse into semver Version type (validates format)
+                // 3. Find the highest version number
                 tags.lines()
-                    .last()
-                    .and_then(|line| line.split('/').last())
-                    .map(|v| v.to_string())
-                    .and_then(|v| Version::parse(&v).ok())
-                    .ok_or_else(|| "No tags found")?
+                    .filter_map(|line| line.split('/').last())
+                    .filter_map(|tag| Version::parse(tag).ok())
+                    .max()
+                    .ok_or_else(|| "No release versions found")?
             }
         };
 
+        // Optionally persist the version to disk
         if should_write {
             write_version_to_file(&version)?;
             println!(
@@ -227,10 +241,10 @@ impl VersionManager {
         &self,
     ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         let this_repo_version = self.current_version.read().clone();
-        let latest_version = self.get_version(false)?;
+        let latest_version = self.get_cli_release_version(false)?;
 
         println!(
-            "{}[auto-updater thread]{} Current verrsion of CLI: {} | Latest version of CLI: {}",
+            "{}[auto-updater thread]{} Current version of CLI: {} | Latest version of CLI: {}",
             BLUE, RESET, this_repo_version, latest_version
         );
 
