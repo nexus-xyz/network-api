@@ -1,4 +1,20 @@
 #!/bin/bash
+
+# Test Auto-updater Functionality
+# 
+# This script tests the CLI's auto-update mechanism by:
+# 1. Setting up a clean test environment
+# 2. Starting CLI with initial version
+# 3. Simulating a new version release
+# 4. Verifying update and process handoff
+# 5. Cleaning up processes and test files
+#
+# Usage: ./test_updater.sh
+# Requires: git, cargo
+# Cleanup: Automatically kills processes and removes test directory on exit
+#
+# Note: Uses trap to ensure cleanup even if script is interrupted
+
 set -e  # Exit on any error
 
 # Configuration
