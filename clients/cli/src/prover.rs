@@ -101,11 +101,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.port
     );
 
-    // Initialize the updater that checks for and applies updates to the CLI
-    // Create the updater config
+    // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
+    // a. Create the updater config
     let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
 
-    // This runs the CLI's auto updater in a separate thread continuously in intervals
+    // b. runs the CLI's auto updater in a separate thread continuously in intervals
     updater::spawn_auto_update_thread(&updater_config);
 
     let k = 4;

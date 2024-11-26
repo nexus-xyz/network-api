@@ -1,14 +1,7 @@
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
-use crate::utils::updater::{
-    // download_and_apply_update, fetch_and_persist_cli_version, get_latest_available_version,
-    UpdaterConfig,
-    VersionManager,
-    VersionStatus,
-    BLUE,
-    RESET,
-};
+use crate::utils::updater::{UpdaterConfig, VersionManager, VersionStatus, BLUE, RESET};
 
 // We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
 // that would otherwise block the main CLI process. By running in a background thread:
@@ -50,7 +43,7 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
                 Ok(version_info) => match version_info {
                     // ... there is an update available, try to apply it
                     VersionStatus::UpdateAvailable(new_version) => {
-                        if let Err(e) = version_manager.download_and_apply_update(&new_version) {
+                        if let Err(e) = version_manager.apply_update(&new_version) {
                             eprintln!(
                                 "{}[auto-updater thread]{} Failed to update CLI: {}",
                                 BLUE, RESET, e
