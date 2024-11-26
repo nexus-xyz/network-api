@@ -41,7 +41,7 @@ impl UpdaterConfig {
                     std::env::var("HOME").unwrap_or_default()
                 ),
                 remote_repo: String::from("https://github.com/nexus-labs/nexus-prover.git"),
-                update_interval: 300, // 5 minutes (300 seconds)
+                update_interval: 300, // check for updates every 5 minutes (300 seconds)
                 hostname,
             },
             AutoUpdaterMode::Test => Self {
@@ -51,7 +51,7 @@ impl UpdaterConfig {
                     .to_string_lossy()
                     .into_owned(),
                 remote_repo: String::from("."),
-                update_interval: 30,
+                update_interval: 30, // check for updates every 30 seconds
                 hostname,
             },
         }
