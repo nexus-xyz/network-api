@@ -96,7 +96,7 @@ pub fn write_version_to_file(version: &str) -> Result<(), Box<dyn std::error::Er
     Ok(())
 }
 
-pub fn get_git_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_cli_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::error::Error>> {
     match config.mode {
         AutoUpdaterMode::Test => {
             // In test mode, we read the git tag directly from the local repository
@@ -124,7 +124,7 @@ pub fn get_git_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::er
     }
 }
 
-pub fn update_code_to_new_git_version(
+pub fn update_code_to_new_cli_version(
     version: u64,
     config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -197,7 +197,7 @@ pub fn get_latest_available_version(
     updater_config: &UpdaterConfig,
 ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
     let current_num = current_version.load(Ordering::Relaxed);
-    let latest_version = get_and_save_version(&updater_config)?;
+    let latest_version = fetch_and_persist_cli_version(&updater_config)?;
 
     println!(
         "{}[auto-updater thread]{} Current: {} | Latest: {}",
@@ -215,11 +215,11 @@ pub fn get_latest_available_version(
 }
 
 // function to get the current git tag version from the file or git
-pub fn get_and_save_version(
+pub fn fetch_and_persist_cli_version(
     updater_config: &UpdaterConfig,
 ) -> Result<u64, Box<dyn std::error::Error>> {
     //1. Get the current git tag version (which depends on the updater mode)
-    let git_version = get_git_version(updater_config)?;
+    let git_version = get_cli_version(updater_config)?;
 
     //2. Convert the semver to a number and write it to a file (so it can persist across updates)
     let version_num = semver_to_num(&git_version);
@@ -255,7 +255,7 @@ pub fn download_and_apply_update(
     );
 
     //1. Download new version
-    update_code_to_new_git_version(new_version, config)?;
+    update_code_to_new_cli_version(new_version, config)?;
 
     println!(
         "{}[auto-updater thread]{} Building new version...",

@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::{sync::atomic::AtomicU64, thread, time::Duration};
 
 use crate::utils::updater::{
-    download_and_apply_update, get_and_save_version, get_latest_available_version, semver_to_num,
-    UpdaterConfig, VersionStatus, BLUE, FALLBACK_VERSION, RESET,
+    download_and_apply_update, fetch_and_persist_cli_version, get_latest_available_version,
+    semver_to_num, UpdaterConfig, VersionStatus, BLUE, FALLBACK_VERSION, RESET,
 };
 
 // We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
@@ -21,7 +21,8 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
     // Initialize an atomic version number shared between threads that
     // tracks the currently installed CLI version
     let cli_version_shared_by_threads = Arc::new(AtomicU64::new(
-        get_and_save_version(&updater_config).unwrap_or_else(|_| semver_to_num(FALLBACK_VERSION)),
+        fetch_and_persist_cli_version(&updater_config)
+            .unwrap_or_else(|_| semver_to_num(FALLBACK_VERSION)),
     ));
 
     // Clone Arc for the update checker thread
