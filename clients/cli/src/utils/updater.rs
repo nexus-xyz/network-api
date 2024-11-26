@@ -29,16 +29,21 @@ pub struct UpdaterConfig {
     pub update_interval: u64,
     pub repo_path: String,
     pub remote_repo: String,
+    pub hostname: String,
 }
 
 impl UpdaterConfig {
-    pub fn new(mode: AutoUpdaterMode) -> Self {
+    pub fn new(mode: AutoUpdaterMode, hostname: String) -> Self {
         match mode {
             AutoUpdaterMode::Production => Self {
                 mode,
-                repo_path: String::from("."), // Current directory for production
+                repo_path: format!(
+                    "{}/.nexus/network-api",
+                    std::env::var("HOME").unwrap_or_default()
+                ),
                 remote_repo: String::from("https://github.com/nexus-labs/nexus-prover.git"),
                 update_interval: 3600, // 1 hour
+                hostname,
             },
             AutoUpdaterMode::Test => Self {
                 mode,
@@ -48,6 +53,7 @@ impl UpdaterConfig {
                     .into_owned(),
                 remote_repo: String::from("../nexus-prover"), // Local development path
                 update_interval: 30,                          // 30 seconds
+                hostname,
             },
         }
     }
@@ -159,16 +165,17 @@ pub fn restart_cli_process_with_new_version(
     current_version.store(new_version, Ordering::Relaxed);
     write_version_to_file(&num_to_semver(new_version))?;
 
-    // Build and restart as a new detached process
+    // Get program name from current process
     let program = std::env::args().next().unwrap();
+
     let child = Command::new("cargo")
-        .args(["run", "--release", "--"])
+        .args(["run", "--release", "--", &config.hostname])
         .arg(program)
         .current_dir(format!("{}/clients/cli", config.repo_path))
-        .process_group(0) // Create new process group
+        .process_group(0)
         .spawn()?;
 
-    // Write the new PID to a file (so it can be read by bash script)
+    // Write the new PID to a file
     std::fs::write(".prover.pid", child.id().to_string())?;
 
     println!(
@@ -182,7 +189,7 @@ pub fn restart_cli_process_with_new_version(
         BLUE, RESET
     );
 
-    std::process::exit(0); // This will stop the main thread
+    std::process::exit(0);
 }
 
 pub fn get_latest_available_version(
@@ -228,44 +235,6 @@ pub fn get_and_save_version(
     Ok(version_num)
 }
 
-// pub fn apply_update(
-//     latest_version: u64,
-//     current_version: &Arc<AtomicU64>,
-//     updater_config: &UpdaterConfig,
-// ) -> Result<(), Box<dyn std::error::Error>> {
-//     let current_num = current_version.load(Ordering::Relaxed);
-
-//     println!(
-//         "{}[auto-updater thread]{} Current: {} | Latest: {}",
-//         BLUE,
-//         RESET,
-//         num_to_semver(current_num),
-//         num_to_semver(latest_version)
-//     );
-
-//     // If the current version is already the latest version, do nothing
-//     if current_num == latest_version {
-//         return Ok(());
-//     }
-
-//     // If the current version is not the latest version, update the git version and restart the process
-//     println!(
-//         "{}[auto-updater thread]{} Update needed! {} -> {}",
-//         BLUE,
-//         RESET,
-//         num_to_semver(current_num),
-//         num_to_semver(latest_version)
-//     );
-
-//     // Pull down the new code
-//     update_code_to_new_git_version(latest_version, updater_config)?;
-
-//     // Restart the CLI process with the new version
-//     restart_cli_process_with_new_version(latest_version, current_version, updater_config)?;
-
-//     Ok(())
-// }
-
 pub fn download_and_apply_update(
     new_version: u64,
     current_version: &Arc<AtomicU64>,
@@ -277,6 +246,12 @@ pub fn download_and_apply_update(
         RESET,
         num_to_semver(current_version.load(Ordering::Relaxed)),
         num_to_semver(new_version)
+    );
+
+    // Add debug logging to see what paths we're using
+    println!(
+        "{}[auto-updater thread]{} Using repo path: {}",
+        BLUE, RESET, config.repo_path
     );
 
     //1. Download new version

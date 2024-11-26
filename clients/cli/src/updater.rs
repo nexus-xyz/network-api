@@ -7,12 +7,12 @@ use crate::utils::updater::{
 };
 
 // We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
-// that would otherwise block the main application. By running in a background thread:
+// that would otherwise block the main CLI process. By running in a background thread:
 
 // 1. The update checker can continuously monitor for new versions without interrupting the main CLI operations
 // 2. The main thread remains free to handle its primary responsibility (proving transactions)
 // 3. Users don't have to wait for update checks to complete before using the CLI
-pub fn start_periodic_updates(updater_config: &UpdaterConfig) {
+pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
     println!(
         "{}[auto-updater thread]{} Starting periodic CLI updates...",
         BLUE, RESET
