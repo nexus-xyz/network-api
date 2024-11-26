@@ -134,7 +134,7 @@ impl VersionManager {
                     .filter_map(|line| line.split('/').last())
                     .filter_map(|tag| Version::parse(tag).ok())
                     .max()
-                    .ok_or_else(|| "No release versions found")?
+                    .ok_or("No release versions found")?
             }
         };
 
