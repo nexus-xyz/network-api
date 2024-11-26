@@ -72,7 +72,7 @@ git tag 0.3.5  # Start with old version
 # Build and start the CLI
 cd clients/cli
 echo " "
-echo -e "${ORANGE}[test-updater script] (4 / 18) Building with cargo...${NC}"
+echo -e "${ORANGE}[test-updater script] (4 / 18) Building project from source with cargo...${NC}"
 CARGO_CMD="cargo build --release"
 $CARGO_CMD || exit 1
 

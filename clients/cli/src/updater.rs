@@ -8,13 +8,14 @@ use std::{
 };
 
 use crate::utils::updater::{
-    get_git_version, get_repo_path, get_update_interval, number_to_version, version_to_number,
-    write_version_to_file, BLUE, RESET,
+    get_git_version, get_repo_path, get_update_interval, is_test_mode, number_to_version,
+    version_to_number, write_version_to_file, BLUE, REMOTE_REPO, RESET,
 };
 
 // function to get the current git tag version from the file or git
 fn get_current_version() -> Result<u64, Box<dyn std::error::Error>> {
     let git_version = get_git_version()?;
+
     println!(
         "{}[auto-updater thread]{} Current version from git: {}",
         BLUE, RESET, git_version
@@ -78,14 +79,8 @@ pub fn start_periodic_updates() {
 fn check_if_update_needed_and_update(
     current_version: &Arc<AtomicU64>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let repo_path = get_repo_path();
+    let args: Vec<String> = std::env::args().collect();
 
-    println!(
-        "{}[auto-updater thread]{} Checking git repo at: {}",
-        BLUE, RESET, repo_path
-    );
-
-    // Get current version from memory
     let current_num = current_version.load(Ordering::Relaxed);
     let current = number_to_version(current_num);
     println!(
@@ -93,7 +88,6 @@ fn check_if_update_needed_and_update(
         BLUE, RESET, current
     );
 
-    // Get latest version from git
     let latest = get_git_version()?;
     let latest_num = version_to_number(&latest);
     println!(
@@ -107,31 +101,33 @@ fn check_if_update_needed_and_update(
             BLUE, RESET, current, latest
         );
 
-        // Pull latest changes
-        Command::new("git")
-            .args(["fetch", "--tags"])
-            .current_dir(&repo_path)
-            .output()?;
+        if is_test_mode() {
+            // Test mode: use local repo
+            let repo_path = get_repo_path();
+            Command::new("git")
+                .args(["fetch", "--tags"])
+                .current_dir(&repo_path)
+                .output()?;
 
-        // Checkout the latest tag
-        Command::new("git")
-            .args(["checkout", &latest])
-            .current_dir(&repo_path)
-            .output()?;
+            Command::new("git")
+                .args(["checkout", &latest])
+                .current_dir(&repo_path)
+                .output()?;
+        } else {
+            // Production mode: pull from remote repo
+            Command::new("git")
+                .args(["fetch", "--tags", REMOTE_REPO])
+                .output()?;
 
-        println!(
-            "{}[auto-updater thread]{} Rebuilding and running new version...",
-            BLUE, RESET
-        );
+            Command::new("git").args(["checkout", &latest]).output()?;
+        }
 
-        // Get original args to pass to new process
-        let args: Vec<String> = std::env::args().skip(1).collect();
-
-        // Write new version to file before restarting
+        current_version.store(latest_num, Ordering::Relaxed);
         write_version_to_file(&latest)?;
 
         // Build and restart as a new detached process
         // By making it a separate process (not just a thread), it will survive when the parent process exits
+        let repo_path = get_repo_path();
         let child = Command::new("cargo")
             .args(["run", "--release", "--"])
             .arg(&args[0])
