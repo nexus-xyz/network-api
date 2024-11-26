@@ -66,6 +66,258 @@ pub enum VersionStatus {
     UpToDate,
 }
 
+pub struct VersionManager {
+    current_version: Arc<RwLock<Version>>,
+    config: UpdaterConfig,
+}
+
+impl VersionManager {
+    pub fn new(config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        let current_version = Arc::new(RwLock::new(
+            read_version_from_file().unwrap_or(FALLBACK_VERSION),
+        ));
+        Ok(Self {
+            current_version,
+            config,
+        })
+    }
+
+    pub fn fetch_and_persist_cli_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
+        // 1. Get the current git tag version (which depends on the updater mode)
+        let current_git_version = get_cli_version(&self.config)?;
+
+        // 2. Convert the semver to a number and write it to a file (so it can persist across updates)
+        write_version_to_file(&current_git_version)?;
+
+        println!(
+            "{}[auto-updater thread]{} Wrote version to file: {}",
+            BLUE, RESET, current_git_version
+        );
+
+        Ok(current_git_version)
+    }
+
+    pub fn check_for_updates(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+        let this_version = self.current_version.read().clone();
+        let latest_version = self.fetch_latest_version()?;
+
+        println!(
+            "{}[auto-updater thread]{} Current: {} | Latest: {}",
+            BLUE, RESET, this_version, latest_version
+        );
+
+        if this_version == latest_version {
+            Ok(VersionStatus::UpToDate)
+        } else {
+            Ok(VersionStatus::UpdateAvailable(latest_version))
+        }
+    }
+
+    fn fetch_latest_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
+        let version = match self.config.mode {
+            AutoUpdaterMode::Test => {
+                let output = Command::new("git")
+                    .args(["describe", "--tags", "--abbrev=0"])
+                    .current_dir(&self.config.repo_path)
+                    .output()?;
+                Version::parse(String::from_utf8(output.stdout)?.trim())?
+            }
+            AutoUpdaterMode::Production => {
+                let output = Command::new("git")
+                    .args(["ls-remote", "--tags", "--refs", &self.config.remote_repo])
+                    .output()?;
+                let tags = String::from_utf8(output.stdout)?;
+                tags.lines()
+                    .last()
+                    .and_then(|line| line.split('/').last())
+                    .map(|v| v.to_string())
+                    .and_then(|v| Version::parse(&v).ok())
+                    .ok_or_else(|| Box::<dyn std::error::Error>::from("No tags found"))?
+            }
+        };
+        write_version_to_file(&version)?;
+        Ok(version)
+    }
+
+    pub fn apply_update(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
+        println!(
+            "{}[auto-updater thread]{} Using repo path: {}",
+            BLUE, RESET, self.config.repo_path
+        );
+
+        match self.config.mode {
+            AutoUpdaterMode::Test => self.apply_test_update(new_version),
+            AutoUpdaterMode::Production => self.apply_production_update(new_version),
+        }
+    }
+
+    fn apply_test_update(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
+        if !std::path::Path::new(&self.config.repo_path).exists() {
+            return Err(format!("Repository not found at: {}", self.config.repo_path).into());
+        }
+
+        println!(
+            "{}[auto-updater thread]{} Starting new version...",
+            BLUE, RESET
+        );
+        self.restart_process(new_version)
+    }
+
+    fn apply_production_update(
+        &self,
+        new_version: &Version,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let repo_path = std::path::Path::new(&self.config.repo_path);
+        if !repo_path.exists() {
+            return Err(format!("Repository not found at: {}", self.config.repo_path).into());
+        }
+
+        println!("{}[auto-updater thread]{} Fetching updates...", BLUE, RESET);
+        Command::new("git")
+            .args(["fetch", "--all", "--tags", "--prune"])
+            .current_dir(repo_path)
+            .output()?;
+
+        println!(
+            "{}[auto-updater thread]{} Checking out version {}...",
+            BLUE, RESET, new_version
+        );
+        let checkout_output = Command::new("git")
+            .args(["checkout", &format!("tags/{}", new_version)])
+            .current_dir(repo_path)
+            .output()?;
+
+        if !checkout_output.status.success() {
+            return Err(format!(
+                "Failed to checkout version: {}",
+                String::from_utf8_lossy(&checkout_output.stderr)
+            )
+            .into());
+        }
+
+        println!(
+            "{}[auto-updater thread]{} Building new version...",
+            BLUE, RESET
+        );
+        let build_output = Command::new("cargo")
+            .args(["build", "--release"])
+            .current_dir(repo_path)
+            .output()?;
+
+        if !build_output.status.success() {
+            return Err(format!(
+                "Build failed: {}",
+                String::from_utf8_lossy(&build_output.stderr)
+            )
+            .into());
+        }
+
+        self.restart_process(new_version)
+    }
+
+    fn restart_process(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
+        println!(
+            "{}[auto-updater thread]{} Restarting with new version {}...",
+            BLUE, RESET, new_version
+        );
+
+        restart_cli_process_with_new_version(new_version, &self.current_version, &self.config)
+    }
+
+    pub fn download_and_apply_update(
+        &self,
+        new_version: &Version,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        println!(
+            "{}[auto-updater thread]{} Using repo path: {}",
+            BLUE, RESET, self.config.repo_path
+        );
+
+        match self.config.mode {
+            AutoUpdaterMode::Test => {
+                if !std::path::Path::new(&self.config.repo_path).exists() {
+                    return Err(
+                        format!("Repository not found at: {}", self.config.repo_path).into(),
+                    );
+                }
+                println!(
+                    "{}[auto-updater thread]{} Starting new version...",
+                    BLUE, RESET
+                );
+                restart_cli_process_with_new_version(
+                    new_version,
+                    &self.current_version,
+                    &self.config,
+                )
+            }
+            AutoUpdaterMode::Production => {
+                if !std::path::Path::new(&self.config.repo_path).exists() {
+                    return Err(format!(
+                        "Repository not found at {}. Please reinstall the CLI.",
+                        self.config.repo_path
+                    )
+                    .into());
+                }
+
+                Command::new("git")
+                    .args(["fetch", "--all", "--tags", "--prune"])
+                    .current_dir(&self.config.repo_path)
+                    .output()?;
+
+                let checkout_output = Command::new("git")
+                    .args(["checkout", &format!("tags/{}", new_version)])
+                    .current_dir(&self.config.repo_path)
+                    .output()?;
+
+                if !checkout_output.status.success() {
+                    return Err(format!(
+                        "Failed to checkout version: {}",
+                        String::from_utf8_lossy(&checkout_output.stderr)
+                    )
+                    .into());
+                }
+
+                let build_output = Command::new("cargo")
+                    .args(["build", "--release"])
+                    .current_dir(&self.config.repo_path)
+                    .output()?;
+
+                if !build_output.status.success() {
+                    return Err(format!(
+                        "Build failed: {}",
+                        String::from_utf8_lossy(&build_output.stderr)
+                    )
+                    .into());
+                }
+
+                restart_cli_process_with_new_version(
+                    new_version,
+                    &self.current_version,
+                    &self.config,
+                )
+            }
+        }
+    }
+
+    pub fn get_latest_available_version(
+        &self,
+    ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+        let this_repo_version = self.current_version.read().clone();
+        let latest_version = self.fetch_latest_version()?;
+
+        println!(
+            "{}[auto-updater thread]{} Current: {} | Latest: {}",
+            BLUE, RESET, this_repo_version, latest_version
+        );
+
+        if this_repo_version == latest_version {
+            Ok(VersionStatus::UpToDate)
+        } else {
+            Ok(VersionStatus::UpdateAvailable(latest_version))
+        }
+    }
+}
+
 /// function to read the current git tag version from a file
 pub fn read_version_from_file() -> Result<Version, Box<dyn std::error::Error>> {
     let version_str = fs::read_to_string(VERSION_FILE)?;
@@ -108,37 +360,37 @@ pub fn get_cli_version(config: &UpdaterConfig) -> Result<Version, Box<dyn std::e
     }
 }
 
-pub fn update_code_to_new_cli_version(
-    version: &Version,
-    config: &UpdaterConfig,
-) -> Result<(), Box<dyn std::error::Error>> {
-    match config.mode {
-        AutoUpdaterMode::Test => {
-            // Test mode: use local repo
-            Command::new("git")
-                .args(["fetch", "--tags"])
-                .current_dir(&config.repo_path)
-                .output()?;
+// pub fn update_code_to_new_cli_version(
+//     version: &Version,
+//     config: &UpdaterConfig,
+// ) -> Result<(), Box<dyn std::error::Error>> {
+//     match config.mode {
+//         AutoUpdaterMode::Test => {
+//             // Test mode: use local repo
+//             Command::new("git")
+//                 .args(["fetch", "--tags"])
+//                 .current_dir(&config.repo_path)
+//                 .output()?;
 
-            Command::new("git")
-                .args(["checkout", &version.to_string()])
-                .current_dir(&config.repo_path)
-                .output()?;
-        }
-        AutoUpdaterMode::Production => {
-            // Production mode: pull from remote repo
-            Command::new("git")
-                .args(["fetch", "--tags", REMOTE_REPO])
-                .output()?;
+//             Command::new("git")
+//                 .args(["checkout", &version.to_string()])
+//                 .current_dir(&config.repo_path)
+//                 .output()?;
+//         }
+//         AutoUpdaterMode::Production => {
+//             // Production mode: pull from remote repo
+//             Command::new("git")
+//                 .args(["fetch", "--tags", REMOTE_REPO])
+//                 .output()?;
 
-            Command::new("git")
-                .args(["checkout", &version.to_string()])
-                .output()?;
-        }
-    }
+//             Command::new("git")
+//                 .args(["checkout", &version.to_string()])
+//                 .output()?;
+//         }
+//     }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 pub fn restart_cli_process_with_new_version(
     new_version: &Version,
@@ -165,7 +417,7 @@ pub fn restart_cli_process_with_new_version(
             "--updater-mode",
             mode_arg,
         ])
-        .current_dir(&cli_path)
+        .current_dir(cli_path)
         .process_group(0)
         .spawn()?;
 
@@ -185,20 +437,16 @@ pub fn restart_cli_process_with_new_version(
 
     std::process::exit(0);
 }
-
 pub fn get_latest_available_version(
     current_version: &Arc<RwLock<Version>>,
     updater_config: &UpdaterConfig,
 ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
     let this_repo_version = current_version.read().clone();
-    let latest_version = fetch_and_persist_cli_version(&updater_config)?;
+    let latest_version = fetch_and_persist_cli_version(updater_config)?;
 
     println!(
         "{}[auto-updater thread]{} Current: {} | Latest: {}",
-        BLUE,
-        RESET,
-        this_repo_version.to_string(),
-        latest_version.to_string()
+        BLUE, RESET, this_repo_version, latest_version
     );
 
     if this_repo_version == latest_version {
@@ -220,9 +468,7 @@ pub fn fetch_and_persist_cli_version(
 
     println!(
         "{}[auto-updater thread]{} Wrote version to file: {}",
-        BLUE,
-        RESET,
-        current_git_version.to_string()
+        BLUE, RESET, current_git_version
     );
 
     Ok(current_git_version)
@@ -283,12 +529,10 @@ pub fn download_and_apply_update(
         // 3. Checkout the new version
         println!(
             "{}[auto-updater thread]{} Checking out version {}...",
-            BLUE,
-            RESET,
-            new_version.to_string()
+            BLUE, RESET, new_version
         );
         let checkout_output = Command::new("git")
-            .args(["checkout", &format!("tags/{}", new_version.to_string())])
+            .args(["checkout", &format!("tags/{}", new_version)])
             .current_dir(&config.repo_path)
             .output()?;
 
@@ -310,7 +554,7 @@ pub fn download_and_apply_update(
 
         let build_output = Command::new("cargo")
             .args(["build", "--release"])
-            .current_dir(&cli_path)
+            .current_dir(cli_path)
             .output()?;
 
         if !build_output.status.success() {

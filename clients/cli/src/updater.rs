@@ -1,10 +1,13 @@
-use parking_lot::RwLock;
 use std::sync::Arc;
 use std::{thread, time::Duration};
 
 use crate::utils::updater::{
-    download_and_apply_update, fetch_and_persist_cli_version, get_latest_available_version,
-    UpdaterConfig, VersionStatus, BLUE, FALLBACK_VERSION, RESET,
+    // download_and_apply_update, fetch_and_persist_cli_version, get_latest_available_version,
+    UpdaterConfig,
+    VersionManager,
+    VersionStatus,
+    BLUE,
+    RESET,
 };
 
 // We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
@@ -19,18 +22,21 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
         BLUE, RESET
     );
 
-    // Initialize an atomic version number shared between threads that
-    // tracks the currently installed CLI version
-    let cli_version_shared_by_threads = Arc::new(RwLock::new(
-        fetch_and_persist_cli_version(&updater_config).unwrap_or_else(|_| FALLBACK_VERSION),
-    ));
+    // Initialize version manager
+    let version_manager = VersionManager::new(updater_config.clone()).unwrap();
+    let version_manager = Arc::new(version_manager);
 
-    // Clone Arc for the update checker thread
-    let current_cli_version = cli_version_shared_by_threads.clone();
+    // Initialize an atomic version number shared between threads
+    // let cli_version_shared_by_threads = Arc::new(RwLock::new(
+    //     version_manager
+    //         .fetch_and_persist_cli_version()
+    //         .unwrap_or_else(|_| FALLBACK_VERSION),
+    // ));
+
+    // Clone Arcs for the update checker thread
+    // let current_cli_version = cli_version_shared_by_threads.clone();
+    let version_manager = version_manager.clone();
     let update_interval = updater_config.update_interval;
-
-    // Clone the udpater config before creating a new thread with it
-    let updater_config_for_thread = updater_config.clone();
 
     thread::spawn(move || {
         println!(
@@ -39,16 +45,12 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
         );
 
         loop {
-            match get_latest_available_version(&current_cli_version, &updater_config_for_thread) {
+            match version_manager.as_ref().get_latest_available_version() {
                 // Got the latest version info with no error....
                 Ok(version_info) => match version_info {
                     // ... there is an update available, try to apply it
                     VersionStatus::UpdateAvailable(new_version) => {
-                        if let Err(e) = download_and_apply_update(
-                            &new_version,
-                            &current_cli_version,
-                            &updater_config_for_thread,
-                        ) {
+                        if let Err(e) = version_manager.download_and_apply_update(&new_version) {
                             eprintln!(
                                 "{}[auto-updater thread]{} Failed to update CLI: {}",
                                 BLUE, RESET, e
