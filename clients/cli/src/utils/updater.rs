@@ -10,7 +10,7 @@ use std::{
 
 // ANSI escape codes for colors for pretty printing
 pub const BLUE: &str = "\x1b[34m"; // Normal blue
-pub const RESET: &str = "\x1b[0m";
+pub const RESET: &str = "\x1b[0m"; // Reset color
 
 // The file to store the current version in
 pub const VERSION_FILE: &str = ".current_version";
