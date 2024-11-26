@@ -60,7 +60,7 @@ impl UpdaterConfig {
 }
 
 pub enum VersionStatus {
-    UpdateAvailable(u64),
+    UpdateAvailable(u64), // in case there is an update available, there is a u64 number for that version
     UpToDate,
 }
 
@@ -168,10 +168,25 @@ pub fn restart_cli_process_with_new_version(
     // Get program name from current process
     let program = std::env::args().next().unwrap();
 
+    // Get the cli directory path correctly
+    let cli_path = std::path::Path::new(&config.repo_path)
+        .parent() // Go up from /cli
+        .ok_or("Invalid repo path")?
+        .parent() // Go up from /clients
+        .ok_or("Invalid repo path")?
+        .join("clients")
+        .join("cli");
+
+    println!(
+        "{}[auto-updater thread]{} Starting from directory: {}",
+        BLUE,
+        RESET,
+        cli_path.display()
+    );
+
     let child = Command::new("cargo")
         .args(["run", "--release", "--", &config.hostname])
-        .arg(program)
-        .current_dir(format!("{}/clients/cli", config.repo_path))
+        .current_dir(&cli_path) // Use the correct cli path
         .process_group(0)
         .spawn()?;
 
