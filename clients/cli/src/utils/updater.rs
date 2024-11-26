@@ -249,10 +249,8 @@ impl VersionManager {
         restart_cli_process_with_new_version(new_version, &self.current_version, &self.config)
     }
 
-    /// Get the latest available version of the CLI
-    pub fn get_latest_available_version(
-        &self,
-    ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+    /// update the version status of the CLI. is there an update available?
+    pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         let this_repo_version = self.current_version.read().clone();
         let latest_version = self.get_cli_release_version(false)?;
 

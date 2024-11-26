@@ -42,7 +42,7 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
 
         // Infinite loop to check for updates
         loop {
-            match version_manager.as_ref().get_latest_available_version() {
+            match version_manager.as_ref().update_version_status() {
                 // Got the latest version info with no error....
                 Ok(version_info) => match version_info {
                     // ... there is an update available, try to apply it
