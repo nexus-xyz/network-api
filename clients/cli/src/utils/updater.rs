@@ -149,10 +149,6 @@ pub fn restart_cli_process_with_new_version(
     *current_version.write() = new_version.clone();
     write_version_to_file(new_version)?;
 
-    // // Get program name from current process
-    // let program = std::env::args().next().unwrap();
-
-    // Get the cli directory path
     let cli_path = std::path::Path::new(&config.repo_path);
 
     println!(
@@ -162,9 +158,14 @@ pub fn restart_cli_process_with_new_version(
         cli_path.display()
     );
 
+    let mode_arg = match config.mode {
+        AutoUpdaterMode::Test => "test",
+        AutoUpdaterMode::Production => "production",
+    };
+
     let child = Command::new("cargo")
-        .args(["run", "--release", "--", &config.hostname])
-        .current_dir(&cli_path) // Use the repo path directly
+        .args(["run", "--release", "--", &config.hostname, mode_arg])
+        .current_dir(&cli_path)
         .process_group(0)
         .spawn()?;
 
@@ -250,6 +251,10 @@ pub fn download_and_apply_update(
         );
 
         // 3. Restart with new version
+        println!(
+            "{}[auto-updater thread]{} Restarting with new version... in test mode",
+            BLUE, RESET
+        );
         restart_cli_process_with_new_version(new_version, current_version, config)?;
         Ok(())
     } else {
@@ -317,6 +322,10 @@ pub fn download_and_apply_update(
         }
 
         // 5. Restart with new version
+        println!(
+            "{}[auto-updater thread]{} Restarting with new version... in production mode",
+            BLUE, RESET
+        );
         restart_cli_process_with_new_version(new_version, current_version, config)?;
         Ok(())
     }
