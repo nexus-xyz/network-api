@@ -72,12 +72,12 @@ git tag 0.3.5  # Start with old version
 # Build and start the CLI
 cd clients/cli
 echo " "
-echo -e "${ORANGE}[test-updater script] (4 / 18) Building project from source with cargo...${NC}"
+echo -e "${ORANGE}[test-updater script] (4 / 18) Building project from local source code (no git pull) with cargo...${NC}"
 CARGO_CMD="cargo build --release"
 $CARGO_CMD || exit 1
 
 INSTALL_PATH="$TEST_DIR/clients/cli/target/release/prover"
-echo -e "${ORANGE}[test-updater script] (5 / 18) Binary path: $INSTALL_PATH${NC}"
+echo -e "${ORANGE}[test-updater script] (5 / 18) Binary path: $INSTALL_PATH ${NC}"
 
 # Start CLI and store its PID in the memory of this bash script 
 # note: the PID is ALSO stored in the .prover.pid file by the updater.rs, but this one is just for in-memory testing/validating

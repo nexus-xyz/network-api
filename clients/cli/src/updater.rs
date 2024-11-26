@@ -19,24 +19,18 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
     let version_manager = VersionManager::new(updater_config.clone()).unwrap();
     let version_manager = Arc::new(version_manager);
 
-    // Initialize an atomic version number shared between threads
-    // let cli_version_shared_by_threads = Arc::new(RwLock::new(
-    //     version_manager
-    //         .fetch_and_persist_cli_version()
-    //         .unwrap_or_else(|_| FALLBACK_VERSION),
-    // ));
-
     // Clone Arcs for the update checker thread
-    // let current_cli_version = cli_version_shared_by_threads.clone();
     let version_manager = version_manager.clone();
     let update_interval = updater_config.update_interval;
 
+    // Spawn the update checker thread
     thread::spawn(move || {
         println!(
             "{}[auto-updater thread]{} Update checker thread started!",
             BLUE, RESET
         );
 
+        // Infinite loop to check for updates
         loop {
             match version_manager.as_ref().get_latest_available_version() {
                 // Got the latest version info with no error....
@@ -63,6 +57,7 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
                 }
             }
 
+            // Wait for the next update check
             println!(
                 "{}[auto-updater thread]{} Next update check in {} seconds...",
                 BLUE, RESET, update_interval
