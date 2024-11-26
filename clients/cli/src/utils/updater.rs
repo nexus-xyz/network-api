@@ -109,6 +109,7 @@ impl VersionManager {
         Ok(current_git_version)
     }
 
+    /// Get the latest release version of the CLI
     fn get_cli_release_version(
         &self,
         should_write: bool,
@@ -161,6 +162,7 @@ impl VersionManager {
         Ok(version)
     }
 
+    /// Apply an update to the CLI given a new version
     pub fn apply_update(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
         println!(
             "{}[auto-updater thread]{} Using repo path: {}",
@@ -280,6 +282,7 @@ pub fn write_version_to_file(version: &Version) -> Result<(), Box<dyn std::error
     Ok(())
 }
 
+/// Restart the CLI process with a new version
 pub fn restart_cli_process_with_new_version(
     new_version: &Version,
     current_version: &Arc<RwLock<Version>>,
