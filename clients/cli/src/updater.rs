@@ -1,9 +1,10 @@
+use parking_lot::RwLock;
 use std::sync::Arc;
-use std::{sync::atomic::AtomicU64, thread, time::Duration};
+use std::{thread, time::Duration};
 
 use crate::utils::updater::{
     download_and_apply_update, fetch_and_persist_cli_version, get_latest_available_version,
-    semver_to_num, UpdaterConfig, VersionStatus, BLUE, FALLBACK_VERSION, RESET,
+    UpdaterConfig, VersionStatus, BLUE, FALLBACK_VERSION, RESET,
 };
 
 // We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
@@ -20,9 +21,8 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
 
     // Initialize an atomic version number shared between threads that
     // tracks the currently installed CLI version
-    let cli_version_shared_by_threads = Arc::new(AtomicU64::new(
-        fetch_and_persist_cli_version(&updater_config)
-            .unwrap_or_else(|_| semver_to_num(FALLBACK_VERSION)),
+    let cli_version_shared_by_threads = Arc::new(RwLock::new(
+        fetch_and_persist_cli_version(&updater_config).unwrap_or_else(|_| FALLBACK_VERSION),
     ));
 
     // Clone Arc for the update checker thread
@@ -45,7 +45,7 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
                     // ... there is an update available, try to apply it
                     VersionStatus::UpdateAvailable(new_version) => {
                         if let Err(e) = download_and_apply_update(
-                            new_version,
+                            &new_version,
                             &current_cli_version,
                             &updater_config_for_thread,
                         ) {

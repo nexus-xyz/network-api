@@ -1,9 +1,11 @@
+use parking_lot::RwLock;
+use semver::Version;
 use std::os::unix::process::CommandExt;
 use std::sync::Arc;
 use std::{
     fs,
     process::Command,
-    sync::atomic::{AtomicU64, Ordering},
+    // sync::atomic::{AtomicU64, Ordering},
 };
 
 // Constants
@@ -15,7 +17,7 @@ pub const RESET: &str = "\x1b[0m"; // Reset color
 // The file to store the current version in
 pub const VERSION_FILE: &str = ".current_version";
 pub const REMOTE_REPO: &str = "https://github.com/nexus-xyz/network-api";
-pub const FALLBACK_VERSION: &str = "0.3.5";
+pub const FALLBACK_VERSION: Version = Version::new(0, 3, 5); // 0.3.5
 
 #[derive(Debug, Clone, Copy, PartialEq, clap::ValueEnum)]
 pub enum AutoUpdaterMode {
@@ -60,43 +62,24 @@ impl UpdaterConfig {
 }
 
 pub enum VersionStatus {
-    UpdateAvailable(u64), // in case there is an update available, there is a u64 number for that version
+    UpdateAvailable(Version), // in case there is an update available, there is a semver `Version` type
     UpToDate,
 }
 
-// Version conversion utilities
-pub fn semver_to_num(version: &str) -> u64 {
-    // Convert "0.3.5" to 305
-    let parts: Vec<&str> = version.split('.').collect();
-    let major: u64 = parts[0].parse().unwrap_or(0);
-    let minor: u64 = parts[1].parse().unwrap_or(0);
-    let patch: u64 = parts[2].parse().unwrap_or(0);
-    major * 100_000 + minor * 1_000 + patch
-}
-
-/// Convert a version number to a string using the "0.3.5" semver format
-pub fn num_to_semver(num: u64) -> String {
-    // Convert 305 back to "0.3.5"
-    let major = num / 100_000;
-    let minor = (num % 100_000) / 1_000;
-    let patch = num % 1_000;
-    format!("{}.{}.{}", major, minor, patch)
-}
-
 /// function to read the current git tag version from a file
-pub fn read_version_from_file() -> Result<u64, Box<dyn std::error::Error>> {
+pub fn read_version_from_file() -> Result<Version, Box<dyn std::error::Error>> {
     let version_str = fs::read_to_string(VERSION_FILE)?;
-    Ok(semver_to_num(&version_str))
+    Ok(Version::parse(&version_str)?)
 }
 
 /// function to write the current git tag version to a file so it can be read by the updater thread
 /// We write to a file because storing the version in memory is not persistent across updates
-pub fn write_version_to_file(version: &str) -> Result<(), Box<dyn std::error::Error>> {
-    fs::write(VERSION_FILE, version)?;
+pub fn write_version_to_file(version: &Version) -> Result<(), Box<dyn std::error::Error>> {
+    fs::write(VERSION_FILE, version.to_string())?;
     Ok(())
 }
 
-pub fn get_cli_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::error::Error>> {
+pub fn get_cli_version(config: &UpdaterConfig) -> Result<Version, Box<dyn std::error::Error>> {
     match config.mode {
         AutoUpdaterMode::Test => {
             // In test mode, we read the git tag directly from the local repository
@@ -105,7 +88,7 @@ pub fn get_cli_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::er
                 .args(["describe", "--tags", "--abbrev=0"])
                 .current_dir(&config.repo_path)
                 .output()?;
-            Ok(String::from_utf8(output.stdout)?.trim().to_string())
+            Ok(Version::parse(String::from_utf8(output.stdout)?.trim())?)
         }
         AutoUpdaterMode::Production => {
             // In production mode, we fetch tags from the remote repository
@@ -119,13 +102,14 @@ pub fn get_cli_version(config: &UpdaterConfig) -> Result<String, Box<dyn std::er
                 .last()
                 .and_then(|line| line.split('/').last())
                 .map(|v| v.to_string())
+                .and_then(|v| Version::parse(&v).ok())
                 .ok_or_else(|| "No tags found".into())
         }
     }
 }
 
 pub fn update_code_to_new_cli_version(
-    version: u64,
+    version: &Version,
     config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     match config.mode {
@@ -137,7 +121,7 @@ pub fn update_code_to_new_cli_version(
                 .output()?;
 
             Command::new("git")
-                .args(["checkout", &num_to_semver(version)])
+                .args(["checkout", &version.to_string()])
                 .current_dir(&config.repo_path)
                 .output()?;
         }
@@ -148,7 +132,7 @@ pub fn update_code_to_new_cli_version(
                 .output()?;
 
             Command::new("git")
-                .args(["checkout", &num_to_semver(version)])
+                .args(["checkout", &version.to_string()])
                 .output()?;
         }
     }
@@ -157,25 +141,19 @@ pub fn update_code_to_new_cli_version(
 }
 
 pub fn restart_cli_process_with_new_version(
-    new_version: u64,
-    current_version: &Arc<AtomicU64>,
+    new_version: &Version,
+    current_version: &Arc<RwLock<Version>>,
     config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Update version tracking
-    current_version.store(new_version, Ordering::Relaxed);
-    write_version_to_file(&num_to_semver(new_version))?;
+    *current_version.write() = new_version.clone();
+    write_version_to_file(new_version)?;
 
-    // Get program name from current process
-    let program = std::env::args().next().unwrap();
+    // // Get program name from current process
+    // let program = std::env::args().next().unwrap();
 
-    // Get the cli directory path correctly
-    let cli_path = std::path::Path::new(&config.repo_path)
-        .parent() // Go up from /cli
-        .ok_or("Invalid repo path")?
-        .parent() // Go up from /clients
-        .ok_or("Invalid repo path")?
-        .join("clients")
-        .join("cli");
+    // Get the cli directory path
+    let cli_path = std::path::Path::new(&config.repo_path);
 
     println!(
         "{}[auto-updater thread]{} Starting from directory: {}",
@@ -186,7 +164,7 @@ pub fn restart_cli_process_with_new_version(
 
     let child = Command::new("cargo")
         .args(["run", "--release", "--", &config.hostname])
-        .current_dir(&cli_path) // Use the correct cli path
+        .current_dir(&cli_path) // Use the repo path directly
         .process_group(0)
         .spawn()?;
 
@@ -208,21 +186,21 @@ pub fn restart_cli_process_with_new_version(
 }
 
 pub fn get_latest_available_version(
-    current_version: &Arc<AtomicU64>,
+    current_version: &Arc<RwLock<Version>>,
     updater_config: &UpdaterConfig,
 ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
-    let current_num = current_version.load(Ordering::Relaxed);
+    let this_repo_version = current_version.read().clone();
     let latest_version = fetch_and_persist_cli_version(&updater_config)?;
 
     println!(
         "{}[auto-updater thread]{} Current: {} | Latest: {}",
         BLUE,
         RESET,
-        num_to_semver(current_num),
-        num_to_semver(latest_version)
+        this_repo_version.to_string(),
+        latest_version.to_string()
     );
 
-    if current_num == latest_version {
+    if this_repo_version == latest_version {
         Ok(VersionStatus::UpToDate)
     } else {
         Ok(VersionStatus::UpdateAvailable(latest_version))
@@ -232,27 +210,26 @@ pub fn get_latest_available_version(
 // function to get the current git tag version from the file or git
 pub fn fetch_and_persist_cli_version(
     updater_config: &UpdaterConfig,
-) -> Result<u64, Box<dyn std::error::Error>> {
+) -> Result<Version, Box<dyn std::error::Error>> {
     //1. Get the current git tag version (which depends on the updater mode)
-    let git_version = get_cli_version(updater_config)?;
+    let current_git_version = get_cli_version(updater_config)?;
 
     //2. Convert the semver to a number and write it to a file (so it can persist across updates)
-    let version_num = semver_to_num(&git_version);
-    write_version_to_file(&git_version)?;
+    write_version_to_file(&current_git_version)?;
 
     println!(
         "{}[auto-updater thread]{} Wrote version to file: {}",
         BLUE,
         RESET,
-        num_to_semver(version_num)
+        current_git_version.to_string()
     );
 
-    Ok(version_num)
+    Ok(current_git_version)
 }
 
 pub fn download_and_apply_update(
-    new_version: u64,
-    current_version: &Arc<AtomicU64>,
+    new_version: &Version,
+    current_version: &Arc<RwLock<Version>>,
     config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!(
@@ -303,10 +280,10 @@ pub fn download_and_apply_update(
             "{}[auto-updater thread]{} Checking out version {}...",
             BLUE,
             RESET,
-            num_to_semver(new_version)
+            new_version.to_string()
         );
         let checkout_output = Command::new("git")
-            .args(["checkout", &format!("tags/{}", num_to_semver(new_version))])
+            .args(["checkout", &format!("tags/{}", new_version.to_string())])
             .current_dir(&config.repo_path)
             .output()?;
 
