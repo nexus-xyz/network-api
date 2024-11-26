@@ -44,11 +44,19 @@ Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use).
 NONINTERACTIVE=1 sh
 ```
 
+## Prover Id
+
+The CLI will prompt for your web prover id from [beta.nexus.xyz](https://beta.nexus.xyz/)
+on startup. It is ok to skip this prompt and a random id will be generated, but you'll be
+prompted again on startup until your web prover id is entered.
+
+The prover id prompt is disabled when NONINTERACTIVE=1 is set. In a server environment,
+you can manually overwrite $HOME/.nexus/prover-id with your full prover id.
+
 ## Current Limitations
 
 - Only latest CLI version is supported
 - No prebuilt binaries yet
-- Email linking available on web only
 - Proof cycle counting coming soon
 - Program submission requires API key (contact growth@nexus.xyz)
 
