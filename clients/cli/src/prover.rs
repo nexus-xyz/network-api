@@ -53,7 +53,7 @@ use zstd::stream::Encoder;
 use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
 
 // The interval at which to send updates to the orchestrator
-const ORCHESTRATOR_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
+const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -231,7 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
             if timer_since_last_orchestrator_update.elapsed().as_secs()
-                > ORCHESTRATOR_UPDATE_INTERVAL_IN_SECONDS
+                > PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS
             {
                 println!(
                     "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
