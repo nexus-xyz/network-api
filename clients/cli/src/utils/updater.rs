@@ -25,6 +25,7 @@ pub enum AutoUpdaterMode {
     Test,
 }
 
+/// Struct to manage the updater configuration
 #[derive(Clone)]
 pub struct UpdaterConfig {
     pub mode: AutoUpdaterMode,
@@ -66,12 +67,15 @@ pub enum VersionStatus {
     UpToDate,
 }
 
+// Struct to manage the version of the CLI it is running at all times
+// This is also used to check for updates and apply them
 pub struct VersionManager {
     current_version: Arc<RwLock<Version>>,
     config: UpdaterConfig,
 }
 
 impl VersionManager {
+    /// Initialize the version manager
     pub fn new(config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
         let current_version = Arc::new(RwLock::new(
             read_version_from_file().unwrap_or(FALLBACK_VERSION),
@@ -82,6 +86,7 @@ impl VersionManager {
         })
     }
 
+    /// Fetch the current version of the CLI and persist it to a file
     pub fn fetch_and_persist_cli_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
         // 1. Get the current git tag version (which depends on the updater mode)
         let current_git_version = self.get_version(false)?;
@@ -137,76 +142,87 @@ impl VersionManager {
             BLUE, RESET, self.config.repo_path
         );
 
-        match self.config.mode {
-            AutoUpdaterMode::Test => self.apply_test_update(new_version),
-            AutoUpdaterMode::Production => self.apply_production_update(new_version),
-        }
-    }
-
-    fn apply_test_update(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
-        if !std::path::Path::new(&self.config.repo_path).exists() {
-            return Err(format!("Repository not found at: {}", self.config.repo_path).into());
-        }
-
-        println!(
-            "{}[auto-updater thread]{} Starting new version...",
-            BLUE, RESET
-        );
-        restart_cli_process_with_new_version(new_version, &self.current_version, &self.config)
-    }
-
-    fn apply_production_update(
-        &self,
-        new_version: &Version,
-    ) -> Result<(), Box<dyn std::error::Error>> {
         let repo_path = std::path::Path::new(&self.config.repo_path);
         if !repo_path.exists() {
             return Err(format!("Repository not found at: {}", self.config.repo_path).into());
         }
 
-        println!("{}[auto-updater thread]{} Fetching updates...", BLUE, RESET);
-        Command::new("git")
-            .args(["fetch", "--all", "--tags", "--prune"])
-            .current_dir(repo_path)
-            .output()?;
+        match self.config.mode {
+            AutoUpdaterMode::Test => {
+                println!(
+                    "{}[auto-updater thread]{} Building version {} from local repository...",
+                    BLUE, RESET, new_version
+                );
+                let build_output = Command::new("cargo")
+                    .args(["build", "--release"])
+                    .current_dir(repo_path)
+                    .output()?;
 
-        println!(
-            "{}[auto-updater thread]{} Checking out version {}...",
-            BLUE, RESET, new_version
-        );
-        let checkout_output = Command::new("git")
-            .args(["checkout", &format!("tags/{}", new_version)])
-            .current_dir(repo_path)
-            .output()?;
+                if !build_output.status.success() {
+                    return Err(format!(
+                        "Build failed: {}",
+                        String::from_utf8_lossy(&build_output.stderr)
+                    )
+                    .into());
+                }
+            }
+            AutoUpdaterMode::Production => {
+                if repo_path.read_dir()?.next().is_none() {
+                    println!(
+                        "{}[auto-updater thread]{} Cloning remote repository...",
+                        BLUE, RESET
+                    );
+                    Command::new("git")
+                        .args(["clone", &self.config.remote_repo, &self.config.repo_path])
+                        .output()?;
+                }
 
-        if !checkout_output.status.success() {
-            return Err(format!(
-                "Failed to checkout version: {}",
-                String::from_utf8_lossy(&checkout_output.stderr)
-            )
-            .into());
-        }
+                println!("{}[auto-updater thread]{} Fetching updates...", BLUE, RESET);
+                Command::new("git")
+                    .args(["fetch", "--all", "--tags", "--prune"])
+                    .current_dir(repo_path)
+                    .output()?;
 
-        println!(
-            "{}[auto-updater thread]{} Building new version...",
-            BLUE, RESET
-        );
-        let build_output = Command::new("cargo")
-            .args(["build", "--release"])
-            .current_dir(repo_path)
-            .output()?;
+                println!(
+                    "{}[auto-updater thread]{} Checking out version {}...",
+                    BLUE, RESET, new_version
+                );
+                let checkout_output = Command::new("git")
+                    .args(["checkout", &format!("tags/{}", new_version)])
+                    .current_dir(repo_path)
+                    .output()?;
 
-        if !build_output.status.success() {
-            return Err(format!(
-                "Build failed: {}",
-                String::from_utf8_lossy(&build_output.stderr)
-            )
-            .into());
+                if !checkout_output.status.success() {
+                    return Err(format!(
+                        "Failed to checkout version: {}",
+                        String::from_utf8_lossy(&checkout_output.stderr)
+                    )
+                    .into());
+                }
+
+                println!(
+                    "{}[auto-updater thread]{} Building version {} from remote repository...",
+                    BLUE, RESET, new_version
+                );
+                let build_output = Command::new("cargo")
+                    .args(["build", "--release"])
+                    .current_dir(repo_path)
+                    .output()?;
+
+                if !build_output.status.success() {
+                    return Err(format!(
+                        "Build failed: {}",
+                        String::from_utf8_lossy(&build_output.stderr)
+                    )
+                    .into());
+                }
+            }
         }
 
         restart_cli_process_with_new_version(new_version, &self.current_version, &self.config)
     }
 
+    /// Get the latest available version of the CLI
     pub fn get_latest_available_version(
         &self,
     ) -> Result<VersionStatus, Box<dyn std::error::Error>> {
