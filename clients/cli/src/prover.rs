@@ -50,8 +50,10 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
+use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
+
 // The interval at which to send updates to the orchestrator
-const UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
+const ORCHESTRATOR_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -65,6 +67,10 @@ struct Args {
     /// Whether to hang up after the first proof
     #[arg(short, long, default_value_t = false)]
     just_once: bool,
+
+    /// Mode for the auto updater (production/test)
+    #[arg(short, long, value_enum, default_value_t = AutoUpdaterMode::Production)]
+    updater_mode: AutoUpdaterMode,
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -79,8 +85,6 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Check for CLI updates periodically
-    // This runs in a separate thread continuously in intervals
-    updater::start_periodic_updates();
 
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
@@ -96,6 +100,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.hostname,
         args.port
     );
+
+    // Initialize the updater
+    // Create the updater config
+    let updater_config = UpdaterConfig::new(args.updater_mode);
+    println!(
+        "AutoUpdater config: mode={:?}, interval={}s, repo_path={}",
+        updater_config.mode, updater_config.update_interval, updater_config.repo_path
+    );
+
+    // This runs the CLI's auto updater in a separate thread continuously in intervals
+    updater::start_periodic_updates(&updater_config);
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.
@@ -219,7 +234,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             progress_time = Instant::now();
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
-            if timer_since_last_orchestrator_update.elapsed().as_secs() > UPDATE_INTERVAL_IN_SECONDS
+            if timer_since_last_orchestrator_update.elapsed().as_secs()
+                > ORCHESTRATOR_UPDATE_INTERVAL_IN_SECONDS
             {
                 println!(
                     "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
