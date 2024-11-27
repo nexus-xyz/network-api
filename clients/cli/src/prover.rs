@@ -106,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
 
     // b. runs the CLI's auto updater in a separate thread continuously in intervals
-    updater::spawn_auto_update_thread(&updater_config);
+    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.

@@ -19,18 +19,22 @@ use crate::utils::updater::{UpdaterConfig, VersionManager, VersionStatus, BLUE, 
 // 1. The update checker can continuously monitor for new versions without interrupting the main CLI operations
 // 2. The main thread remains free to handle its primary responsibility (proving transactions)
 // 3. Users don't have to wait for update checks to complete before using the CLI
-pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
+pub fn spawn_auto_update_thread(
+    updater_config: &UpdaterConfig,
+) -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}[auto-updater thread]{} Starting periodic CLI updates...",
         BLUE, RESET
     );
 
-    // Initialize version manager
-    let version_manager = VersionManager::new(updater_config.clone()).unwrap();
-    let version_manager = Arc::new(version_manager);
+    // Create a thread-safe version manager that can be shared across threads
+    let version_manager: Arc<VersionManager> = Arc::new(
+        VersionManager::new(updater_config.clone()).expect("Failed to initialize version manager"),
+    );
 
-    // Clone Arcs for the update checker thread
-    let version_manager = version_manager.clone();
+    // Create a reference for the new thread (original stays with main thread)
+    let version_manager_thread: Arc<VersionManager> = version_manager.clone();
+
     let update_interval = updater_config.update_interval;
 
     // Spawn the update checker thread
@@ -42,12 +46,12 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
 
         // Infinite loop to check for updates
         loop {
-            match version_manager.as_ref().update_version_status() {
+            match version_manager_thread.as_ref().update_version_status() {
                 // Got the latest version info with no error....
                 Ok(version_info) => match version_info {
                     // ... there is an update available, try to apply it
                     VersionStatus::UpdateAvailable(new_version) => {
-                        if let Err(e) = version_manager.apply_update(&new_version) {
+                        if let Err(e) = version_manager_thread.apply_update(&new_version) {
                             eprintln!(
                                 "{}[auto-updater thread]{} Failed to update CLI: {}",
                                 BLUE, RESET, e
@@ -75,4 +79,6 @@ pub fn spawn_auto_update_thread(updater_config: &UpdaterConfig) {
             thread::sleep(Duration::from_secs(update_interval));
         }
     });
+
+    Ok(())
 }
