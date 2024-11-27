@@ -1649,6 +1649,7 @@ dependencies = [
  "async-stream",
  "chrono",
  "clap",
+ "colored",
  "dirs",
  "elf",
  "futures",

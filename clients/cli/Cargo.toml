@@ -82,6 +82,7 @@ self_update = "0.41.0"
 dirs = "5.0.1"
 semver = "1.0.23"
 parking_lot = "0.12.3"
+colored = "2.1.0"
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }

@@ -10,7 +10,6 @@ pub mod utils;
 mod websocket;
 
 use crate::analytics::track;
-use crate::utils::ascii_art::print_banner;
 
 use std::borrow::Cow;
 
