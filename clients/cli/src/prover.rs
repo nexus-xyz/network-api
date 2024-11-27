@@ -245,20 +245,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             // Print the proof progress in green or blue depending on the step number
             println!(
-                "{}",
-                if step % 2 == 0 {
-                    format!(
-                        "\t✓ Proved step {} at {:.2} proof cycles/sec.",
-                        step, proof_cycles_hertz
-                    )
-                    .green()
-                } else {
-                    format!(
-                        "\t✓ Proved step {} at {:.2} proof cycles/sec.",
-                        step, proof_cycles_hertz
-                    )
-                    .blue()
-                }
+                "\t✓ Proved step {} at {:.2} proof cycles/sec.",
+                step, proof_cycles_hertz
             );
 
             track(
