@@ -1,2 +1,2 @@
-pub mod ascii_art;
+pub mod cli_branding;
 pub mod updater;

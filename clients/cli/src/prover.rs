@@ -18,6 +18,7 @@ use crate::connection::{
 };
 
 use clap::Parser;
+use colored::Colorize;
 use futures::{SinkExt, StreamExt};
 
 use generated::pb::ClientProgramProofRequest;
@@ -85,9 +86,12 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Print the banner at startup
-    utils::ascii_art::print_banner();
+    utils::cli_branding::print_banner();
 
-    // Check for CLI updates periodically
+    println!(
+        "\n===== {}...\n",
+        "Setting up CLI configuration".bold().underline()
+    );
 
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
@@ -119,26 +123,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // get or generate the prover id
     let prover_id = prover_id_manager::get_or_generate_prover_id();
 
+    println!(
+        "\n===== {}...\n",
+        "Connecting to Nexus Network".bold().underline()
+    );
+
     track(
         "connect".into(),
         format!("Connecting to {}...", &ws_addr_string),
         &ws_addr_string,
         json!({"prover_id": prover_id}),
+        false,
     );
 
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_infinite_retry(&ws_addr_string, &prover_id).await;
+
+    println!(
+        "\t✔ Your current prover identifier is {}",
+        prover_id.bright_cyan()
+    );
+
+    println!(
+        "\n{}",
+        "Success! Connection complete!\n".green().bold().underline()
+    );
 
     track(
         "register".into(),
         format!("Your current prover identifier is {}.", prover_id),
         &ws_addr_string,
         json!({"ws_addr_string": ws_addr_string, "prover_id": prover_id}),
+        false,
     );
 
     let mut queued_proof_duration_millis = 0;
     let mut queued_steps_proven: i32 = 0;
     let mut timer_since_last_orchestrator_update = Instant::now();
+
+    println!(
+        "\n===== {}...\n",
+        "Starting proof generation for programs".bold().underline()
+    );
 
     loop {
         // Create the inputs for the program
@@ -169,6 +195,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut completed_fraction = 0.0;
         let mut steps_proven = 0;
 
+        println!(
+            "Program trace is {} steps. Proving {} steps starting at {}...",
+            total_steps, steps_to_prove, start
+        );
+
         track(
             "progress".into(),
             format!(
@@ -185,6 +216,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "k": k,
                 "prover_id": prover_id,
             }),
+            false,
         );
         let start_time = Instant::now();
         let mut progress_time = start_time;
@@ -211,6 +243,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 cli_prover_id: Some(prover_id.clone()),
             };
 
+            // Print the proof progress in green or blue depending on the step number
+            println!(
+                "\t✓ Proved step {} at {:.2} proof cycles/sec.",
+                step, proof_cycles_hertz
+            );
+
             track(
                 "progress".into(),
                 format!(
@@ -229,6 +267,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "proof_cycles_hertz": proof_cycles_hertz,
                     "prover_id": prover_id,
                 }),
+                false,
             );
             progress_time = Instant::now();
 
@@ -340,7 +379,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.just_once {
             break;
         } else {
-            println!("\n\nWaiting for a new program to prove...");
+            println!("\n\nWaiting for a new program to prove...\n");
         }
     }
 
@@ -359,6 +398,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "prover_id": &prover_id,
                     "error": e.to_string(),
                 }),
+                true,
             );
             format!("Failed to close WebSocket connection: {}", e)
         })?;
@@ -367,6 +407,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Sent proof and closed connection...".into(),
         &ws_addr_string,
         json!({ "prover_id": prover_id }),
+        true,
     );
     Ok(())
 }

@@ -23,7 +23,7 @@ pub fn spawn_auto_update_thread(
     updater_config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!(
-        "{}[auto-updater thread]{} Starting periodic CLI updates...",
+        "{}[auto-updater]{} Starting periodic CLI updates...",
         BLUE, RESET
     );
 
@@ -40,7 +40,7 @@ pub fn spawn_auto_update_thread(
     // Spawn the update checker thread
     thread::spawn(move || {
         println!(
-            "{}[auto-updater thread]{} Update checker thread started!",
+            "{}[auto-updater]{} Update checker thread started!",
             BLUE, RESET
         );
 
@@ -53,19 +53,19 @@ pub fn spawn_auto_update_thread(
                     VersionStatus::UpdateAvailable(new_version) => {
                         if let Err(e) = version_manager_thread.apply_update(&new_version) {
                             eprintln!(
-                                "{}[auto-updater thread]{} Failed to update CLI: {}",
+                                "{}[auto-updater]{} Failed to update CLI: {}",
                                 BLUE, RESET, e
                             );
                         }
                     }
                     // ... No update needed
                     VersionStatus::UpToDate => {
-                        println!("{}[auto-updater thread]{} CLI is up to date", BLUE, RESET);
+                        println!("{}[auto-updater]{} CLI is up to date", BLUE, RESET);
                     }
                 },
                 Err(e) => {
                     eprintln!(
-                        "{}[auto-updater thread]{} Failed to check version: {}",
+                        "{}[auto-updater]{} Failed to check version: {}",
                         BLUE, RESET, e
                     );
                 }
@@ -73,7 +73,7 @@ pub fn spawn_auto_update_thread(
 
             // Wait for the next update check
             println!(
-                "{}[auto-updater thread]{} Next update check in {} seconds...",
+                "{}[auto-updater]{} Next update check in {} seconds...\n",
                 BLUE, RESET, update_interval
             );
             thread::sleep(Duration::from_secs(update_interval));

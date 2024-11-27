@@ -1,4 +1,5 @@
 use crate::analytics::track;
+use colored::Colorize;
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
@@ -25,11 +26,14 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
     loop {
         match connect_to_orchestrator(ws_addr).await {
             Ok(client) => {
+                println!("\t✓ Connected to Nexus Network.");
+
                 track(
                     "connected".into(),
                     "Connected.".into(),
                     ws_addr,
                     json!({"prover_id": prover_id}),
+                    false,
                 );
                 return client;
             }
@@ -68,7 +72,9 @@ pub async fn connect_to_orchestrator_with_limited_retry(
                     "Connected.".into(),
                     ws_addr,
                     json!({"prover_id": prover_id}),
+                    false,
                 );
+                println!("{}", "✓ Success! Connected to Nexus Network.\n".green());
                 return Ok(client);
             }
             Err(e) => {

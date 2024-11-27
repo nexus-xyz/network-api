@@ -13,8 +13,11 @@ pub fn track(
     description: String,
     ws_addr_string: &str,
     event_properties: Value,
+    print_description: bool,
 ) {
-    println!("{}", description);
+    if print_description {
+        println!("{}", description);
+    }
 
     let firebase_app_id = analytics_id(ws_addr_string);
     let firebase_api_key = analytics_api_key(ws_addr_string);
