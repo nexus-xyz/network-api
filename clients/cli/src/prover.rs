@@ -5,6 +5,8 @@ mod config;
 mod connection;
 mod generated;
 mod prover_id_manager;
+mod updater;
+pub mod utils;
 mod websocket;
 
 use crate::analytics::track;
@@ -48,8 +50,10 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
+use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
+
 // The interval at which to send updates to the orchestrator
-const UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
+const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -63,6 +67,10 @@ struct Args {
     /// Whether to hang up after the first proof
     #[arg(short, long, default_value_t = false)]
     just_once: bool,
+
+    /// Mode for the auto updater (production/test)
+    #[arg(short, long, value_enum, default_value_t = AutoUpdaterMode::Production)]
+    updater_mode: AutoUpdaterMode,
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -76,6 +84,8 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Check for CLI updates periodically
+
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
@@ -90,6 +100,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.hostname,
         args.port
     );
+
+    // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
+    // a. Create the updater config
+    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
+
+    // b. runs the CLI's auto updater in a separate thread continuously in intervals
+    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.
@@ -213,7 +230,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             progress_time = Instant::now();
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
-            if timer_since_last_orchestrator_update.elapsed().as_secs() > UPDATE_INTERVAL_IN_SECONDS
+            if timer_since_last_orchestrator_update.elapsed().as_secs()
+                > PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS
             {
                 println!(
                     "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
@@ -319,7 +337,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.just_once {
             break;
         } else {
-            println!("Waiting for another program to prove...");
+            println!("\n\nWaiting for a new program to prove...");
         }
     }
 
