@@ -51,7 +51,7 @@ impl UpdaterConfig {
                     "{}/.nexus/network-api",
                     std::env::var("HOME").unwrap_or_default()
                 ),
-                remote_repo: String::from("https://github.com/nexus-labs/nexus-prover.git"),
+                remote_repo: String::from("https://github.com/nexus-xyz/network-api.git"),
                 update_interval: 300, // check for updates every 5 minutes (300 seconds)
                 hostname,
             },
@@ -252,7 +252,23 @@ impl VersionManager {
     /// update the version status of the CLI. is there an update available?
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         let this_repo_version = self.current_version.read().clone();
-        let latest_version = self.get_cli_release_version(false)?;
+
+        // debug output
+        println!(
+            "{}[auto-updater thread]{} Checking for updates from: {}",
+            BLUE, RESET, self.config.remote_repo
+        );
+
+        let latest_version = match self.get_cli_release_version(false) {
+            Ok(version) => version,
+            Err(e) => {
+                println!(
+                    "{}[auto-updater thread]{} Version check failed: {}",
+                    BLUE, RESET, e
+                );
+                return Ok(VersionStatus::UpToDate); // Gracefully handle error by assuming up-to-date
+            }
+        };
 
         println!(
             "{}[auto-updater thread]{} Current version of CLI: {} | Latest version of CLI: {}",
