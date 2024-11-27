@@ -24,7 +24,7 @@ pub const RESET: &str = "\x1b[0m"; // Reset color
 // The file to store the current version in
 pub const VERSION_FILE: &str = ".current_version";
 pub const REMOTE_REPO: &str = "https://github.com/nexus-xyz/network-api";
-pub const FALLBACK_VERSION: Version = Version::new(0, 3, 5); // 0.3.5
+pub const FALLBACK_VERSION: Version = Version::new(0, 3, 6); // 0.3.6
 
 #[derive(Debug, Clone, Copy, PartialEq, clap::ValueEnum)]
 pub enum AutoUpdaterMode {
@@ -52,7 +52,7 @@ impl UpdaterConfig {
                     std::env::var("HOME").unwrap_or_default()
                 ),
                 remote_repo: String::from("https://github.com/nexus-xyz/network-api.git"),
-                update_interval: 300, // check for updates every 5 minutes (300 seconds)
+                update_interval: 3600, // check for updates every 1 hour (3600 seconds)
                 hostname,
             },
             AutoUpdaterMode::Test => Self {

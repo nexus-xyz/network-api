@@ -52,10 +52,10 @@ pub fn spawn_auto_update_thread(
                     // ... there is an update available, try to apply it
                     VersionStatus::UpdateAvailable(new_version) => {
                         if let Err(e) = version_manager_thread.apply_update(&new_version) {
-                            eprintln!(
+                            println!(
                                 "{}[auto-updater]{} Failed to update CLI: {}",
                                 BLUE, RESET, e
-                            );
+                            )
                         }
                     }
                     // ... No update needed
