@@ -73,7 +73,7 @@ pub fn spawn_auto_update_thread(
 
             // Wait for the next update check
             println!(
-                "{}[auto-updater thread]{} Next update check in {} seconds...",
+                "{}[auto-updater thread]{} Next update check in {} seconds...\n",
                 BLUE, RESET, update_interval
             );
             thread::sleep(Duration::from_secs(update_interval));

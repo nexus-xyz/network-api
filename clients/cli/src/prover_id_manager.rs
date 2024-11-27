@@ -1,3 +1,4 @@
+use colored::Colorize;
 use rand::RngCore;
 use random_word::Lang;
 use std::{fs, path::Path};
@@ -30,7 +31,13 @@ pub fn get_or_generate_prover_id() -> String {
                 },
                 // 2. If file doesn't exist or can't be read:
                 Err(e) => {
-                    eprintln!("Could not read prover-id file: {}", e);
+                    eprintln!(
+                        "{}: {}",
+                        "Warning: Could not read prover-id file"
+                            .to_string()
+                            .yellow(),
+                        e
+                    );
 
                     // if the error is because the file doesn't exist
                     // Try to save the generated prover-id to the file
@@ -46,7 +53,13 @@ pub fn get_or_generate_prover_id() -> String {
                                 }
                             }
                             Err(e) => {
-                                eprintln!("Failed to create .nexus directory: {}", e);
+                                eprintln!(
+                                    "{}: {}",
+                                    "Warning: Failed to create .nexus directory"
+                                        .to_string()
+                                        .yellow(),
+                                    e
+                                );
                             }
                         }
                     }
