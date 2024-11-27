@@ -40,7 +40,7 @@ pub fn spawn_auto_update_thread(
     // Spawn the update checker thread
     thread::spawn(move || {
         println!(
-            "{}[auto-updater thread]{} Update checker thread started!",
+            "{}[auto-updater thread]{} CLI Auto update checker thread started!",
             BLUE, RESET
         );
 

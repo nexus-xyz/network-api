@@ -84,8 +84,6 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Check for CLI updates periodically
-
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
