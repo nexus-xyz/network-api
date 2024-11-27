@@ -85,6 +85,10 @@ pub fn print_banner() {
         "Welcome to the".bright_white(),
         "Nexus Network CLI".bright_cyan().bold()
     );
+    println!(
+        "{}",
+        "The Nexus network is a massively-parallelized proof network for executing and proving the Nexus zkVM.".bright_white()
+    );
 }
 
 pub fn print_success(message: &str) {

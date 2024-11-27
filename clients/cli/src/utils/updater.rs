@@ -102,7 +102,7 @@ impl VersionManager {
         write_version_to_file(&current_git_version)?;
 
         println!(
-            "{}[auto-updater thread]{} Wrote version to file: {}",
+            "{}[auto-updater]{} Wrote version to file: {}",
             BLUE, RESET, current_git_version
         );
 
@@ -154,7 +154,7 @@ impl VersionManager {
         if should_write {
             write_version_to_file(&version)?;
             println!(
-                "{}[auto-updater thread]{} Wrote version to file: {}",
+                "{}[auto-updater]{} Wrote version to file: {}",
                 BLUE, RESET, version
             );
         }
@@ -165,7 +165,7 @@ impl VersionManager {
     /// Apply an update to the CLI given a new version
     pub fn apply_update(&self, new_version: &Version) -> Result<(), Box<dyn std::error::Error>> {
         println!(
-            "{}[auto-updater thread]{} Using repo path: {}",
+            "{}[auto-updater]{} Using repo path: {}",
             BLUE, RESET, self.config.repo_path
         );
 
@@ -177,7 +177,7 @@ impl VersionManager {
         match self.config.mode {
             AutoUpdaterMode::Test => {
                 println!(
-                    "{}[auto-updater thread]{} Building version {} from local repository...",
+                    "{}[auto-updater]{} Building version {} from local repository...",
                     BLUE, RESET, new_version
                 );
                 let build_output = Command::new("cargo")
@@ -196,7 +196,7 @@ impl VersionManager {
             AutoUpdaterMode::Production => {
                 if repo_path.read_dir()?.next().is_none() {
                     println!(
-                        "{}[auto-updater thread]{} Cloning remote repository...",
+                        "{}[auto-updater]{} Cloning remote repository...",
                         BLUE, RESET
                     );
                     Command::new("git")
@@ -204,14 +204,14 @@ impl VersionManager {
                         .output()?;
                 }
 
-                println!("{}[auto-updater thread]{} Fetching updates...", BLUE, RESET);
+                println!("{}[auto-updater]{} Fetching updates...", BLUE, RESET);
                 Command::new("git")
                     .args(["fetch", "--all", "--tags", "--prune"])
                     .current_dir(repo_path)
                     .output()?;
 
                 println!(
-                    "{}[auto-updater thread]{} Checking out version {}...",
+                    "{}[auto-updater]{} Checking out version {}...",
                     BLUE, RESET, new_version
                 );
                 let checkout_output = Command::new("git")
@@ -228,7 +228,7 @@ impl VersionManager {
                 }
 
                 println!(
-                    "{}[auto-updater thread]{} Building version {} from remote repository...",
+                    "{}[auto-updater]{} Building version {} from remote repository...",
                     BLUE, RESET, new_version
                 );
                 let build_output = Command::new("cargo")
@@ -255,7 +255,7 @@ impl VersionManager {
         let latest_version = self.get_cli_release_version(false)?;
 
         println!(
-            "{}[auto-updater thread]{} Current version of CLI: {} | Latest version of CLI: {}",
+            "{}[auto-updater]{} Current version of CLI: {} | Latest version of CLI: {}",
             BLUE, RESET, this_repo_version, latest_version
         );
 
@@ -314,13 +314,13 @@ pub fn restart_cli_process_with_new_version(
     std::fs::write(".prover.pid", child.id().to_string())?;
 
     println!(
-        "{}[auto-updater thread]{} Started new process with PID: {}",
+        "{}[auto-updater]{} Started new process with PID: {}",
         BLUE,
         RESET,
         child.id()
     );
     println!(
-        "{}[auto-updater thread]{} Restarting with new version...",
+        "{}[auto-updater]{} Restarting with new version...",
         BLUE, RESET
     );
 
