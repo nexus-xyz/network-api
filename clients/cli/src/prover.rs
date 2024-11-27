@@ -140,8 +140,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut client = connect_to_orchestrator_with_infinite_retry(&ws_addr_string, &prover_id).await;
 
     println!(
-        "{} {}",
-        "\t✔ Your current prover identifier is",
+        "\t✔ Your current prover identifier is {}",
         prover_id.bright_cyan()
     );
 
@@ -197,11 +196,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut steps_proven = 0;
 
         println!(
-            "{}",
-            format!(
-                "Program trace is {} steps. Proving {} steps starting at {}...",
-                total_steps, steps_to_prove, start
-            )
+            "Program trace is {} steps. Proving {} steps starting at {}...",
+            total_steps, steps_to_prove, start
         );
 
         track(

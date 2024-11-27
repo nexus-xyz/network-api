@@ -26,7 +26,7 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
     loop {
         match connect_to_orchestrator(ws_addr).await {
             Ok(client) => {
-                println!("{}", "\t✓ Connected to Nexus Network.");
+                println!("\t✓ Connected to Nexus Network.");
 
                 track(
                     "connected".into(),
