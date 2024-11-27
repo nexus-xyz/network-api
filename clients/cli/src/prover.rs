@@ -10,6 +10,7 @@ pub mod utils;
 mod websocket;
 
 use crate::analytics::track;
+use crate::utils::ascii_art::print_banner;
 
 use std::borrow::Cow;
 
@@ -84,6 +85,9 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Print the banner at startup
+    utils::ascii_art::print_banner();
+
     // Check for CLI updates periodically
 
     // Configure the tracing subscriber
