@@ -86,9 +86,12 @@ fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Print the banner at startup
-    utils::ascii_art::print_banner();
+    utils::cli_branding::print_banner();
 
-    // Check for CLI updates periodically
+    println!(
+        "\n===== {}...\n",
+        "Setting up CLI configuration".bold().underline()
+    );
 
     // Configure the tracing subscriber
     tracing_subscriber::fmt()
