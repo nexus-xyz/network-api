@@ -27,21 +27,25 @@ pub async fn check_and_use_binary(
 
     let version_manager = VersionManager::new(updater_config.clone())?;
     match version_manager.update_version_status()? {
-        VersionStatus::UpdateAvailable(_) => {
-            info!("Update available, using cargo run while downloading");
-            Ok(None)
+        VersionStatus::UpdateAvailable(new_version) => {
+            info!("Update available - downloading version {}", new_version);
+            if let Err(e) = version_manager.apply_update(&new_version) {
+                error!("Failed to update CLI: {}", e);
+                info!("Falling back to cargo run");
+                Ok(None)
+            } else {
+                // After successful update, spawn new binary and exit current process
+                info!("Update complete, launching new binary");
+                let status = Command::new(&binary_path)
+                    .args(std::env::args().skip(1)) // Forward all CLI args except program name
+                    .status()?;
+                std::process::exit(status.code().unwrap_or(0)); // Exit current process
+            }
         }
         VersionStatus::UpToDate => {
             info!("Using installed binary (latest version)");
             let status = Command::new(&binary_path)
-                .args([
-                    &updater_config.hostname,
-                    "--updater-mode",
-                    match updater_config.mode {
-                        crate::utils::updater::AutoUpdaterMode::Test => "test",
-                        crate::utils::updater::AutoUpdaterMode::Production => "production",
-                    },
-                ])
+                .args([&updater_config.hostname])
                 .status()?;
             Ok(Some(status))
         }
@@ -51,40 +55,23 @@ pub async fn check_and_use_binary(
 pub fn spawn_auto_update_thread(
     updater_config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    info!("Starting periodic CLI updates...");
-
     let version_manager = Arc::new(VersionManager::new(updater_config.clone())?);
     let version_manager_thread = version_manager.clone();
     let update_interval = updater_config.update_interval;
 
     thread::spawn(move || {
-        info!("Update checker thread started!");
+        info!("Update checker thread started");
         loop {
-            match version_manager_thread.as_ref().update_version_status() {
-                Ok(version_info) => match version_info {
-                    VersionStatus::UpdateAvailable(new_version) => {
-                        info!("New version {} available - downloading update", new_version);
-                        if let Err(e) = version_manager_thread.apply_update(&new_version) {
-                            error!("Failed to update CLI: {}", e);
-                            continue;
-                        }
-                        info!("Update downloaded, restarting process...");
-
-                        // Restart the process using the new binary
-                        let binary_path = get_binary_path().join("prover");
-                        if let Err(e) = Command::new(&binary_path)
-                            .args(std::env::args().skip(1))
-                            .spawn()
-                        {
-                            error!("Failed to restart process: {}", e);
-                            continue;
-                        }
-                        std::process::exit(0);
+            match version_manager_thread.update_version_status() {
+                Ok(VersionStatus::UpdateAvailable(new_version)) => {
+                    info!("New version {} available - downloading update", new_version);
+                    if let Err(e) = version_manager_thread.apply_update(&new_version) {
+                        error!("Failed to update CLI: {}", e);
                     }
-                    VersionStatus::UpToDate => {
-                        info!("CLI is up to date");
-                    }
-                },
+                }
+                Ok(VersionStatus::UpToDate) => {
+                    info!("CLI is up to date");
+                }
                 Err(e) => error!("Failed to check version: {}", e),
             }
             thread::sleep(Duration::from_secs(update_interval));

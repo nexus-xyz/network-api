@@ -51,7 +51,7 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
-use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
+use crate::utils::updater::UpdaterConfig;
 
 // The interval at which to send updates to the orchestrator
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
@@ -68,10 +68,6 @@ struct Args {
     /// Whether to hang up after the first proof
     #[arg(short, long, default_value_t = false)]
     just_once: bool,
-
-    /// Mode for the auto updater (production/test)
-    #[arg(short, long, value_enum, default_value_t = AutoUpdaterMode::Production)]
-    updater_mode: AutoUpdaterMode,
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
@@ -110,7 +106,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
     // a. Create the updater config
-    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname.clone());
+    let updater_config = UpdaterConfig::new(args.hostname.clone());
 
     // Check if we should use the binary version
     if let Some(status) = updater::check_and_use_binary(&updater_config).await? {

@@ -25,24 +25,21 @@ trap cleanup EXIT
 TEST_DIR=$(mktemp -d)
 echo -e "${ORANGE}Setting up test in $TEST_DIR${NC}"
 
-# Install old version
-echo -e "${ORANGE}Installing version $OLD_VERSION for testing...${NC}"
+# Create .nexus directory structure
 mkdir -p "$TEST_DIR/.nexus/bin"
 
-# Download old version from GitHub releases
-curl -L "https://github.com/nexus-xyz/network-api/releases/download/$OLD_VERSION/prover" \
-    -o "$TEST_DIR/.nexus/bin/prover"
-chmod +x "$TEST_DIR/.nexus/bin/prover"
-
-# Set initial version
+# Write the old version to .current_version
+echo -e "${ORANGE}Setting initial version to $OLD_VERSION${NC}"
 echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
 
 # Run prover with test environment
 echo -e "${ORANGE}Running prover with version check...${NC}"
-NEXUS_HOME="$TEST_DIR" "$TEST_DIR/.nexus/bin/prover" \
-    $ORCHESTRATOR_HOST --updater-mode test > output.txt &
+cd clients/cli  # Change to CLI directory
+NEXUS_HOME="$TEST_DIR" cargo run -- \
+    $ORCHESTRATOR_HOST --updater-mode test > /dev/null 2>&1 &
 
-PROVER_PID=$!
+INITIAL_PID=$!
+echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
 
 # Wait for update to happen
 echo -e "${ORANGE}Waiting for update check (30s)...${NC}"
@@ -50,11 +47,36 @@ sleep 30
 
 # Check if new version was downloaded
 if [ -f "$TEST_DIR/.current_version" ] && [ "$(cat "$TEST_DIR/.current_version")" = "$EXPECTED_NEW_VERSION" ]; then
-    echo -e "${ORANGE}✅ Update successful - detected new version${NC}"
+    echo -e "${ORANGE}✅ Version file updated successfully${NC}"
 else
-    echo -e "${ORANGE}❌ Update failed - version not updated${NC}"
-    cat output.txt
+    echo -e "${ORANGE}❌ Version file not updated${NC}"
     exit 1
 fi
 
-echo -e "${ORANGE}All tests passed!${NC}" 
+# Check if binary exists and is executable
+if [ -x "$TEST_DIR/.nexus/bin/prover" ]; then
+    echo -e "${ORANGE}✅ Binary downloaded and executable${NC}"
+else
+    echo -e "${ORANGE}❌ Binary not found or not executable${NC}"
+    ls -l "$TEST_DIR/.nexus/bin"
+    exit 1
+fi
+
+# Check if original process was replaced
+if ps -p $INITIAL_PID > /dev/null; then
+    echo -e "${ORANGE}❌ Original process still running - should have been replaced${NC}"
+    exit 1
+else
+    echo -e "${ORANGE}✅ Original process replaced${NC}"
+fi
+
+# Check if new binary is running
+NEW_PID=$(pgrep -f "$TEST_DIR/.nexus/bin/prover")
+if [ -n "$NEW_PID" ]; then
+    echo -e "${ORANGE}✅ New binary is running with PID: $NEW_PID${NC}"
+else
+    echo -e "${ORANGE}❌ New binary not running${NC}"
+    exit 1
+fi
+
+echo -e "${ORANGE}All tests passed!${NC}"
