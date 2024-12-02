@@ -71,6 +71,16 @@ To run the CLI with tracing enabled, run:
 cargo run -- beta.orchestrator.nexus.xyz
 ```
 
+### Building a release binary
+
+```sh
+# Build a release binary for macOS
+cargo build --release --target aarch64-apple-darwin
+
+# Create a tarball for the binary
+tar -czf aarch64-apple-darwin.tar.gz target/aarch64-apple-darwin/release/prover
+```
+
 ## Resources
 
 * [Network FAQ](https://nexus.xyz/network#network-faqs)
