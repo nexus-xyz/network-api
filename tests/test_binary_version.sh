@@ -36,7 +36,7 @@ echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
 echo -e "${ORANGE}Running prover with version check...${NC}"
 cd clients/cli  # Change to CLI directory
 NEXUS_HOME="$TEST_DIR" cargo run -- \
-    $ORCHESTRATOR_HOST --updater-mode test > /dev/null 2>&1 &
+    $ORCHESTRATOR_HOST --updater-mode test &
 
 INITIAL_PID=$!
 echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
