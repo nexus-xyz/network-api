@@ -21,21 +21,21 @@ pub async fn check_and_use_binary(
     let binary_path = get_binary_path().join("prover");
 
     if !binary_path.exists() {
-        info!("No installed binary found, using cargo run");
+        println!("No installed binary found, using cargo run");
         return Ok(None);
     }
 
     let version_manager = VersionManager::new(updater_config.clone())?;
     match version_manager.update_version_status()? {
         VersionStatus::UpdateAvailable(new_version) => {
-            info!("Update available - downloading version {}", new_version);
+            println!("Update available - downloading version {}", new_version);
             if let Err(e) = version_manager.apply_update(&new_version) {
                 error!("Failed to update CLI: {}", e);
                 info!("Falling back to cargo run");
                 Ok(None)
             } else {
                 // After successful update, spawn new binary and exit current process
-                info!("Update complete, launching new binary");
+                println!("Update complete, launching new binary");
                 let status = Command::new(&binary_path)
                     .args(std::env::args().skip(1)) // Forward all CLI args except program name
                     .status()?;
@@ -43,7 +43,7 @@ pub async fn check_and_use_binary(
             }
         }
         VersionStatus::UpToDate => {
-            info!("Using installed binary (latest version)");
+            println!("Using installed binary (latest version)");
             let status = Command::new(&binary_path)
                 .args([&updater_config.hostname])
                 .status()?;
@@ -60,17 +60,17 @@ pub fn spawn_auto_update_thread(
     let update_interval = updater_config.update_interval;
 
     thread::spawn(move || {
-        info!("Update checker thread started");
+        println!("Update checker thread started");
         loop {
             match version_manager_thread.update_version_status() {
                 Ok(VersionStatus::UpdateAvailable(new_version)) => {
-                    info!("New version {} available - downloading update", new_version);
+                    println!("New version {} available - downloading update", new_version);
                     if let Err(e) = version_manager_thread.apply_update(&new_version) {
                         error!("Failed to update CLI: {}", e);
                     }
                 }
                 Ok(VersionStatus::UpToDate) => {
-                    info!("CLI is up to date");
+                    println!("CLI is up to date");
                 }
                 Err(e) => error!("Failed to check version: {}", e),
             }
