@@ -29,8 +29,12 @@ echo -e "${ORANGE}Setting up test in $TEST_DIR${NC}"
 echo -e "${ORANGE}Installing version $OLD_VERSION for testing...${NC}"
 mkdir -p "$TEST_DIR/.nexus/bin"
 
-# Copy current binary as old version
-cp "$(which prover)" "$TEST_DIR/.nexus/bin/prover"
+# Download old version from GitHub releases
+curl -L "https://github.com/nexus-xyz/network-api/releases/download/$OLD_VERSION/prover" \
+    -o "$TEST_DIR/.nexus/bin/prover"
+chmod +x "$TEST_DIR/.nexus/bin/prover"
+
+# Set initial version
 echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
 
 # Run prover with test environment
