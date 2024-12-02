@@ -77,8 +77,8 @@ cargo run -- beta.orchestrator.nexus.xyz
 # Build a release binary for macOS
 cargo build --release --target aarch64-apple-darwin
 
-# Create a tarball for the binary
-tar -czf aarch64-apple-darwin.tar.gz target/aarch64-apple-darwin/release/prover
+# Create a tarball for the binary (make sure we're in the right directory and preserve the binary name)
+cd target/aarch64-apple-darwin/release && tar -czf aarch64-apple-darwin.tar.gz ./prover && cd -
 ```
 
 ## Resources

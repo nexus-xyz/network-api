@@ -6,23 +6,18 @@ set -e  # Exit on any error
 ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
 NEXUS_HOME="${HOME}/.nexus"
-TEST_RELEASE_DIR="/tmp/nexus-test-release"
 ORCHESTRATOR_HOST="beta.orchestrator.nexus.xyz"
 
-echo -e "${ORANGE}Setting up test release directory...${NC}"
-mkdir -p $TEST_RELEASE_DIR
+# Change to the clients/cli directory where Cargo.toml is located
+cd "$(dirname "$0")/../clients/cli"
 
-echo -e "${ORANGE}Building release binary...${NC}"
-cd clients/cli
-cargo build --release
-cp target/release/prover .
+echo -e "${ORANGE}(1 of 3). Cleaning existing installation...${NC}"
+rm -rf $NEXUS_HOME
 
-echo -e "${ORANGE}Creating test release archive...${NC}"
-tar -czf "${TEST_RELEASE_DIR}/aarch64-apple-darwin.tar.gz" prover
-rm prover
+echo -e "${ORANGE}(2 of 3). Downloading prover binary from GitHub...${NC}"
+# This will trigger the auto-download of the latest version from GitHub
+# Force terminal to be interactive and prevent buffering
+script -q /dev/null cargo run --release -- $ORCHESTRATOR_HOST
 
-echo -e "${ORANGE}Archive contents:${NC}"
-tar tvf "${TEST_RELEASE_DIR}/aarch64-apple-darwin.tar.gz"
-
-echo -e "${ORANGE}Running prover...${NC}"
-TEST_RELEASE_DIR=$TEST_RELEASE_DIR cargo run --release -- $ORCHESTRATOR_HOST
+echo -e "${ORANGE}(3 of 3). Verifying installed version:${NC}"
+$NEXUS_HOME/bin/prover --version

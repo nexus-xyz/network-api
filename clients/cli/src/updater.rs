@@ -47,14 +47,25 @@ pub async fn check_and_use_binary(
             } else {
                 // After successful update, spawn new binary and exit current process
                 println!(
-                    "{}[auto-updater]{} Update complete, launching new binary",
-                    BLUE, RESET
+                    "{}[auto-updater]{} Successfully installed new binary version {}",
+                    BLUE, RESET, new_version
+                );
+                println!(
+                    "{}[auto-updater]{} Update complete, launching new binary from: {}",
+                    BLUE,
+                    RESET,
+                    binary_path.display()
                 );
 
                 let status = Command::new(&binary_path)
                     .args(std::env::args().skip(1)) // Forward all CLI args except program name
                     .status()?;
-                std::process::exit(status.code().unwrap_or(0)); // Exit current process
+
+                println!(
+                    "{}[auto-updater]{} New binary launched successfully with status: {}",
+                    BLUE, RESET, status
+                );
+                std::process::exit(status.code().unwrap_or(0));
             }
         }
         VersionStatus::UpToDate => {
@@ -89,12 +100,18 @@ pub fn spawn_auto_update_thread(
         match version_manager_thread.update_version_status() {
             Ok(VersionStatus::UpdateAvailable(new_version)) => {
                 println!(
-                        "{}[auto-updater]{} New version {} available (current: {}) - downloading update",
-                        BLUE, RESET, new_version, crate::VERSION
-                    );
+                    "{}[auto-updater]{} New version {} available (current: {}) - downloading update",
+                    BLUE, RESET, new_version, crate::VERSION
+                );
 
-                if let Err(e) = version_manager_thread.apply_update(&new_version) {
-                    error!("Failed to update CLI: {}", e);
+                match version_manager_thread.apply_update(&new_version) {
+                    Ok(_) => {
+                        println!(
+                            "{}[auto-updater]{} Successfully downloaded and applied update to version {}",
+                            BLUE, RESET, new_version
+                        );
+                    }
+                    Err(e) => error!("Failed to update CLI: {}", e),
                 }
             }
             Ok(VersionStatus::UpToDate) => {
