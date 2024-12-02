@@ -13,13 +13,21 @@ ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
 
 cleanup() {
+    # Kill any running prover processes started by this test
+    if [ -n "$INITIAL_PID" ]; then
+        echo -e "${ORANGE}Killing prover process...${NC}"
+        pkill -P $INITIAL_PID 2>/dev/null || true
+        kill $INITIAL_PID 2>/dev/null || true
+    fi
+
+    # Clean up test directory
     if [ -n "$TEST_DIR" ]; then
         echo -e "${ORANGE}Cleaning up test directory...${NC}"
         rm -rf "$TEST_DIR"
     fi
 }
 
-trap cleanup EXIT
+trap cleanup EXIT INT TERM
 
 # Create test directory
 TEST_DIR=$(mktemp -d)
@@ -35,8 +43,7 @@ echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
 # Run prover with test environment
 echo -e "${ORANGE}Running prover with version check...${NC}"
 cd clients/cli  # Change to CLI directory
-NEXUS_HOME="$TEST_DIR" cargo run -- \
-    $ORCHESTRATOR_HOST --updater-mode test &
+NEXUS_HOME="$TEST_DIR" cargo run -- $ORCHESTRATOR_HOST &
 
 INITIAL_PID=$!
 echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"

@@ -78,7 +78,7 @@ ark-vesta = "0.4.0"
 ark-test-curves = { version = "0.4.2", features = ["bls12_381_curve"] }
 iana-time-zone = "0.1.60"
 chrono = "0.4.38"
-self_update = "0.41.0"
+self_update = { version = "0.41.0", features = ["archive-tar"] }
 dirs = "5.0.1"
 semver = "1.0.23"
 parking_lot = "0.12.3"

@@ -66,7 +66,7 @@ impl VersionManager {
         let updater = self_update::backends::github::Update::configure()
             .repo_owner("nexus-xyz")
             .repo_name("network-api")
-            .bin_name("nexus-cli")
+            .bin_name("prover")
             .current_version(cargo_crate_version!())
             .build()?;
 
@@ -85,7 +85,7 @@ impl VersionManager {
         let status = self_update::backends::github::Update::configure()
             .repo_owner("nexus-xyz")
             .repo_name("network-api")
-            .bin_name("nexus-cli")
+            .bin_name("prover")
             .current_version(cargo_crate_version!())
             .target_version_tag(&new_version.to_string())
             .build()?
