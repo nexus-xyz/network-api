@@ -110,10 +110,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
     // a. Create the updater config
-    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
+    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname.clone());
 
-    // b. runs the CLI's auto updater in a separate thread continuously in intervals
-    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
+    // Check if we should use the binary version
+    if let Some(status) = updater::check_and_use_binary(&updater_config).await? {
+        std::process::exit(status.code().unwrap_or(0));
+    }
+
+    // Start the update checker thread
+    updater::spawn_auto_update_thread(&updater_config)?;
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.

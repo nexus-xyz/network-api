@@ -93,22 +93,6 @@ impl VersionManager {
         })
     }
 
-    /// Fetch the current version of the CLI and persist it to a file
-    pub fn fetch_and_persist_cli_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
-        // 1. Get the current git tag version (which depends on the updater mode)
-        let current_git_version = self.get_cli_release_version(false)?;
-
-        // 2. Convert the semver to a number and write it to a file (so it can persist across updates)
-        write_version_to_file(&current_git_version)?;
-
-        println!(
-            "{}[auto-updater]{} Wrote version to file: {}",
-            BLUE, RESET, current_git_version
-        );
-
-        Ok(current_git_version)
-    }
-
     /// Get the latest release version of the CLI
     fn get_cli_release_version(
         &self,
@@ -341,4 +325,9 @@ pub fn restart_cli_process_with_new_version(
     );
 
     std::process::exit(0);
+}
+
+pub fn get_binary_path() -> std::path::PathBuf {
+    let home = std::env::var("HOME").unwrap_or_default();
+    std::path::PathBuf::from(format!("{}/.nexus/bin", home))
 }
