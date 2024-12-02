@@ -1,5 +1,7 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
+pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
 mod analytics;
 mod config;
 mod connection;
@@ -57,6 +59,7 @@ use crate::utils::updater::UpdaterConfig;
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
 struct Args {
     /// Hostname at which Orchestrator can be reached
     hostname: String,
