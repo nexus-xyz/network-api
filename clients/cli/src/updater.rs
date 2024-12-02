@@ -11,9 +11,11 @@
 use std::process::Command;
 use std::sync::Arc;
 use std::{thread, time::Duration};
-use tracing::{error, info};
+use tracing::error;
 
-use crate::utils::updater::{get_binary_path, UpdaterConfig, VersionManager, VersionStatus};
+use crate::utils::updater::{
+    get_binary_path, UpdaterConfig, VersionManager, VersionStatus, BLUE, RESET,
+};
 
 pub async fn check_and_use_binary(
     updater_config: &UpdaterConfig,
@@ -21,21 +23,34 @@ pub async fn check_and_use_binary(
     let binary_path = get_binary_path().join("prover");
 
     if !binary_path.exists() {
-        println!("No installed binary found, using cargo run");
+        println!(
+            "{}[auto-updater]{} No installed binary found, falling back to local build (auto-updates enabled)",
+            BLUE, RESET
+        );
         return Ok(None);
     }
 
     let version_manager = VersionManager::new(updater_config.clone())?;
     match version_manager.update_version_status()? {
         VersionStatus::UpdateAvailable(new_version) => {
-            println!("Update available - downloading version {}", new_version);
+            println!(
+                "{}[auto-updater]{} Update available - downloading version {}",
+                BLUE, RESET, new_version
+            );
             if let Err(e) = version_manager.apply_update(&new_version) {
-                error!("Failed to update CLI: {}", e);
-                info!("Falling back to cargo run");
+                println!(
+                    "{}[auto-updater]{} Failed to update CLI: {}",
+                    BLUE, RESET, e
+                );
+                println!("{}[auto-updater]{} Falling back to cargo run", BLUE, RESET);
                 Ok(None)
             } else {
                 // After successful update, spawn new binary and exit current process
-                println!("Update complete, launching new binary");
+                println!(
+                    "{}[auto-updater]{} Update complete, launching new binary",
+                    BLUE, RESET
+                );
+
                 let status = Command::new(&binary_path)
                     .args(std::env::args().skip(1)) // Forward all CLI args except program name
                     .status()?;
@@ -43,7 +58,11 @@ pub async fn check_and_use_binary(
             }
         }
         VersionStatus::UpToDate => {
-            println!("Using installed binary (latest version)");
+            println!(
+                "{}[auto-updater]{} Using installed binary (latest version)",
+                BLUE, RESET
+            );
+
             let status = Command::new(&binary_path)
                 .args([&updater_config.hostname])
                 .status()?;
@@ -59,23 +78,36 @@ pub fn spawn_auto_update_thread(
     let version_manager_thread = version_manager.clone();
     let update_interval = updater_config.update_interval;
 
-    thread::spawn(move || {
-        println!("Update checker thread started");
-        loop {
-            match version_manager_thread.update_version_status() {
-                Ok(VersionStatus::UpdateAvailable(new_version)) => {
-                    println!("New version {} available - downloading update", new_version);
-                    if let Err(e) = version_manager_thread.apply_update(&new_version) {
-                        error!("Failed to update CLI: {}", e);
-                    }
+    println!(
+        "{}[auto-updater]{} Update checker thread started (current version: {})",
+        BLUE,
+        RESET,
+        crate::VERSION
+    );
+
+    thread::spawn(move || loop {
+        match version_manager_thread.update_version_status() {
+            Ok(VersionStatus::UpdateAvailable(new_version)) => {
+                println!(
+                        "{}[auto-updater]{} New version {} available (current: {}) - downloading update",
+                        BLUE, RESET, new_version, crate::VERSION
+                    );
+
+                if let Err(e) = version_manager_thread.apply_update(&new_version) {
+                    error!("Failed to update CLI: {}", e);
                 }
-                Ok(VersionStatus::UpToDate) => {
-                    println!("CLI is up to date");
-                }
-                Err(e) => error!("Failed to check version: {}", e),
             }
-            thread::sleep(Duration::from_secs(update_interval));
+            Ok(VersionStatus::UpToDate) => {
+                println!(
+                    "{}[auto-updater]{} CLI is up to date (version: {})",
+                    BLUE,
+                    RESET,
+                    crate::VERSION
+                );
+            }
+            Err(e) => error!("Failed to check version: {}", e),
         }
+        thread::sleep(Duration::from_secs(update_interval));
     });
 
     Ok(())

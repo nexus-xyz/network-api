@@ -44,6 +44,11 @@ impl UpdaterConfig {
             hostname,
         };
 
+        println!(
+            "{}[auto-updater]{} Checking for updates every {} seconds",
+            BLUE, RESET, config.update_interval
+        );
+
         config
     }
 }
@@ -63,6 +68,7 @@ impl VersionManager {
     }
 
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
+        // Configure the updater to use the Nexus CLI GitHub repository
         let updater = self_update::backends::github::Update::configure()
             .repo_owner("nexus-xyz")
             .repo_name("network-api")
@@ -70,11 +76,14 @@ impl VersionManager {
             .current_version(cargo_crate_version!())
             .build()?;
 
+        // Get the latest release from GitHub
         let latest_release = updater.get_latest_release()?;
 
+        // Check if the current version is up to date
         if cargo_crate_version!() == latest_release.version {
             Ok(VersionStatus::UpToDate)
         } else {
+            // Return the new version if an update is available
             Ok(VersionStatus::UpdateAvailable(Version::parse(
                 &latest_release.version,
             )?))
@@ -107,6 +116,10 @@ impl VersionManager {
 
         std::fs::write(".prover.pid", child.id().to_string())?;
         std::process::exit(0);
+    }
+
+    pub fn get_current_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
+        Ok(Version::parse(cargo_crate_version!())?)
     }
 }
 
