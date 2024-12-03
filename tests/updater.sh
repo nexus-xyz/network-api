@@ -36,28 +36,26 @@ echo -e "${ORANGE}Setting up test in $TEST_DIR${NC}"
 # Create .nexus directory structure
 mkdir -p "$TEST_DIR/.nexus/bin"
 
-# Write the old version to .current_version
-echo -e "${ORANGE}Setting initial version to $OLD_VERSION${NC}"
-echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
-
 # Build the source code
 echo -e "${ORANGE}Building source code...${NC}"
 cd clients/cli  # Change to CLI directory
-cargo build --release
 
 # Run prover with test environment
 echo -e "${ORANGE}Running prover with version check...${NC}"
-NEXUS_HOME="$TEST_DIR" cargo run --release -- $ORCHESTRATOR_HOST &
+NEXUS_HOME="$TEST_DIR" cargo run -- $ORCHESTRATOR_HOST &
 
 INITIAL_PID=$!
 echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
+
+# Wait a moment for the process to start
+sleep 5
 
 # Wait for update to happen
 echo -e "${ORANGE}Waiting for update check (60s)...${NC}"
 sleep 60
 
-# Check if new version was downloaded
-if [ -f "$TEST_DIR/.current_version" ] && [ "$(cat "$TEST_DIR/.current_version")" = "$EXPECTED_NEW_VERSION" ]; then
+# Update version check location
+if [ -f "$TEST_DIR/.nexus/bin/version" ] && [ "$(cat "$TEST_DIR/.nexus/bin/version")" = "$EXPECTED_NEW_VERSION" ]; then
     echo -e "${ORANGE}✅ Version file updated successfully${NC}"
 else
     echo -e "${ORANGE}❌ Version file not updated${NC}"
@@ -91,3 +89,6 @@ else
 fi
 
 echo -e "${ORANGE}All tests passed!${NC}"
+
+# Clean up Nexus installation
+echo -e "${ORANGE}Cleaning up Nexus installation...${NC}"
