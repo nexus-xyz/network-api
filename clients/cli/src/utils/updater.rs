@@ -105,7 +105,7 @@ impl VersionManager {
                 .repo_name("network-api")
                 .bin_name("prover")
                 .current_version(cargo_crate_version!())
-                .target(&self_update::get_target())
+                .target(self_update::get_target())
                 .no_confirm(true);
 
             // Check if a GitHub token is available
@@ -159,7 +159,7 @@ impl VersionManager {
             .repo_name("network-api")
             .bin_name("prover")
             .current_version(cargo_crate_version!())
-            .target(&self_update::get_target())
+            .target(self_update::get_target())
             .no_confirm(true);
 
         // Conditionally add the auth token if it is present
@@ -253,7 +253,7 @@ impl VersionManager {
         let extract_path = temp_dir.path();
 
         // Extract and inspect the contents
-        match extract_and_prepare_update(&download_path, &extract_path) {
+        match extract_and_prepare_update(&download_path, extract_path) {
             Ok(_) => {
                 // Define the path to the new executable
                 let new_exe_path = extract_path.join("prover"); // Adjust "prover" to the actual executable name
