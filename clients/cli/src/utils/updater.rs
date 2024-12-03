@@ -5,11 +5,14 @@
 
 use self_update::{cargo_crate_version, self_replace, ArchiveKind, Compression, Extract};
 use semver::Version;
+use std::os::unix::process::CommandExt;
 use std::path::Path;
-use std::process::Command;
+// use std::process::Command;
 
 // ANSI escape codes for colors for pretty printing
-pub const BLUE: &str = "\x1b[34m";
+pub const BLUE: &str = "\x1b[32m"; // actually green, used to test if binary is replaced
+
+// pub const BLUE: &str = "\x1b[34m"; // Blue
 pub const RESET: &str = "\x1b[0m";
 
 #[derive(Clone)]
@@ -259,6 +262,13 @@ impl VersionManager {
                 let new_exe_path = extract_path.join("prover"); // Adjust "prover" to the actual executable name
 
                 // Apply the update
+                println!(
+                    "{}[auto-updater]{} Attempting to replace binary at {:?}",
+                    BLUE,
+                    RESET,
+                    std::env::current_exe().unwrap_or_default()
+                );
+
                 if let Err(e) = self_replace::self_replace(&new_exe_path) {
                     eprintln!(
                         "{}[auto-updater]{} Failed to apply update: {}",
@@ -267,23 +277,23 @@ impl VersionManager {
                     return Err(Box::new(e) as Box<dyn std::error::Error + Send>);
                 }
 
-                // Verify the version of the updated binary
-                let output = Command::new(&new_exe_path)
-                    .arg("--version")
-                    .output()
+                // Update version file before exiting
+                std::fs::write(&self.version_file, new_version.to_string())
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
-                if output.status.success() {
+                // Replace current process with new binary
+                if let Ok(current_exe) = std::env::current_exe() {
+                    let args: Vec<String> = std::env::args().skip(1).collect();
                     println!(
-                        "{}[auto-updater]{}\t\t 4. Restarting with new version downloaded...",
-                        BLUE, RESET
+                        "{}[auto-updater]{} Replacing process with args: {:?}",
+                        BLUE, RESET, args
                     );
-                } else {
-                    eprintln!(
-                        "{}[auto-updater]{} Failed to verify updated binary version",
-                        BLUE, RESET
-                    );
+
+                    std::process::Command::new(current_exe).args(args).exec(); // Replace current process entirely
                 }
+
+                // This line will only be reached if exec fails
+                std::process::exit(1);
             }
             Err(e) => {
                 eprintln!(
@@ -293,17 +303,6 @@ impl VersionManager {
                 return Err(e);
             }
         }
-
-        // Update version file only after successful binary replacement
-        std::fs::write(&self.version_file, new_version.to_string())
-            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
-
-        println!(
-            "{}[auto-updater]{}\t\t 5. Version file updated to {}",
-            BLUE, RESET, new_version
-        );
-
-        Ok(())
     }
 
     pub fn get_current_version(&self) -> Result<Version, Box<dyn std::error::Error>> {

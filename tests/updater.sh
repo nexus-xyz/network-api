@@ -81,7 +81,7 @@ echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
 sleep 5
 
 # Wait for update to happen and verify binary download
-echo -e "${ORANGE}Waiting for update check (60s)...${NC}"
+echo -e "${ORANGE}\nWaiting for update check (60s)...${NC}"
 sleep 60
 
 # Update version check location
