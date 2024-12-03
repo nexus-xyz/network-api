@@ -8,6 +8,7 @@
 //! The updater runs in a separate thread to avoid blocking the main CLI operations,
 //! allowing users to continue using the CLI while update checks happen in the background.
 
+use semver::Version;
 use std::process::Command;
 use std::sync::Arc;
 use std::{thread, time::Duration};
@@ -79,11 +80,14 @@ pub fn spawn_auto_update_thread(
                 }
             }
             Ok(VersionStatus::UpToDate) => {
+                let current_version = match version_manager_thread.get_current_version() {
+                    Ok(version) => version,
+                    Err(_) => Version::parse(crate::VERSION).unwrap(),
+                };
+
                 println!(
                     "{}[auto-updater]{} CLI is up to date (version: {})",
-                    BLUE,
-                    RESET,
-                    crate::VERSION
+                    BLUE, RESET, current_version
                 );
             }
             Err(e) => error!("Failed to check version: {}", e),

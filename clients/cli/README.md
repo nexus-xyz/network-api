@@ -86,6 +86,15 @@ cd target/aarch64-apple-darwin/release && tar -czf aarch64-apple-darwin.tar.gz .
 ./target/aarch64-apple-darwin/release/prover -- beta.orchestrator.nexus.xyz
 ```
 
+### Clearing Nexus data
+
+To completely reset Nexus for a clean installation, run these commands:
+
+```sh
+# Remove the entire Nexus directory
+rm -rf ~/.nexus
+```
+
 ## Resources
 
 * [Network FAQ](https://nexus.xyz/network#network-faqs)

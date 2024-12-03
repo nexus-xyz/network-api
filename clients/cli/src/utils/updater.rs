@@ -3,7 +3,6 @@
 //! This module provides the underlying implementation for version checking and updates
 //! using the self_update crate to handle version management and updates from GitHub releases.
 
-use dotenv;
 use self_update::{cargo_crate_version, self_replace, ArchiveKind, Compression, Extract};
 use semver::Version;
 use std::path::Path;
@@ -71,12 +70,13 @@ pub enum VersionStatus {
 }
 
 pub struct VersionManager {
-    config: UpdaterConfig,
+    // config: UpdaterConfig,
     version_file: std::path::PathBuf,
 }
 
 impl VersionManager {
     pub fn new(config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
+        // Get the full path to version file
         let version_file = get_binary_path().join("version");
 
         // Initialize version file if it doesn't exist
@@ -88,7 +88,7 @@ impl VersionManager {
         }
 
         Ok(Self {
-            config,
+            // config,
             version_file,
         })
     }
@@ -96,10 +96,7 @@ impl VersionManager {
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         println!("{}[auto-updater]{} Checking for updates...", BLUE, RESET);
 
-        // Get current version using the method
         let current_version = self.get_current_version()?;
-
-        // Use tokio's blocking wrapper when inside async context
         let status = tokio::task::block_in_place(|| {
             let mut config = self_update::backends::github::Update::configure();
 
@@ -310,14 +307,31 @@ impl VersionManager {
     }
 
     pub fn get_current_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
-        let version = std::fs::read_to_string(&self.version_file)?
-            .trim()
-            .to_string();
+        if self.version_file.exists() {
+            let version = std::fs::read_to_string(&self.version_file)?
+                .trim()
+                .to_string();
+            println!(
+                "{}[auto-updater]{} Current version: {} (from version file)",
+                BLUE, RESET, version
+            );
+            return Ok(Version::parse(&version)?);
+        }
+
+        // Fallback to compile-time version
+        let version = env!("CARGO_PKG_VERSION");
         println!(
-            "{}[auto-updater]{} Current version: {}",
+            "{}[auto-updater]{} Current version: {} (from CARGO_PKG_VERSION)",
             BLUE, RESET, version
         );
-        Ok(Version::parse(&version)?)
+
+        // Initialize version file with compile-time version
+        if let Some(parent) = self.version_file.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        std::fs::write(&self.version_file, version)?;
+
+        Ok(Version::parse(version)?)
     }
 }
 
