@@ -20,66 +20,31 @@ use crate::utils::updater::{
 pub async fn check_and_use_binary(
     updater_config: &UpdaterConfig,
 ) -> Result<Option<std::process::ExitStatus>, Box<dyn std::error::Error>> {
-    let binary_path = get_binary_path().join("prover");
-
-    if !binary_path.exists() {
-        println!(
-            "{}[auto-updater]{} No installed binary found, falling back to local build (auto-updates enabled)",
-            BLUE, RESET
-        );
+    // Check if we were spawned by another instance
+    if std::env::var("PROVER_SPAWNED").is_ok() {
         return Ok(None);
     }
 
-    let version_manager = VersionManager::new(updater_config.clone())?;
-    match version_manager.update_version_status()? {
-        VersionStatus::UpdateAvailable(new_version) => {
-            println!(
-                "{}[auto-updater]{} Update available - downloading version {}",
-                BLUE, RESET, new_version
-            );
-            if let Err(e) = version_manager.apply_update(&new_version) {
-                println!(
-                    "{}[auto-updater]{} Failed to update CLI: {}",
-                    BLUE, RESET, e
-                );
-                println!("{}[auto-updater]{} Falling back to cargo run", BLUE, RESET);
-                Ok(None)
-            } else {
-                // After successful update, spawn new binary and exit current process
-                println!(
-                    "{}[auto-updater]{} Successfully installed new binary version {}",
-                    BLUE, RESET, new_version
-                );
-                println!(
-                    "{}[auto-updater]{} Update complete, launching new binary from: {}",
-                    BLUE,
-                    RESET,
-                    binary_path.display()
-                );
+    let binary_path = get_binary_path().join("prover");
+    let current_exe = std::env::current_exe()?;
 
-                let status = Command::new(&binary_path)
-                    .args(std::env::args().skip(1)) // Forward all CLI args except program name
-                    .status()?;
-
-                println!(
-                    "{}[auto-updater]{} New binary launched successfully with status: {}",
-                    BLUE, RESET, status
-                );
-                std::process::exit(status.code().unwrap_or(0));
-            }
-        }
-        VersionStatus::UpToDate => {
-            println!(
-                "{}[auto-updater]{} Using installed binary (latest version)",
-                BLUE, RESET
-            );
-
-            let status = Command::new(&binary_path)
-                .args([&updater_config.hostname])
-                .status()?;
-            Ok(Some(status))
-        }
+    // Check if we're running from the default binary path
+    if current_exe != binary_path {
+        println!(
+            "{}[auto-updater]{} Running from custom location ({}), proceeding with update checks",
+            BLUE,
+            RESET,
+            current_exe.display()
+        );
+        // Spawn new process with environment flag
+        let status = Command::new(&current_exe)
+            .args([&updater_config.hostname])
+            .env("PROVER_SPAWNED", "1")
+            .status()?;
+        std::process::exit(status.code().unwrap_or(0));
     }
+
+    Ok(None)
 }
 
 pub fn spawn_auto_update_thread(
@@ -100,18 +65,17 @@ pub fn spawn_auto_update_thread(
         match version_manager_thread.update_version_status() {
             Ok(VersionStatus::UpdateAvailable(new_version)) => {
                 println!(
-                    "{}[auto-updater]{} New version {} available (current: {}) - downloading update",
-                    BLUE, RESET, new_version, crate::VERSION
-                );
+                        "{}[auto-updater]{} New version {} available (current: {}) - downloading new binary...",
+                        BLUE, RESET, new_version, crate::VERSION
+                    );
 
-                match version_manager_thread.apply_update(&new_version) {
-                    Ok(_) => {
-                        println!(
-                            "{}[auto-updater]{} Successfully downloaded and applied update to version {}",
-                            BLUE, RESET, new_version
-                        );
-                    }
-                    Err(e) => error!("Failed to update CLI: {}", e),
+                if let Err(e) = version_manager_thread.apply_update(&new_version) {
+                    error!("Failed to update CLI: {}", e);
+                } else {
+                    println!(
+                        "{}[auto-updater]{} Successfully updated CLI to version {}",
+                        BLUE, RESET, new_version
+                    );
                 }
             }
             Ok(VersionStatus::UpToDate) => {

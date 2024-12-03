@@ -74,6 +74,13 @@ struct Args {
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
+    // First try to load from binary
+    let binary_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(filename);
+    if let Ok(bytes) = std::fs::read(&binary_path) {
+        return bytes;
+    }
+
+    // Fall back to filesystem if binary load fails
     let mut f = File::open(filename).expect("no file found");
     let metadata = fs::metadata(filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
@@ -117,6 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Start the update checker thread
+    println!("Starting update checker thread");
     updater::spawn_auto_update_thread(&updater_config)?;
 
     let k = 4;

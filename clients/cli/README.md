@@ -47,7 +47,6 @@ add `NONINTERACTIVE=1` before `sh`.
 ## Known issues
 
 * Only the latest version of the CLI is currently supported.
-* Prebuilt binaries are not yet available.
 * Linking email to prover id is currently available on the web version only.
 * Counting cycles proved is not yet available in the CLI.
 * Only proving is supported. Submitting programs to the network is in private beta.
@@ -79,6 +78,13 @@ cargo build --release --target aarch64-apple-darwin
 
 # Create a tarball for the binary (make sure we're in the right directory and preserve the binary name)
 cd target/aarch64-apple-darwin/release && tar -czf aarch64-apple-darwin.tar.gz ./prover && cd -
+
+# Test the binary
+./target/aarch64-apple-darwin/release/prover --version 
+./target/aarch64-apple-darwin/release/prover --help     
+
+# Run the binary
+./target/aarch64-apple-darwin/release/prover -- beta.orchestrator.nexus.xyz
 ```
 
 ## Resources
