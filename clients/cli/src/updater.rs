@@ -67,16 +67,6 @@ pub fn spawn_auto_update_thread(
     let version_manager_thread = version_manager.clone();
     let update_interval = updater_config.update_interval;
 
-    let current_version = match version_manager_thread.get_current_version() {
-        Ok(version) => version,
-        Err(_) => Version::parse(crate::VERSION).unwrap(),
-    };
-
-    // println!(
-    //     "{}[auto-updater]{} Update checker thread started (current version: {})",
-    //     BLUE, RESET, current_version
-    // );
-
     thread::spawn(move || loop {
         match version_manager_thread.update_version_status() {
             Ok(VersionStatus::UpdateAvailable(new_version)) => {
