@@ -124,7 +124,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Start the update checker thread
-    println!("Starting update checker thread");
     updater::spawn_auto_update_thread(&updater_config)?;
 
     let k = 4;

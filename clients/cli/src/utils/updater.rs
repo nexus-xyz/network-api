@@ -29,16 +29,10 @@ impl UpdaterConfig {
             "Looking for .env at: {:?}",
             env_path.canonicalize().unwrap_or_default()
         );
-        match dotenv::from_path(&env_path) {
-            Ok(_) => println!("Successfully loaded .env file"),
-            Err(e) => println!("Failed to load .env file: {}", e),
-        }
-
-        let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
-        println!(
-            "GitHub token: {}",
-            if token.is_empty() { "none" } else { "found" }
-        );
+        // match dotenv::from_path(&env_path) {
+        //     Ok(_) => println!("Successfully loaded .env file"),
+        //     Err(e) => println!("Failed to load .env file: {}", e),
+        // }
 
         #[cfg(debug_assertions)]
         let config = Self {
@@ -86,20 +80,28 @@ impl VersionManager {
     }
 
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
-        println!("\tChecking for updates...");
+        println!("{}[auto-updater]{} Checking for updates...", BLUE, RESET);
 
         // Use tokio's blocking wrapper when inside async context
         let status = tokio::task::block_in_place(|| {
-            self_update::backends::github::Update::configure()
+            let mut config = self_update::backends::github::Update::configure();
+
+            let mut update_builder = config
                 .repo_owner("nexus-xyz")
                 .repo_name("network-api")
                 .bin_name("prover")
                 .current_version(cargo_crate_version!())
                 .target(&self_update::get_target())
-                .auth_token(std::env::var("GITHUB_TOKEN").unwrap_or_default().as_str())
-                .no_confirm(true)
-                .build()?
-                .get_latest_release()
+                .no_confirm(true);
+
+            // Check if a GitHub token is available
+            // if let Ok(token) = std::env::var("GITHUB_TOKEN") {
+            //     if !token.is_empty() {
+            //         update_builder = update_builder.auth_token(token.as_str());
+            //     }
+            // }
+
+            update_builder.build()?.get_latest_release()
         })?;
 
         // Compare versions
@@ -128,15 +130,22 @@ impl VersionManager {
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
         // Download the release
-        let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
-        let release = self_update::backends::github::Update::configure()
-            .repo_owner("nexus-xyz")
+        // let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+        let mut config = self_update::backends::github::Update::configure();
+        let mut update_builder = config.repo_owner("nexus-xyz");
+        update_builder = update_builder
             .repo_name("network-api")
             .bin_name("prover")
             .current_version(cargo_crate_version!())
             .target(&self_update::get_target())
-            .auth_token(&token)
-            .no_confirm(true)
+            .no_confirm(true);
+
+        // Conditionally add the auth token if it is present
+        // if !token.is_empty() {
+        //     update_builder = update_builder.auth_token(&token);
+        // }
+
+        let release = update_builder
             .build()
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?
             .get_latest_release()
@@ -161,16 +170,20 @@ impl VersionManager {
 
         // Download to temp file
         let download_path = temp_dir.path().join(&asset.name);
-        let response = reqwest::blocking::Client::new()
+        let mut request = reqwest::blocking::Client::new()
             .get(&asset.download_url)
-            .header("Authorization", format!("token {}", token))
             .header("Accept", "application/octet-stream")
-            .header("User-Agent", "NexusUpdater/0.3.7")
-            .send()
-            .map_err(|e| {
-                eprintln!("Failed to send request: {:?}", e);
-                Box::new(e) as Box<dyn std::error::Error + Send>
-            })?;
+            .header("User-Agent", "NexusUpdater/0.3.7");
+
+        // Conditionally add the Authorization header if the token is present
+        // if !token.is_empty() {
+        //     request = request.header("Authorization", format!("token {}", token));
+        // }
+
+        let response = request.send().map_err(|e| {
+            eprintln!("Failed to send request: {:?}", e);
+            Box::new(e) as Box<dyn std::error::Error + Send>
+        })?;
 
         // Check if the response is successful
         if !response.status().is_success() {
@@ -220,8 +233,6 @@ impl VersionManager {
         // Extract and inspect the contents
         match extract_and_prepare_update(&download_path, &extract_path) {
             Ok(_) => {
-                println!("{}[auto-updater]{} Inspection complete", BLUE, RESET);
-
                 // Define the path to the new executable
                 let new_exe_path = extract_path.join("prover"); // Adjust "prover" to the actual executable name
 
