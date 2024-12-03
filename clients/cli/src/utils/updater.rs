@@ -10,9 +10,11 @@ use std::path::Path;
 // use std::process::Command;
 
 // ANSI escape codes for colors for pretty printing
-pub const BLUE: &str = "\x1b[32m"; // actually green, used to test if binary is replaced
+pub const GREEN: &str = "\x1b[32m"; // Used to test if binary is replaced
+pub const BLUE: &str = "\x1b[34m";
 
-// pub const BLUE: &str = "\x1b[34m"; // Blue
+// pub const UPDATER_COLOR: &str = GREEN;
+pub const UPDATER_COLOR: &str = BLUE;
 pub const RESET: &str = "\x1b[0m";
 
 #[derive(Clone)]
@@ -60,7 +62,7 @@ impl UpdaterConfig {
 
         println!(
             "{}[auto-updater]{} Checking for updates in {} seconds",
-            BLUE, RESET, config.update_interval
+            UPDATER_COLOR, RESET, config.update_interval
         );
 
         config
@@ -97,7 +99,10 @@ impl VersionManager {
     }
 
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
-        println!("{}[auto-updater]{} Checking for updates...", BLUE, RESET);
+        println!(
+            "{}[auto-updater]{} Checking for updates...",
+            UPDATER_COLOR, RESET
+        );
 
         let current_version = self.get_current_version()?;
         let status = tokio::task::block_in_place(|| {
@@ -125,13 +130,13 @@ impl VersionManager {
         if current_version.to_string() == status.version {
             println!(
                 "{}[auto-updater]{} Versions match - no update needed",
-                BLUE, RESET
+                UPDATER_COLOR, RESET
             );
             Ok(VersionStatus::UpToDate)
         } else {
             println!(
                 "{}[auto-updater]{} Update available: {} -> {}",
-                BLUE, RESET, current_version, status.version
+                UPDATER_COLOR, RESET, current_version, status.version
             );
             Ok(VersionStatus::UpdateAvailable(Version::parse(
                 &status.version,
@@ -145,7 +150,7 @@ impl VersionManager {
     ) -> Result<(), Box<dyn std::error::Error + Send + 'static>> {
         println!(
             "{}[auto-updater]{} \t\t 1. Inspecting update version {}...",
-            BLUE, RESET, new_version
+            UPDATER_COLOR, RESET, new_version
         );
 
         // Create a temporary directory for extraction
@@ -190,7 +195,7 @@ impl VersionManager {
 
         println!(
             "{}[auto-updater]{}\t\t 2. Downloading archive: {}",
-            BLUE, RESET, asset.name
+            UPDATER_COLOR, RESET, asset.name
         );
 
         // Download to temp file
@@ -249,7 +254,7 @@ impl VersionManager {
 
         println!(
             "{}[auto-updater]{}\t\t 3. Archive downloaded to: {:?} (size: {} bytes)",
-            BLUE, RESET, download_path, file_size
+            UPDATER_COLOR, RESET, download_path, file_size
         );
 
         // Use the existing temporary directory for extraction
@@ -264,7 +269,7 @@ impl VersionManager {
                 // Apply the update
                 println!(
                     "{}[auto-updater]{} Attempting to replace binary at {:?}",
-                    BLUE,
+                    UPDATER_COLOR,
                     RESET,
                     std::env::current_exe().unwrap_or_default()
                 );
@@ -272,7 +277,7 @@ impl VersionManager {
                 if let Err(e) = self_replace::self_replace(&new_exe_path) {
                     eprintln!(
                         "{}[auto-updater]{} Failed to apply update: {}",
-                        BLUE, RESET, e
+                        UPDATER_COLOR, RESET, e
                     );
                     return Err(Box::new(e) as Box<dyn std::error::Error + Send>);
                 }
@@ -286,7 +291,7 @@ impl VersionManager {
                     let args: Vec<String> = std::env::args().skip(1).collect();
                     println!(
                         "{}[auto-updater]{} Replacing process with args: {:?}",
-                        BLUE, RESET, args
+                        UPDATER_COLOR, RESET, args
                     );
 
                     std::process::Command::new(current_exe).args(args).exec(); // Replace current process entirely
@@ -298,7 +303,7 @@ impl VersionManager {
             Err(e) => {
                 eprintln!(
                     "{}[auto-updater]{} Failed to extract and inspect: {}",
-                    BLUE, RESET, e
+                    UPDATER_COLOR, RESET, e
                 );
                 return Err(e);
             }
@@ -312,7 +317,7 @@ impl VersionManager {
                 .to_string();
             println!(
                 "{}[auto-updater]{} \t\tversion from version file: {}",
-                BLUE, RESET, version
+                UPDATER_COLOR, RESET, version
             );
             return Ok(Version::parse(&version)?);
         }
@@ -321,7 +326,7 @@ impl VersionManager {
         let version = env!("CARGO_PKG_VERSION");
         println!(
             "{}[auto-updater]{} \t\tversion(from CARGO_PKG_VERSION): {} ",
-            BLUE, RESET, version
+            UPDATER_COLOR, RESET, version
         );
 
         // Initialize version file with compile-time version
@@ -356,7 +361,7 @@ fn extract_and_prepare_update(
                 let entry = entry.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
                 println!(
                     "{}[auto-updater]{} \t\t\tExtracted file: {:?}",
-                    BLUE,
+                    UPDATER_COLOR,
                     RESET,
                     entry.path()
                 );

@@ -15,7 +15,7 @@ use std::{thread, time::Duration};
 use tracing::error;
 
 use crate::utils::updater::{
-    get_binary_path, UpdaterConfig, VersionManager, VersionStatus, BLUE, RESET,
+    get_binary_path, UpdaterConfig, VersionManager, VersionStatus, RESET, UPDATER_COLOR,
 };
 
 pub async fn check_and_use_binary(
@@ -27,7 +27,7 @@ pub async fn check_and_use_binary(
 
     println!(
         "{}[auto-updater]{} Starting prover v{} (runtime) at {}",
-        BLUE,
+        UPDATER_COLOR,
         RESET,
         current_version,
         chrono::Local::now().format("%H:%M:%S")
@@ -45,7 +45,7 @@ pub async fn check_and_use_binary(
     if current_exe != binary_path {
         println!(
             "{}[auto-updater]{} Running from custom location ({}), proceeding with update checks",
-            BLUE,
+            UPDATER_COLOR,
             RESET,
             current_exe.display()
         );
@@ -77,7 +77,7 @@ pub fn spawn_auto_update_thread(
 
                 println!(
                     "{}[auto-updater]{} New version {} available (current: {}) - downloading new binary...\n",
-                    BLUE, RESET, new_version, current_version
+                    UPDATER_COLOR, RESET, new_version, current_version
                 );
 
                 if let Err(e) = version_manager_thread.apply_update(&new_version) {
@@ -85,7 +85,7 @@ pub fn spawn_auto_update_thread(
                 } else {
                     println!(
                         "{}[auto-updater]{}\t\t 6. ✅ Successfully updated CLI to version {}",
-                        BLUE, RESET, new_version
+                        UPDATER_COLOR, RESET, new_version
                     );
                 }
             }
@@ -97,7 +97,7 @@ pub fn spawn_auto_update_thread(
 
                 println!(
                     "{}[auto-updater]{} CLI is up to date (version: {})",
-                    BLUE, RESET, current_version
+                    UPDATER_COLOR, RESET, current_version
                 );
             }
             Err(e) => error!("Failed to check version: {}", e),
