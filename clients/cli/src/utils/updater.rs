@@ -75,7 +75,7 @@ pub struct VersionManager {
 }
 
 impl VersionManager {
-    pub fn new(config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(_config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
         // Get the full path to version file
         let version_file = get_binary_path().join("version");
 
@@ -192,7 +192,7 @@ impl VersionManager {
 
         // Download to temp file
         let download_path = temp_dir.path().join(&asset.name);
-        let mut request = reqwest::blocking::Client::new()
+        let request = reqwest::blocking::Client::new()
             .get(&asset.download_url)
             .header("Accept", "application/octet-stream")
             .header("User-Agent", "NexusUpdater/0.3.7");
