@@ -21,6 +21,18 @@ use crate::utils::updater::{
 pub async fn check_and_use_binary(
     updater_config: &UpdaterConfig,
 ) -> Result<Option<std::process::ExitStatus>, Box<dyn std::error::Error>> {
+    // Create version manager to get runtime version
+    let version_manager = VersionManager::new(updater_config.clone())?;
+    let current_version = version_manager.get_current_version()?;
+
+    println!(
+        "{}[auto-updater]{} Starting prover v{} (runtime) at {}",
+        BLUE,
+        RESET,
+        current_version,
+        chrono::Local::now().format("%H:%M:%S")
+    );
+
     // Check if we were spawned by another instance
     if std::env::var("PROVER_SPAWNED").is_ok() {
         return Ok(None);
@@ -74,7 +86,7 @@ pub fn spawn_auto_update_thread(
                 };
 
                 println!(
-                    "{}[auto-updater]{} New version {} available (current: {}) - downloading new binary...",
+                    "{}[auto-updater]{} New version {} available (current: {}) - downloading new binary...\n",
                     BLUE, RESET, new_version, current_version
                 );
 

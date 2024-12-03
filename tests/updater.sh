@@ -92,7 +92,7 @@ if [ -f "$TEST_DIR/.nexus/bin/version" ]; then
     echo -e "${ORANGE}Found version file. Content: '$ACTUAL_VERSION'${NC}"
     
     if [ "$ACTUAL_VERSION" = "$EXPECTED_NEW_VERSION" ]; then
-        echo -e "${ORANGE}✅  successfully${NC}"
+        echo -e "${ORANGE}✅ Version file updated successfully${NC}"
     else
         echo -e "${ORANGE}❌ Version mismatch - Expected: '$EXPECTED_NEW_VERSION', Got: '$ACTUAL_VERSION'${NC}"
         exit 1
@@ -113,21 +113,33 @@ echo -e "${ORANGE}Checking binary at: $HOME/.nexus/bin/prover${NC}"
 echo -e "${ORANGE}Directory contents (home dir):${NC}"
 ls -la "$HOME/.nexus/bin" 2>/dev/null || echo "Home .nexus/bin directory not found"
 
-# if [ -x "$TEST_DIR/.nexus/bin/prover" ]; then
-#     echo -e "${ORANGE}✅ Binary downloaded and executable (in test dir)${NC}"
-# elif [ -x "$HOME/.nexus/bin/prover" ]; then
-#     echo -e "${ORANGE}✅ Binary downloaded and executable (in home dir)${NC}"
-#     echo -e "${ORANGE}Moving binary to test directory...${NC}"
-#     cp "$HOME/.nexus/bin/prover" "$TEST_DIR/.nexus/bin/prover"
-#     chmod +x "$TEST_DIR/.nexus/bin/prover"
-# else
-#     echo -e "${ORANGE}❌ Binary not found or not executable in either location${NC}"
-#     echo -e "${ORANGE}Full directory listing (test dir):${NC}"
-#     find "$TEST_DIR/.nexus" -type f -ls
-#     echo -e "${ORANGE}Full directory listing (home dir):${NC}"
-#     find "$HOME/.nexus" -type f -ls 2>/dev/null || echo "No files found in home .nexus directory"
-#     exit 1
-# fi
+# Check temporary directories for extracted binary
+echo -e "${ORANGE}Checking temporary directories for extracted binary:${NC}"
+find /tmp -name "prover-update*" -type d 2>/dev/null | while read dir; do
+    echo -e "${ORANGE}Found temp dir: $dir${NC}"
+    ls -la "$dir"
+done
+
+find /var/folders -name "prover-update*" -type d 2>/dev/null | while read dir; do
+    echo -e "${ORANGE}Found temp dir: $dir${NC}"
+    ls -la "$dir"
+done
+
+if [ -x "$TEST_DIR/.nexus/bin/prover" ]; then
+    echo -e "${ORANGE}✅ Binary downloaded and executable (in test dir)${NC}"
+elif [ -x "$HOME/.nexus/bin/prover" ]; then
+    echo -e "${ORANGE}✅ Binary downloaded and executable (in home dir)${NC}"
+    echo -e "${ORANGE}Moving binary to test directory...${NC}"
+    cp "$HOME/.nexus/bin/prover" "$TEST_DIR/.nexus/bin/prover"
+    chmod +x "$TEST_DIR/.nexus/bin/prover"
+else
+    echo -e "${ORANGE}❌ Binary not found or not executable in either location${NC}"
+    echo -e "${ORANGE}Full directory listing (test dir):${NC}"
+    find "$TEST_DIR/.nexus" -type f -ls
+    echo -e "${ORANGE}Full directory listing (home dir):${NC}"
+    find "$HOME/.nexus" -type f -ls 2>/dev/null || echo "No files found in home .nexus directory"
+    exit 1
+fi
 
 # Check if original process was replaced
 if ps -p $INITIAL_PID > /dev/null; then

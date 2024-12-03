@@ -355,7 +355,12 @@ fn extract_and_prepare_update(
                 .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?
             {
                 let entry = entry.map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
-                println!("Extracted file: {:?}", entry.path());
+                println!(
+                    "{}[auto-updater]{} \t\t\tExtracted file: {:?}",
+                    BLUE,
+                    RESET,
+                    entry.path()
+                );
             }
             Ok(())
         }
