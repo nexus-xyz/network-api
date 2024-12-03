@@ -72,21 +72,38 @@ pub enum VersionStatus {
 
 pub struct VersionManager {
     config: UpdaterConfig,
+    version_file: std::path::PathBuf,
 }
 
 impl VersionManager {
     pub fn new(config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        Ok(Self { config })
+        let version_file = get_binary_path().join("version");
+
+        // Initialize version file if it doesn't exist
+        if !version_file.exists() {
+            if let Some(parent) = version_file.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::write(&version_file, env!("CARGO_PKG_VERSION"))?;
+        }
+
+        Ok(Self {
+            config,
+            version_file,
+        })
     }
 
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         println!("{}[auto-updater]{} Checking for updates...", BLUE, RESET);
 
+        // Get current version using the method
+        let current_version = self.get_current_version()?;
+
         // Use tokio's blocking wrapper when inside async context
         let status = tokio::task::block_in_place(|| {
             let mut config = self_update::backends::github::Update::configure();
 
-            let mut update_builder = config
+            let update_builder = config
                 .repo_owner("nexus-xyz")
                 .repo_name("network-api")
                 .bin_name("prover")
@@ -105,9 +122,17 @@ impl VersionManager {
         })?;
 
         // Compare versions
-        if cargo_crate_version!() == status.version {
+        if current_version.to_string() == status.version {
+            println!(
+                "{}[auto-updater]{} Versions match - no update needed",
+                BLUE, RESET
+            );
             Ok(VersionStatus::UpToDate)
         } else {
+            println!(
+                "{}[auto-updater]{} Update available: {} -> {}",
+                BLUE, RESET, current_version, status.version
+            );
             Ok(VersionStatus::UpdateAvailable(Version::parse(
                 &status.version,
             )?))
@@ -272,11 +297,27 @@ impl VersionManager {
             }
         }
 
+        // Update version file only after successful binary replacement
+        std::fs::write(&self.version_file, new_version.to_string())
+            .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
+
+        println!(
+            "{}[auto-updater]{} Version file updated to {}",
+            BLUE, RESET, new_version
+        );
+
         Ok(())
     }
 
     pub fn get_current_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
-        Ok(Version::parse(cargo_crate_version!())?)
+        let version = std::fs::read_to_string(&self.version_file)?
+            .trim()
+            .to_string();
+        println!(
+            "{}[auto-updater]{} Current version: {}",
+            BLUE, RESET, version
+        );
+        Ok(Version::parse(&version)?)
     }
 }
 
