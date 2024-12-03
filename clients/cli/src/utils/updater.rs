@@ -141,7 +141,7 @@ impl VersionManager {
         new_version: &Version,
     ) -> Result<(), Box<dyn std::error::Error + Send + 'static>> {
         println!(
-            "{}[auto-updater]{} \tInspecting update version {}...",
+            "{}[auto-updater]{} \t\t 1. Inspecting update version {}...",
             BLUE, RESET, new_version
         );
 
@@ -186,7 +186,7 @@ impl VersionManager {
             })?;
 
         println!(
-            "{}[auto-updater]{} \tDownloading archive: {}",
+            "{}[auto-updater]{}\t\t 2. Downloading archive: {}",
             BLUE, RESET, asset.name
         );
 
@@ -245,7 +245,7 @@ impl VersionManager {
             .len();
 
         println!(
-            "{}[auto-updater]{} \tArchive downloaded to: {:?} (size: {} bytes)",
+            "{}[auto-updater]{}\t\t 3. Archive downloaded to: {:?} (size: {} bytes)",
             BLUE, RESET, download_path, file_size
         );
 
@@ -275,7 +275,7 @@ impl VersionManager {
 
                 if output.status.success() {
                     println!(
-                        "{}[auto-updater]{} \tRestarting with new version downloaded...",
+                        "{}[auto-updater]{}\t\t 4. Restarting with new version downloaded...",
                         BLUE, RESET
                     );
                 } else {
@@ -299,7 +299,7 @@ impl VersionManager {
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
         println!(
-            "{}[auto-updater]{} \tVersion file updated to {}",
+            "{}[auto-updater]{}\t\t 5. Version file updated to {}",
             BLUE, RESET, new_version
         );
 

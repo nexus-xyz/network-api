@@ -82,7 +82,7 @@ pub fn spawn_auto_update_thread(
                     error!("Failed to update CLI: {}", e);
                 } else {
                     println!(
-                        "{}[auto-updater]{} ✅ Successfully updated CLI to version {}",
+                        "{}[auto-updater]{}\t\t 6. ✅ Successfully updated CLI to version {}",
                         BLUE, RESET, new_version
                     );
                 }
