@@ -13,8 +13,11 @@ use std::path::Path;
 pub const GREEN: &str = "\x1b[32m"; // Used to test if binary is replaced
 pub const BLUE: &str = "\x1b[34m";
 
-// pub const UPDATER_COLOR: &str = GREEN;
-pub const UPDATER_COLOR: &str = BLUE;
+// ANSI escape codes for colors for pretty printing
+
+// UPDATER_COLOR is commented out because it is used only to show the updater is properly updated the source code vs binary
+pub const UPDATER_COLOR: &str = GREEN;
+// pub const UPDATER_COLOR: &str = BLUE;
 pub const RESET: &str = "\x1b[0m";
 
 #[derive(Clone)]
@@ -27,17 +30,6 @@ pub struct UpdaterConfig {
 
 impl UpdaterConfig {
     pub fn new(hostname: String) -> Self {
-        // Load .env file relative to project root
-        let env_path = Path::new(env!("CARGO_MANIFEST_DIR")).join(".env");
-        println!(
-            "Looking for .env at: {:?}",
-            env_path.canonicalize().unwrap_or_default()
-        );
-        // match dotenv::from_path(&env_path) {
-        //     Ok(_) => println!("Successfully loaded .env file"),
-        //     Err(e) => println!("Failed to load .env file: {}", e),
-        // }
-
         #[cfg(debug_assertions)]
         let config = Self {
             repo_path: std::env::current_dir()
@@ -75,13 +67,12 @@ pub enum VersionStatus {
 }
 
 pub struct VersionManager {
-    // config: UpdaterConfig,
     version_file: std::path::PathBuf,
 }
 
 impl VersionManager {
     pub fn new(_config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        // Get the full path to version file
+        // Get the full path to version file (a file that stores the current version of the code that is running)
         let version_file = get_binary_path().join("version");
 
         // Initialize version file if it doesn't exist
@@ -92,12 +83,10 @@ impl VersionManager {
             std::fs::write(&version_file, env!("CARGO_PKG_VERSION"))?;
         }
 
-        Ok(Self {
-            // config,
-            version_file,
-        })
+        Ok(Self { version_file })
     }
 
+    // Checks GitHub for available updates by comparing the current version against the latest target release
     pub fn update_version_status(&self) -> Result<VersionStatus, Box<dyn std::error::Error>> {
         println!(
             "{}[auto-updater]{} Checking for updates...",
@@ -107,23 +96,26 @@ impl VersionManager {
         let current_version = self.get_current_version()?;
         let status = tokio::task::block_in_place(|| {
             let mut config = self_update::backends::github::Update::configure();
+            let target = self_update::get_target();
 
             let update_builder = config
                 .repo_owner("nexus-xyz")
                 .repo_name("network-api")
                 .bin_name("prover")
                 .current_version(cargo_crate_version!())
-                .target(self_update::get_target())
+                .target(&target)
                 .no_confirm(true);
 
-            // Check if a GitHub token is available
-            // if let Ok(token) = std::env::var("GITHUB_TOKEN") {
-            //     if !token.is_empty() {
-            //         update_builder = update_builder.auth_token(token.as_str());
-            //     }
-            // }
-
-            update_builder.build()?.get_latest_release()
+            match update_builder.build()?.get_latest_release() {
+                Ok(release) => Ok(release),
+                Err(e) => {
+                    println!(
+                        "{}[auto-updater]{} No updates available for your platform ({}).\nError: {}",
+                        UPDATER_COLOR, RESET, target, e
+                    );
+                    Err(e)
+                }
+            }
         })?;
 
         // Compare versions
@@ -159,8 +151,7 @@ impl VersionManager {
             .tempdir()
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
-        // Download the release
-        // let token = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+        // Download the new precompiled binary from GitHub
         let mut config = self_update::backends::github::Update::configure();
         let mut update_builder = config.repo_owner("nexus-xyz");
         update_builder = update_builder
@@ -170,26 +161,26 @@ impl VersionManager {
             .target(self_update::get_target())
             .no_confirm(true);
 
-        // Conditionally add the auth token if it is present
-        // if !token.is_empty() {
-        //     update_builder = update_builder.auth_token(&token);
-        // }
-
+        // Get the latest release from GitHub
         let release = update_builder
             .build()
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?
             .get_latest_release()
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
-        // Get the asset
+        // Get the asset that matches the target platform
+        let target = self_update::get_target();
         let asset = release
             .assets
             .iter()
-            .find(|a| a.name == "aarch64-apple-darwin.tar.gz")
+            .find(|a| a.name == format!("{}.tar.gz", target))
             .ok_or_else(|| {
                 Box::new(std::io::Error::new(
                     std::io::ErrorKind::NotFound,
-                    "No matching asset found",
+                    format!(
+                        "No binary available for your platform ({}). Please check https://github.com/nexus-xyz/network-api/releases for supported platforms.",
+                        target
+                    ),
                 )) as Box<dyn std::error::Error + Send>
             })?;
 
@@ -203,12 +194,8 @@ impl VersionManager {
         let request = reqwest::blocking::Client::new()
             .get(&asset.download_url)
             .header("Accept", "application/octet-stream")
+            // Add a user agent to identify the updater (necessary for GitHub API not throttling requests)
             .header("User-Agent", "NexusUpdater/0.3.7");
-
-        // Conditionally add the Authorization header if the token is present
-        // if !token.is_empty() {
-        //     request = request.header("Authorization", format!("token {}", token));
-        // }
 
         let response = request.send().map_err(|e| {
             eprintln!("Failed to send request: {:?}", e);
@@ -305,7 +292,7 @@ impl VersionManager {
                     "{}[auto-updater]{} Failed to extract and inspect: {}",
                     UPDATER_COLOR, RESET, e
                 );
-                return Err(e);
+                Err(e)
             }
         }
     }

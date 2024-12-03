@@ -1,12 +1,17 @@
 //! Auto-updater implementation for the CLI
 //!
-//! This module handles automatic updates by running a background thread that:
-//! - Periodically checks for new versions
-//! - Downloads and applies updates when available
-//! - Restarts the CLI with the new version
+//! This module provides two main functions:
+//! - `check_and_use_binary`: Validates the binary location and handles process spawning
+//! - `spawn_auto_update_thread`: Manages the background update process
 //!
-//! The updater runs in a separate thread to avoid blocking the main CLI operations,
-//! allowing users to continue using the CLI while update checks happen in the background.
+//! The update process:
+//! 1. Verifies the binary location and handles process respawning if needed
+//! 2. Runs version checks in a background thread at configured intervals
+//! 3. Downloads and applies updates automatically when new versions are found
+//! 4. Handles process replacement with the new version
+//!
+//! The updater uses environment flags to prevent recursive spawning and supports
+//! both default and custom binary locations.
 
 use semver::Version;
 use std::process::Command;
@@ -18,6 +23,15 @@ use crate::utils::updater::{
     get_binary_path, UpdaterConfig, VersionManager, VersionStatus, RESET, UPDATER_COLOR,
 };
 
+/// Manages binary location and process spawning for auto-updates
+///
+/// If running from default location (~/.nexus/bin/prover):
+/// - Returns Ok(None)
+///
+/// If running from a custom location:
+/// 1. Spawns a new process from the same location
+/// 2. Sets PROVER_SPAWNED=1 to prevent infinite spawning
+/// 3. Exits with the new process's exit code
 pub async fn check_and_use_binary(
     updater_config: &UpdaterConfig,
 ) -> Result<Option<std::process::ExitStatus>, Box<dyn std::error::Error>> {
@@ -60,6 +74,7 @@ pub async fn check_and_use_binary(
     Ok(None)
 }
 
+/// Spawns a background thread to check for and apply updates
 pub fn spawn_auto_update_thread(
     updater_config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -67,9 +82,13 @@ pub fn spawn_auto_update_thread(
     let version_manager_thread = version_manager.clone();
     let update_interval = updater_config.update_interval;
 
+    // Spawn a new thread to periodically check for and apply updates
+    // This thread will run indefinitely until the process is killed
     thread::spawn(move || loop {
         match version_manager_thread.update_version_status() {
+            // If a new version is available, download and apply it...
             Ok(VersionStatus::UpdateAvailable(new_version)) => {
+                // get the current version running
                 let current_version = match version_manager_thread.get_current_version() {
                     Ok(version) => version,
                     Err(_) => Version::parse(crate::VERSION).unwrap(),
@@ -80,6 +99,7 @@ pub fn spawn_auto_update_thread(
                     UPDATER_COLOR, RESET, new_version, current_version
                 );
 
+                // Apply the update
                 if let Err(e) = version_manager_thread.apply_update(&new_version) {
                     error!("Failed to update CLI: {}", e);
                 } else {
@@ -89,6 +109,7 @@ pub fn spawn_auto_update_thread(
                     );
                 }
             }
+            // If we're up to date, just print a message
             Ok(VersionStatus::UpToDate) => {
                 let current_version = match version_manager_thread.get_current_version() {
                     Ok(version) => version,
@@ -100,8 +121,11 @@ pub fn spawn_auto_update_thread(
                     UPDATER_COLOR, RESET, current_version
                 );
             }
+            // If there's an error, print it
             Err(e) => error!("Failed to check version: {}", e),
         }
+
+        // Sleep for the update interval
         thread::sleep(Duration::from_secs(update_interval));
     });
 
