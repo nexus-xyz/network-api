@@ -4,13 +4,10 @@
 //! using the self_update crate to handle version management and updates from GitHub releases.
 
 use dotenv;
-use self_update::self_replace::self_replace;
 use self_update::{cargo_crate_version, self_replace, ArchiveKind, Compression, Extract};
 use semver::Version;
-use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::Command;
-use std::thread;
 
 // ANSI escape codes for colors for pretty printing
 pub const BLUE: &str = "\x1b[34m";
@@ -244,10 +241,9 @@ impl VersionManager {
                     .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
 
                 if output.status.success() {
-                    let version_output = String::from_utf8_lossy(&output.stdout);
                     println!(
-                        "{}[auto-updater]{} Updated binary version: {}",
-                        BLUE, RESET, version_output
+                        "{}[auto-updater]{} Restarting with new version...",
+                        BLUE, RESET
                     );
                 } else {
                     eprintln!(

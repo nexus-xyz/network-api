@@ -81,7 +81,6 @@ cd target/aarch64-apple-darwin/release && tar -czf aarch64-apple-darwin.tar.gz .
 
 # Test the binary
 ./target/aarch64-apple-darwin/release/prover --version 
-./target/aarch64-apple-darwin/release/prover --help     
 
 # Run the binary
 ./target/aarch64-apple-darwin/release/prover -- beta.orchestrator.nexus.xyz

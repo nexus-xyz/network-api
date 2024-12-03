@@ -40,17 +40,21 @@ mkdir -p "$TEST_DIR/.nexus/bin"
 echo -e "${ORANGE}Setting initial version to $OLD_VERSION${NC}"
 echo "$OLD_VERSION" > "$TEST_DIR/.current_version"
 
+# Build the source code
+echo -e "${ORANGE}Building source code...${NC}"
+cd clients/cli  # Change to CLI directory
+cargo build --release
+
 # Run prover with test environment
 echo -e "${ORANGE}Running prover with version check...${NC}"
-cd clients/cli  # Change to CLI directory
-NEXUS_HOME="$TEST_DIR" cargo run -- $ORCHESTRATOR_HOST &
+NEXUS_HOME="$TEST_DIR" cargo run --release -- $ORCHESTRATOR_HOST &
 
 INITIAL_PID=$!
 echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
 
 # Wait for update to happen
-echo -e "${ORANGE}Waiting for update check (30s)...${NC}"
-sleep 30
+echo -e "${ORANGE}Waiting for update check (60s)...${NC}"
+sleep 60
 
 # Check if new version was downloaded
 if [ -f "$TEST_DIR/.current_version" ] && [ "$(cat "$TEST_DIR/.current_version")" = "$EXPECTED_NEW_VERSION" ]; then
