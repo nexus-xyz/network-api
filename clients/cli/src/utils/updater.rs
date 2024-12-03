@@ -312,7 +312,7 @@ impl VersionManager {
                 .trim()
                 .to_string();
             println!(
-                "{}[auto-updater]{} Current version: {} (from version file)",
+                "{}[auto-updater]{} \t\tversion from version file: {}",
                 BLUE, RESET, version
             );
             return Ok(Version::parse(&version)?);
@@ -321,7 +321,7 @@ impl VersionManager {
         // Fallback to compile-time version
         let version = env!("CARGO_PKG_VERSION");
         println!(
-            "{}[auto-updater]{} Current version: {} (from CARGO_PKG_VERSION)",
+            "{}[auto-updater]{} \t\tversion(from CARGO_PKG_VERSION): {} ",
             BLUE, RESET, version
         );
 

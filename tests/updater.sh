@@ -25,6 +25,11 @@ cleanup() {
         echo -e "${ORANGE}Cleaning up test directory...${NC}"
         rm -rf "$TEST_DIR"
     fi
+
+    # Clean up any existing version files in the development directory
+    echo -e "${ORANGE}Cleaning up version files...${NC}"
+    rm -f "$(pwd)/.nexus/bin/version" 2>/dev/null || true
+    rm -f ".nexus/bin/version" 2>/dev/null || true
 }
 
 trap cleanup EXIT INT TERM
@@ -55,10 +60,22 @@ echo -e "${ORANGE}Waiting for update check (60s)...${NC}"
 sleep 60
 
 # Update version check location
-if [ -f "$TEST_DIR/.nexus/bin/version" ] && [ "$(cat "$TEST_DIR/.nexus/bin/version")" = "$EXPECTED_NEW_VERSION" ]; then
-    echo -e "${ORANGE}✅ Version file updated successfully${NC}"
+echo -e "${ORANGE}Checking version file at: $TEST_DIR/.nexus/bin/version${NC}"
+
+if [ -f "$TEST_DIR/.nexus/bin/version" ]; then
+    ACTUAL_VERSION=$(cat "$TEST_DIR/.nexus/bin/version")
+    echo -e "${ORANGE}Found version file. Content: '$ACTUAL_VERSION'${NC}"
+    
+    if [ "$ACTUAL_VERSION" = "$EXPECTED_NEW_VERSION" ]; then
+        echo -e "${ORANGE}✅ Version file updated successfully${NC}"
+    else
+        echo -e "${ORANGE}❌ Version mismatch - Expected: '$EXPECTED_NEW_VERSION', Got: '$ACTUAL_VERSION'${NC}"
+        exit 1
+    fi
 else
-    echo -e "${ORANGE}❌ Version file not updated${NC}"
+    echo -e "${ORANGE}❌ Version file not found at: $TEST_DIR/.nexus/bin/version${NC}"
+    echo -e "${ORANGE}Directory contents:${NC}"
+    ls -la "$TEST_DIR/.nexus/bin"
     exit 1
 fi
 
