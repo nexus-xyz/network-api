@@ -70,23 +70,13 @@ pub enum VersionStatus {
 }
 
 pub struct VersionManager {
-    version_file: std::path::PathBuf,
+    // version_file: std::path::PathBuf,
 }
 
 impl VersionManager {
     pub fn new(_config: UpdaterConfig) -> Result<Self, Box<dyn std::error::Error>> {
-        // Get the full path to version file (a file that stores the current version of the code that is running)
-        let version_file = get_binary_path().join("version");
-
-        // Initialize version file if it doesn't exist
-        if !version_file.exists() {
-            if let Some(parent) = version_file.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            std::fs::write(&version_file, env!("CARGO_PKG_VERSION"))?;
-        }
-
-        Ok(Self { version_file })
+        // Return an instance
+        Ok(Self {})
     }
 
     // Checks GitHub for available updates by comparing the current version against the latest target release
@@ -272,10 +262,6 @@ impl VersionManager {
                     return Err(Box::new(e) as Box<dyn std::error::Error + Send>);
                 }
 
-                // Update version file before exiting
-                std::fs::write(&self.version_file, new_version.to_string())
-                    .map_err(|e| Box::new(e) as Box<dyn std::error::Error + Send>)?;
-
                 // Replace current process with new binary
                 if let Ok(current_exe) = std::env::current_exe() {
                     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -301,30 +287,7 @@ impl VersionManager {
     }
 
     pub fn get_current_version(&self) -> Result<Version, Box<dyn std::error::Error>> {
-        if self.version_file.exists() {
-            let version = std::fs::read_to_string(&self.version_file)?
-                .trim()
-                .to_string();
-            println!(
-                "{}[auto-updater]{} \t\tversion from version file: {}",
-                UPDATER_COLOR, RESET, version
-            );
-            return Ok(Version::parse(&version)?);
-        }
-
-        // Fallback to compile-time version
-        let version = env!("CARGO_PKG_VERSION");
-        println!(
-            "{}[auto-updater]{} \t\tversion(from CARGO_PKG_VERSION): {} ",
-            UPDATER_COLOR, RESET, version
-        );
-
-        // Initialize version file with compile-time version
-        if let Some(parent) = self.version_file.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(&self.version_file, version)?;
-
+        let version = cargo_crate_version!();
         Ok(Version::parse(version)?)
     }
 }
