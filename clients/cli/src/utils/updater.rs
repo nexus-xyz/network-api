@@ -13,14 +13,13 @@ use std::path::Path;
 pub const GREEN: &str = "\x1b[32m"; // Used to test if binary is replaced
 pub const BLUE: &str = "\x1b[34m";
 
-// ANSI escape codes for colors for pretty printing
-
 // UPDATER_COLOR is commented out because it is used only to show the updater
 //is properly updated the source code vs binary
+// used for 0.3.6
+// pub const UPDATER_COLOR: &str = GREEN;
+// used for 0.3.7
+pub const UPDATER_COLOR: &str = BLUE;
 
-// pub const UPDATER_COLOR: &str = GREEN; // used for 0.3.6
-
-pub const UPDATER_COLOR: &str = BLUE; // used for 0.3.7
 pub const RESET: &str = "\x1b[0m";
 
 #[derive(Clone)]
