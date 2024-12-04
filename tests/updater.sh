@@ -96,9 +96,3 @@ sleep 30
 echo -e "${ORANGE}Checking binary version${NC}"
 
 echo -e "${ORANGE}DID YOU SEE THE COLOR CHANGE?${NC}"
-
-# Clean up Nexus installation
-# echo -e "${ORANGE}Cleaning up Nexus installation...${NC}"
-# rm -rf "$TEST_DIR/.nexus" 2>/dev/null || true
-# rm -rf "$HOME/.nexus" 2>/dev/null || true
-# rm -rf ~/.nexus

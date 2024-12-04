@@ -101,15 +101,6 @@ rustup target add x86_64-unknown-linux-gnu
 rustup target add aarch64-unknown-linux-gnu
 ```
 
-### Clearing Nexus data
-
-To completely reset Nexus for a clean installation, run these commands:
-
-```sh
-# Remove the entire Nexus directory
-rm -rf ~/.nexus
-```
-
 ## Resources
 
 * [Network FAQ](https://nexus.xyz/network#network-faqs)
