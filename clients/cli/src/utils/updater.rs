@@ -105,6 +105,10 @@ impl VersionManager {
                         "{}[auto-updater]{} No updates available for your platform ({}).\nError: {}",
                         UPDATER_COLOR, RESET, target, e
                     );
+                    println!(
+                        "{}[auto-updater]{} Please stop the CLI and run `curl https://cli.nexus.xyz/ | sh` to update the CLI manually",
+                        UPDATER_COLOR, RESET
+                    );
                     Err(e)
                 }
             }
