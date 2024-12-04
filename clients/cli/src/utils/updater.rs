@@ -80,7 +80,8 @@ impl VersionManager {
         );
 
         let current_version = self.get_current_version()?;
-        let status = tokio::task::block_in_place(|| {
+
+        let latest_release = tokio::task::block_in_place(|| {
             let mut config = self_update::backends::github::Update::configure();
             let target = self_update::get_target();
 
@@ -109,7 +110,7 @@ impl VersionManager {
         })?;
 
         // Compare versions
-        if current_version.to_string() == status.version {
+        if current_version.to_string() == latest_release.version {
             println!(
                 "{}[auto-updater]{} Versions match - no update needed",
                 UPDATER_COLOR, RESET
@@ -118,10 +119,10 @@ impl VersionManager {
         } else {
             println!(
                 "{}[auto-updater]{} Update available: {} -> {}",
-                UPDATER_COLOR, RESET, current_version, status.version
+                UPDATER_COLOR, RESET, current_version, latest_release.version
             );
             Ok(VersionStatus::UpdateAvailable(Version::parse(
-                &status.version,
+                &latest_release.version,
             )?))
         }
     }
