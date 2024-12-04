@@ -47,7 +47,6 @@ add `NONINTERACTIVE=1` before `sh`.
 ## Known issues
 
 * Only the latest version of the CLI is currently supported.
-* Prebuilt binaries are not yet available.
 * Linking email to prover id is currently available on the web version only.
 * Counting cycles proved is not yet available in the CLI.
 * Only proving is supported. Submitting programs to the network is in private beta.
@@ -69,6 +68,37 @@ To run the CLI with tracing enabled, run:
 
 ```sh
 cargo run -- beta.orchestrator.nexus.xyz
+```
+
+### Building a release binary
+
+```sh
+# Build a release binary for Apple Silicon (M1/M2) Mac
+cargo build --release --target aarch64-apple-darwin
+
+# Build a release binary for Intel Mac
+cargo build --release --target x86_64-apple-darwin
+
+# Create a tarball for Apple Silicon (M1/M2) Mac binary and return to original directory
+cd target/aarch64-apple-darwin/release && tar -czf aarch64-apple-darwin.tar.gz ./prover && cd -
+
+# Create a tarball for Intel Mac binary and return to original directory
+cd target/x86_64-apple-darwin/release && tar -czf x86_64-apple-darwin.tar.gz ./prover && cd -
+
+# Test the binary (use appropriate path based on target)
+./target/aarch64-apple-darwin/release/prover --version 
+
+# Run the binary (use appropriate path based on target)
+./target/aarch64-apple-darwin/release/prover beta.orchestrator.nexus.xyz
+```
+
+Note: Make sure you have the appropriate target installed via rustup:
+```sh
+# Add required target(s)
+rustup target add aarch64-apple-darwin
+rustup target add x86_64-apple-darwin
+rustup target add x86_64-unknown-linux-gnu
+rustup target add aarch64-unknown-linux-gnu
 ```
 
 ## Resources
