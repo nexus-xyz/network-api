@@ -118,12 +118,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // a. Create the updater config
     let updater_config = UpdaterConfig::new(args.hostname.clone());
 
-    // First SYNCHRONOUS check to see if there is a newer version of the CLI available
-    // If so, update the CLI and exit the current process
-    if let Some(status) = updater::check_and_use_binary(&updater_config).await? {
-        std::process::exit(status.code().unwrap_or(0));
-    }
-
     // Start a new thread for the auto-updater checker that periodically checks for and applies updates
     updater::spawn_auto_update_thread(&updater_config)?;
 

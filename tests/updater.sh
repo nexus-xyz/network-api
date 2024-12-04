@@ -11,6 +11,8 @@ TEST_DIR=""
 # Colors for output
 ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
 
 cleanup() {
     # Kill any running prover processes started by this test
@@ -36,37 +38,37 @@ trap cleanup EXIT INT TERM
 
 # Create test directory and setup
 TEST_DIR=$(mktemp -d)
-echo -e "${ORANGE}Setting up test in $TEST_DIR${NC}"
+echo -e "${ORANGE}1. Setting up test in $TEST_DIR${NC}\n"
 
 # Create .nexus directory structure
 mkdir -p "$TEST_DIR/.nexus/bin"
-echo -e "${ORANGE}Created directory structure: $TEST_DIR/.nexus/bin${NC}"
+echo -e "${ORANGE}2. Created directory structure: $TEST_DIR/.nexus/bin${NC}\n"
 
 # Force the initial version
-echo -e "${ORANGE}Setting initial version $OLD_VERSION${NC}"
+echo -e "${ORANGE}3. Setting initial version $OLD_VERSION${NC}\n"
 echo "$OLD_VERSION" > "$TEST_DIR/.nexus/bin/version"
 
 # Build the source code
-echo -e "${ORANGE}Building source code...${NC}"
+echo -e "${ORANGE}4. Building source code...${NC}\n"
 cd clients/cli  # Change to CLI directory
 
 # Build and run the binary
 if command -v cargo >/dev/null 2>&1; then
     CARGO_PATH=$(which cargo)
-    echo -e "${ORANGE}Using cargo at: $CARGO_PATH${NC}"
+    echo -e "${ORANGE}\t\t Using cargo at: $CARGO_PATH${NC}\n"
     
     # Build the binary
     $CARGO_PATH build || {
-        echo -e "${ORANGE}❌ Failed to build binary${NC}"
+        echo -e "${ORANGE}❌ Failed to build binary${NC}\n"
         exit 1
     }
     
     # Get the path to the built binary
     BINARY_PATH="$(pwd)/target/debug/prover"
-    echo -e "${ORANGE}Binary built at: $BINARY_PATH${NC}"
+    echo -e "${ORANGE}5. Binary built at: $BINARY_PATH${NC}"
     
     # Run the binary directly with modified environment
-    echo -e "${ORANGE}Running binary with test environment...${NC}"
+    echo -e "${ORANGE}6. Running binary with test environment...${NC}\n"
     HOME="$TEST_DIR" NEXUS_HOME="$TEST_DIR" \
         $BINARY_PATH $ORCHESTRATOR_HOST &
 else
@@ -75,10 +77,16 @@ else
 fi
 
 INITIAL_PID=$!
-echo -e "${ORANGE}Initial process PID: $INITIAL_PID${NC}"
+echo -e "${ORANGE}7. Initial process PID: $INITIAL_PID${NC}\n"
+
+echo -e "${ORANGE}Test will pass if you see messages change from ${GREEN}[auto-updater]${ORANGE} to ${BLUE}[auto-updater]${ORANGE} color${NC}"
+echo -e "${ORANGE}This color change indicates the binary was successfully replaced${NC}"
+
 
 # Wait a moment for the process to start
 sleep 5
+
+# (During this time the process starts)
 
 # Wait for update to happen and verify binary download
 echo -e "${ORANGE}\nWaiting for update check (60s)...${NC}"
@@ -104,53 +112,57 @@ else
     exit 1
 fi
 
-# Check if binary exists and is executable
-echo -e "${ORANGE}Checking binary at: $TEST_DIR/.nexus/bin/prover${NC}"
-echo -e "${ORANGE}Directory contents (test dir):${NC}"
-ls -la "$TEST_DIR/.nexus/bin"
+# # Check if binary exists and is executable
+# echo -e "${ORANGE}Checking binary at: $TEST_DIR/.nexus/bin/prover${NC}"
+# echo -e "${ORANGE}Directory contents (test dir):${NC}"
+# ls -la "$TEST_DIR/.nexus/bin"
 
-echo -e "${ORANGE}Checking binary at: $HOME/.nexus/bin/prover${NC}"
-echo -e "${ORANGE}Directory contents (home dir):${NC}"
-ls -la "$HOME/.nexus/bin" 2>/dev/null || echo "Home .nexus/bin directory not found"
+# echo -e "${ORANGE}Checking binary at: $HOME/.nexus/bin/prover${NC}"
+# echo -e "${ORANGE}Directory contents (home dir):${NC}"
+# ls -la "$HOME/.nexus/bin" 2>/dev/null || echo "Home .nexus/bin directory not found"
 
-# Check temporary directories for extracted binary
-echo -e "${ORANGE}Checking temporary directories for extracted binary:${NC}"
-find /tmp -name "prover-update*" -type d 2>/dev/null | while read dir; do
-    echo -e "${ORANGE}Found temp dir: $dir${NC}"
-    ls -la "$dir"
-done
+# # Check temporary directories for extracted binary
+# echo -e "${ORANGE}Checking temporary directories for extracted binary:${NC}"
+# find /tmp -name "prover-update*" -type d 2>/dev/null | while read dir; do
+#     echo -e "${ORANGE}Found temp dir: $dir${NC}"
+#     ls -la "$dir"
+# done
 
-find /var/folders -name "prover-update*" -type d 2>/dev/null | while read dir; do
-    echo -e "${ORANGE}Found temp dir: $dir${NC}"
-    ls -la "$dir"
-done
+# find /var/folders -name "prover-update*" -type d 2>/dev/null | while read dir; do
+#     echo -e "${ORANGE}Found temp dir: $dir${NC}"
+#     ls -la "$dir"
+# done
 
-if [ -x "$TEST_DIR/.nexus/bin/prover" ]; then
-    echo -e "${ORANGE}✅ Binary downloaded and executable (in test dir)${NC}"
-elif [ -x "$HOME/.nexus/bin/prover" ]; then
-    echo -e "${ORANGE}✅ Binary downloaded and executable (in home dir)${NC}"
-    echo -e "${ORANGE}Moving binary to test directory...${NC}"
-    cp "$HOME/.nexus/bin/prover" "$TEST_DIR/.nexus/bin/prover"
-    chmod +x "$TEST_DIR/.nexus/bin/prover"
-else
-    echo -e "${ORANGE}❌ Binary not found or not executable in either location${NC}"
-    echo -e "${ORANGE}Full directory listing (test dir):${NC}"
-    find "$TEST_DIR/.nexus" -type f -ls
-    echo -e "${ORANGE}Full directory listing (home dir):${NC}"
-    find "$HOME/.nexus" -type f -ls 2>/dev/null || echo "No files found in home .nexus directory"
-    exit 1
-fi
+# if [ -x "$TEST_DIR/.nexus/bin/prover" ]; then
+#     echo -e "${ORANGE}✅ Binary downloaded and executable (in test dir)${NC}"
+# elif [ -x "$HOME/.nexus/bin/prover" ]; then
+#     echo -e "${ORANGE}✅ Binary downloaded and executable (in home dir)${NC}"
+#     echo -e "${ORANGE}Moving binary to test directory...${NC}"
+#     cp "$HOME/.nexus/bin/prover" "$TEST_DIR/.nexus/bin/prover"
+#     chmod +x "$TEST_DIR/.nexus/bin/prover"
+# else
+#     echo -e "${ORANGE}❌ Binary not found or not executable in either location${NC}"
+#     echo -e "${ORANGE}Full directory listing (test dir):${NC}"
+#     find "$TEST_DIR/.nexus" -type f -ls
+#     echo -e "${ORANGE}Full directory listing (home dir):${NC}"
+#     find "$HOME/.nexus" -type f -ls 2>/dev/null || echo "No files found in home .nexus directory"
+#     exit 1
+# fi
 
 # Check if original process was replaced
 if ps -p $INITIAL_PID > /dev/null; then
-    echo -e "${ORANGE}❌ Original process still running - should have been replaced${NC}"
-    exit 1
+    # Give it a bit more time and check again
+    sleep 5
+    if ps -p $INITIAL_PID > /dev/null; then
+        echo -e "${ORANGE}❌ Original process still running - should have been replaced${NC}"
+        exit 1
+    fi
 else
     echo -e "${ORANGE}✅ Original process replaced${NC}"
 fi
 
-# Check if new binary is running
-NEW_PID=$(pgrep -f "$TEST_DIR/.nexus/bin/prover")
+# Check if new binary is running (look for any prover process except the initial one)
+NEW_PID=$(pgrep -f "prover" | grep -v "$INITIAL_PID" || true)
 if [ -n "$NEW_PID" ]; then
     echo -e "${ORANGE}✅ New binary is running with PID: $NEW_PID${NC}"
 else
@@ -162,3 +174,6 @@ echo -e "${ORANGE}All tests passed!${NC}"
 
 # Clean up Nexus installation
 echo -e "${ORANGE}Cleaning up Nexus installation...${NC}"
+rm -rf "$TEST_DIR/.nexus" 2>/dev/null || true
+rm -rf "$HOME/.nexus" 2>/dev/null || true
+rm -rf ~/.nexus

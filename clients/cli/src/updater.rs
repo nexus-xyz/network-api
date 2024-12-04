@@ -14,65 +14,70 @@
 //! both default and custom binary locations.
 
 use semver::Version;
-use std::process::Command;
+// use std::process::Command;
 use std::sync::Arc;
 use std::{thread, time::Duration};
 use tracing::error;
 
 use crate::utils::updater::{
-    get_binary_path, UpdaterConfig, VersionManager, VersionStatus, RESET, UPDATER_COLOR,
+    // get_binary_path,
+    UpdaterConfig,
+    VersionManager,
+    VersionStatus,
+    RESET,
+    UPDATER_COLOR,
 };
 
-/// Manages binary location and process spawning for auto-updates
-///
-/// If running from default location (~/.nexus/bin/prover):
-/// - Returns Ok(None)
-///
-/// If running from a custom location:
-/// 1. Spawns a new process from the same location
-/// 2. Sets PROVER_SPAWNED=1 to prevent infinite spawning
-/// 3. Exits with the new process's exit code
-pub async fn check_and_use_binary(
-    updater_config: &UpdaterConfig,
-) -> Result<Option<std::process::ExitStatus>, Box<dyn std::error::Error>> {
-    // Create version manager to get runtime version
-    let version_manager = VersionManager::new(updater_config.clone())?;
-    let current_version = version_manager.get_current_version()?;
+// /// Manages binary location and process spawning for auto-updates
+// ///
+// /// If running from default location (~/.nexus/bin/prover):
+// /// - Returns Ok(None)
+// ///
+// /// If running from a custom location:
+// /// 1. Spawns a new process from the same location
+// /// 2. Sets PROVER_SPAWNED=1 to prevent infinite spawning
+// /// 3. Exits with the new process's exit code
+// pub async fn check_and_use_binary(
+//     updater_config: &UpdaterConfig,
+// ) -> Result<Option<std::process::ExitStatus>, Box<dyn std::error::Error>> {
+//     // Create version manager to get runtime version
+//     let version_manager = VersionManager::new(updater_config.clone())?;
+//     let current_version = version_manager.get_current_version()?;
 
-    println!(
-        "{}[auto-updater]{} Starting prover v{} (runtime) at {}",
-        UPDATER_COLOR,
-        RESET,
-        current_version,
-        chrono::Local::now().format("%H:%M:%S")
-    );
+//     println!(
+//         "{}[auto-updater]{} Starting prover v{} (runtime) at {}",
+//         UPDATER_COLOR,
+//         RESET,
+//         current_version,
+//         chrono::Local::now().format("%H:%M:%S")
+//     );
 
-    // Check if we were spawned by another instance
-    if std::env::var("PROVER_SPAWNED").is_ok() {
-        return Ok(None);
-    }
+//     // Check if we were spawned by another instance
+//     if std::env::var("PROVER_SPAWNED").is_ok() {
+//         return Ok(None);
+//     }
 
-    let binary_path = get_binary_path().join("prover");
-    let current_exe = std::env::current_exe()?;
+//     let binary_path = get_binary_path().join("prover");
+//     let current_exe = std::env::current_exe()?;
 
-    // Check if we're running from the default binary path
-    if current_exe != binary_path {
-        println!(
-            "{}[auto-updater]{} Running from custom location ({}), proceeding with update checks",
-            UPDATER_COLOR,
-            RESET,
-            current_exe.display()
-        );
-        // Spawn new process with environment flag
-        let status = Command::new(&current_exe)
-            .args([&updater_config.hostname])
-            .env("PROVER_SPAWNED", "1")
-            .status()?;
-        std::process::exit(status.code().unwrap_or(0));
-    }
+//     // Check if we're running from the default binary path
+//     if current_exe != binary_path {
+//         println!(
+//             "{}[auto-updater]{} Running from custom location ({}), proceeding with update checks",
+//             UPDATER_COLOR,
+//             RESET,
+//             current_exe.display()
+//         );
+//         // Spawn new process with environment flag
+//         let status = Command::new(&current_exe)
+//             .args([&updater_config.hostname])
+//             .env("PROVER_SPAWNED", "1")
+//             .status()?;
+//         std::process::exit(status.code().unwrap_or(0));
+//     }
 
-    Ok(None)
-}
+//     Ok(None)
+// }
 
 /// Spawns a background thread to check for and apply updates
 pub fn spawn_auto_update_thread(

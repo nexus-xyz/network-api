@@ -16,8 +16,10 @@ pub const BLUE: &str = "\x1b[34m";
 // ANSI escape codes for colors for pretty printing
 
 // UPDATER_COLOR is commented out because it is used only to show the updater is properly updated the source code vs binary
-pub const UPDATER_COLOR: &str = GREEN;
-// pub const UPDATER_COLOR: &str = BLUE;
+
+pub const UPDATER_COLOR: &str = GREEN; // used for 0.3.6
+
+// pub const UPDATER_COLOR: &str = BLUE; // used for 0.3.7
 pub const RESET: &str = "\x1b[0m";
 
 #[derive(Clone)]
@@ -255,7 +257,7 @@ impl VersionManager {
 
                 // Apply the update
                 println!(
-                    "{}[auto-updater]{} Attempting to replace binary at {:?}",
+                    "{}[auto-updater]{}\t\t 4.Attempting to replace binary at {:?}",
                     UPDATER_COLOR,
                     RESET,
                     std::env::current_exe().unwrap_or_default()
@@ -277,7 +279,7 @@ impl VersionManager {
                 if let Ok(current_exe) = std::env::current_exe() {
                     let args: Vec<String> = std::env::args().skip(1).collect();
                     println!(
-                        "{}[auto-updater]{} Replacing process with args: {:?}",
+                        "{}[auto-updater]{}\t\t 5.Replacing current process with a new one using the args: {:?}",
                         UPDATER_COLOR, RESET, args
                     );
 
