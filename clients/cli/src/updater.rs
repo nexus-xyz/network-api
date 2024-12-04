@@ -1,86 +1,83 @@
 //! Auto-updater implementation for the CLI
 //!
-//! This module provides two main functions:
-//! - `check_and_use_binary`: Validates the binary location and handles process spawning
-//! - `spawn_auto_update_thread`: Manages the background update process
+//! This module handles automatic updates by running a background thread that:
+//! - Periodically checks for new versions
+//! - Downloads and applies updates when available
+//! - Restarts the CLI with the new version
 //!
-//! The update process:
-//! 1. Verifies the binary location and handles process respawning if needed
-//! 2. Runs version checks in a background thread at configured intervals
-//! 3. Downloads and applies updates automatically when new versions are found
-//! 4. Handles process replacement with the new version
-//!
-//! The updater uses environment flags to prevent recursive spawning and supports
-//! both default and custom binary locations.
+//! The updater runs in a separate thread to avoid blocking the main CLI operations,
+//! allowing users to continue using the CLI while update checks happen in the background.
 
-use semver::Version;
-// use std::process::Command;
 use std::sync::Arc;
 use std::{thread, time::Duration};
-use tracing::error;
 
-use crate::utils::updater::{
-    // get_binary_path,
-    UpdaterConfig,
-    VersionManager,
-    VersionStatus,
-    RESET,
-    UPDATER_COLOR,
-};
+use crate::utils::updater::{UpdaterConfig, VersionManager, VersionStatus, BLUE, RESET};
 
-/// Spawns a background thread to check for and apply updates
+// We spawn a separate thread for periodic update checks because the auto-updater runs in an infinite loop
+// that would otherwise block the main CLI process. By running in a background thread:
+
+// 1. The update checker can continuously monitor for new versions without interrupting the main CLI operations
+// 2. The main thread remains free to handle its primary responsibility (proving transactions)
+// 3. Users don't have to wait for update checks to complete before using the CLI
 pub fn spawn_auto_update_thread(
     updater_config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let version_manager = Arc::new(VersionManager::new(updater_config.clone())?);
-    let version_manager_thread = version_manager.clone();
+    println!(
+        "{}[auto-updater]{} Starting periodic CLI updates...",
+        BLUE, RESET
+    );
+
+    // Create a thread-safe version manager that can be shared across threads
+    let version_manager: Arc<VersionManager> = Arc::new(
+        VersionManager::new(updater_config.clone()).expect("Failed to initialize version manager"),
+    );
+
+    // Create a reference for the new thread (original stays with main thread)
+    let version_manager_thread: Arc<VersionManager> = version_manager.clone();
+
     let update_interval = updater_config.update_interval;
 
-    // Spawn a new thread to periodically check for and apply updates
-    // This thread will run indefinitely until the process is killed
-    thread::spawn(move || loop {
-        match version_manager_thread.update_version_status() {
-            // If a new version is available, download and apply it...
-            Ok(VersionStatus::UpdateAvailable(new_version)) => {
-                // get the current version running
-                let current_version = match version_manager_thread.get_current_version() {
-                    Ok(version) => version,
-                    Err(_) => Version::parse(crate::VERSION).unwrap(),
-                };
+    // Spawn the update checker thread
+    thread::spawn(move || {
+        println!(
+            "{}[auto-updater]{} Update checker thread started!",
+            BLUE, RESET
+        );
 
-                println!(
-                    "{}[auto-updater]{} New version {} available (current: {}) - downloading new binary...\n",
-                    UPDATER_COLOR, RESET, new_version, current_version
-                );
-
-                // Apply the update
-                if let Err(e) = version_manager_thread.apply_update(&new_version) {
-                    error!("Failed to update CLI: {}", e);
-                } else {
-                    println!(
-                        "{}[auto-updater]{}\t\t 6. ✅ Successfully updated CLI to version {}",
-                        UPDATER_COLOR, RESET, new_version
+        // Infinite loop to check for updates
+        loop {
+            match version_manager_thread.as_ref().update_version_status() {
+                // Got the latest version info with no error....
+                Ok(version_info) => match version_info {
+                    // ... there is an update available, try to apply it
+                    VersionStatus::UpdateAvailable(new_version) => {
+                        if let Err(e) = version_manager_thread.apply_update(&new_version) {
+                            println!(
+                                "{}[auto-updater]{} Failed to update CLI: {}",
+                                BLUE, RESET, e
+                            )
+                        }
+                    }
+                    // ... No update needed
+                    VersionStatus::UpToDate => {
+                        println!("{}[auto-updater]{} CLI is up to date", BLUE, RESET);
+                    }
+                },
+                Err(e) => {
+                    eprintln!(
+                        "{}[auto-updater]{} Failed to check version: {}",
+                        BLUE, RESET, e
                     );
                 }
             }
-            // If we're up to date, just print a message
-            Ok(VersionStatus::UpToDate) => {
-                let current_version = match version_manager_thread.get_current_version() {
-                    Ok(version) => version,
-                    Err(_) => Version::parse(crate::VERSION).unwrap(),
-                };
 
-                println!(
-                    "{}[auto-updater]{} CLI is up to date (version: {})",
-                    UPDATER_COLOR, RESET, current_version
-                );
-            }
-            // If there's an error, print it
-            Err(e) => error!("Failed to check version: {}", e),
+            // Wait for the next update check
+            println!(
+                "{}[auto-updater]{} Next update check in {} seconds...\n",
+                BLUE, RESET, update_interval
+            );
+            thread::sleep(Duration::from_secs(update_interval));
         }
-
-        // Sleep for the update interval
-        thread::sleep(Duration::from_secs(update_interval));
     });
 
     Ok(())
