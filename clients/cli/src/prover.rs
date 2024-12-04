@@ -1,7 +1,5 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-
 mod analytics;
 mod config;
 mod connection;
@@ -53,13 +51,12 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
-use crate::utils::updater::UpdaterConfig;
+use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
 
 // The interval at which to send updates to the orchestrator
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
 struct Args {
     /// Hostname at which Orchestrator can be reached
     hostname: String,
@@ -71,16 +68,13 @@ struct Args {
     /// Whether to hang up after the first proof
     #[arg(short, long, default_value_t = false)]
     just_once: bool,
+
+    /// Mode for the auto updater (production/test)
+    #[arg(short, long, value_enum, default_value_t = AutoUpdaterMode::Production)]
+    updater_mode: AutoUpdaterMode,
 }
 
 fn get_file_as_byte_vec(filename: &str) -> Vec<u8> {
-    // First try to load from binary
-    let binary_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(filename);
-    if let Ok(bytes) = std::fs::read(&binary_path) {
-        return bytes;
-    }
-
-    // Fall back to filesystem if binary load fails
     let mut f = File::open(filename).expect("no file found");
     let metadata = fs::metadata(filename).expect("unable to read metadata");
     let mut buffer = vec![0; metadata.len() as usize];
@@ -116,10 +110,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
     // a. Create the updater config
-    let updater_config = UpdaterConfig::new(args.hostname.clone());
+    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
 
-    // Start a new thread for the auto-updater checker that periodically checks for and applies updates
-    updater::spawn_auto_update_thread(&updater_config)?;
+    // b. runs the CLI's auto updater in a separate thread continuously in intervals
+    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.

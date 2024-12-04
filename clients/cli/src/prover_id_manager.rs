@@ -33,7 +33,7 @@ pub fn get_or_generate_prover_id() -> String {
                 Err(e) => {
                     eprintln!(
                         "{}: {}",
-                        "\nWarning: Could not read prover-id file"
+                        "Warning: Could not read prover-id file"
                             .to_string()
                             .yellow(),
                         e

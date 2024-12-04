@@ -1,6 +1,6 @@
 [package]
 name = "nexus-network"
-version = "0.3.7"
+version = "0.3.6"
 edition = "2021"
 
 [[bin]]
@@ -33,7 +33,7 @@ clap = { version = "4.5", features = ["derive"] }
 futures = "0.3"
 prost = "0.13"
 rand = "0.8.5"
-reqwest = { version = "0.11", features = ["blocking"] }
+reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1.38", features = ["full"] }
 tokio-tungstenite = { version = "0.23", features = ["native-tls"] }
 tracing = "0.1"
@@ -78,18 +78,11 @@ ark-vesta = "0.4.0"
 ark-test-curves = { version = "0.4.2", features = ["bls12_381_curve"] }
 iana-time-zone = "0.1.60"
 chrono = "0.4.38"
-self_update = { version = "0.39", features = ["archive-tar", "compression-flate2"] }
+self_update = "0.41.0"
 dirs = "5.0.1"
 semver = "1.0.23"
 parking_lot = "0.12.3"
 colored = "2.1.0"
-version = "3.0.0"
-tempfile = "3.14.0"
-dotenv = "0.15.0"
-fs2 = "0.4.3"
-flate2 = "1.0.35"
-tar = "0.4.43"
-zip = "2.2.1"
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }

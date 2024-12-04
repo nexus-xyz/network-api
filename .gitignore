@@ -69,6 +69,3 @@ node_modules/
 .dataconnect
 
 .vscode/
-
-# macOS system files
-.DS_Store
