@@ -15,7 +15,8 @@ pub const BLUE: &str = "\x1b[34m";
 
 // ANSI escape codes for colors for pretty printing
 
-// UPDATER_COLOR is commented out because it is used only to show the updater is properly updated the source code vs binary
+// UPDATER_COLOR is commented out because it is used only to show the updater
+//is properly updated the source code vs binary
 
 // pub const UPDATER_COLOR: &str = GREEN; // used for 0.3.6
 
@@ -105,7 +106,7 @@ impl VersionManager {
                 .repo_name("network-api")
                 .bin_name("prover")
                 .current_version(cargo_crate_version!())
-                .target(&target)
+                .target(target)
                 .no_confirm(true);
 
             match update_builder.build()?.get_latest_release() {
