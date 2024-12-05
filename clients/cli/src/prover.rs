@@ -172,14 +172,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
-        // There are two programs to choose from
-        let programs = ["src/generated/fast-fib", "src/generated/cancer-diagnostic"];
-        // Choose which program to use
-        let program_file_path = if rand::random::<f32>() < 0.01 {
-            programs[1] // 1% of the time, it will use the cancer diagnostic program
-        } else {
-            programs[0] // 99% of the time, it will use the fast-fib program
-        };
+        let program_name = utils::prover::get_random_program();
+        let program_file_path = &format!("src/generated/{}", program_name);
 
         let mut vm: NexusVM<MerkleTrie> =
             parse_elf(get_file_as_byte_vec(program_file_path).as_ref())
@@ -245,7 +239,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 steps_in_trace: total_steps as i32,
                 steps_proven: queued_steps_proven,
                 step_to_start: start as i32,
-                program_id: program_file_path.to_string(),
+                program_id: program_name.clone(),
                 client_id_token: None,
                 proof_duration_millis: queued_proof_duration_millis,
                 k,
