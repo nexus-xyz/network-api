@@ -173,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
         // There are two programs to choose from
-        let programs = vec!["src/generated/fast-fib", "src/generated/cancer-diagnostic"];
+        let programs = ["src/generated/fast-fib", "src/generated/cancer-diagnostic"];
         // Choose which program to use
         let program_file_path = if rand::random::<f32>() < 0.01 {
             programs[1] // 1% of the time, it will use the cancer diagnostic program
