@@ -181,8 +181,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             programs[0] // 99% of the time, it will use the fast-fib program
         };
 
-        println!("\tUsing program: {}", program_file_path);
-
         let mut vm: NexusVM<MerkleTrie> =
             parse_elf(get_file_as_byte_vec(program_file_path).as_ref())
                 .expect("error loading and parsing RISC-V instruction");
