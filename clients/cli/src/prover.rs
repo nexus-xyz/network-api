@@ -211,6 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "cycles_proven": steps_proven * k,
                 "k": k,
                 "prover_id": prover_id,
+                "program_name": program_name,
             }),
             false,
         );
@@ -262,6 +263,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "progress_duration_millis": progress_duration.as_millis(),
                     "proof_cycles_hertz": proof_cycles_hertz,
                     "prover_id": prover_id,
+                    "program_name": program_name,
                 }),
                 false,
             );
@@ -392,6 +394,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 &ws_addr_string,
                 json!({
                     "prover_id": &prover_id,
+                    "program_name": utils::prover::get_program_for_prover(&prover_id),
                     "error": e.to_string(),
                 }),
                 true,
@@ -402,7 +405,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "disconnect".into(),
         "Sent proof and closed connection...".into(),
         &ws_addr_string,
-        json!({ "prover_id": prover_id }),
+        json!({
+            "prover_id": prover_id,
+            "program_name": utils::prover::get_program_for_prover(&prover_id),
+        }),
         true,
     );
     Ok(())
