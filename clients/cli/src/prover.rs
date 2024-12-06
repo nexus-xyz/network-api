@@ -51,7 +51,7 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
-use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
+use crate::utils::updater::AutoUpdaterMode;
 
 // The interval at which to send updates to the orchestrator
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
@@ -107,13 +107,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.hostname,
         args.port
     );
-
-    // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
-    // a. Create the updater config
-    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
-
-    // b. runs the CLI's auto updater in a separate thread continuously in intervals
-    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
 
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.
@@ -172,7 +165,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
-        let program_name = utils::prover::get_random_program();
+        let program_name = utils::prover::get_program_for_prover(&prover_id);
         let program_file_path = &format!("src/generated/{}", program_name);
 
         let mut vm: NexusVM<MerkleTrie> =
