@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 
 // Distribution percentage (0.0 to 1.0) for the cancer-diagnostic program
 // Example: 0.01 = 1%, 0.5 = 50%, 1.0 = 100%
-const CANCER_DIAGNOSTIC_PERCENTAGE: f32 = 0.50;
+const CANCER_DIAGNOSTIC_PERCENTAGE: f32 = 0.01;
 
 pub fn get_program_for_prover(prover_id: &str) -> String {
     // Create a deterministic hash from the prover_id

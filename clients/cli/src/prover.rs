@@ -108,13 +108,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         args.port
     );
 
-    // Initialize the CLI auto-updater that checks for and applies updates to the CLI:
-    // a. Create the updater config
-    let updater_config = UpdaterConfig::new(args.updater_mode, args.hostname);
-
-    // b. runs the CLI's auto updater in a separate thread continuously in intervals
-    updater::spawn_auto_update_thread(&updater_config).expect("Failed to spawn auto-update thread");
-
     let k = 4;
     // TODO(collinjackson): Get parameters from a file or URL.
     let pp = gen_vm_pp::<C1, seq::SetupParams<(G1, G2, C1, C2, RO, SC)>>(k as usize, &())
