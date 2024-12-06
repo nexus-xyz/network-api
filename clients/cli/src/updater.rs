@@ -19,6 +19,9 @@ use crate::utils::updater::{UpdaterConfig, VersionManager, VersionStatus, BLUE, 
 // 1. The update checker can continuously monitor for new versions without interrupting the main CLI operations
 // 2. The main thread remains free to handle its primary responsibility (proving transactions)
 // 3. Users don't have to wait for update checks to complete before using the CLI
+
+// TODO(dprats): remove dead code allowing and use this function in the prover
+#[allow(dead_code)]
 pub fn spawn_auto_update_thread(
     updater_config: &UpdaterConfig,
 ) -> Result<(), Box<dyn std::error::Error>> {

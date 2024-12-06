@@ -51,7 +51,7 @@ use std::fs::File;
 use std::io::Read;
 use zstd::stream::Encoder;
 
-use crate::utils::updater::{AutoUpdaterMode, UpdaterConfig};
+use crate::utils::updater::AutoUpdaterMode;
 
 // The interval at which to send updates to the orchestrator
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
