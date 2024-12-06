@@ -255,7 +255,7 @@ impl VersionManager {
 
         // debug output
         println!(
-            "{}[auto-updater thread]{} Checking for updates from: {}",
+            "{}[auto-updater]{} Checking for updates from: {}",
             BLUE, RESET, self.config.remote_repo
         );
 
@@ -263,7 +263,7 @@ impl VersionManager {
             Ok(version) => version,
             Err(e) => {
                 println!(
-                    "{}[auto-updater thread]{} Version check failed: {}",
+                    "{}[auto-updater]{} Version check failed: {}",
                     BLUE, RESET, e
                 );
                 return Ok(VersionStatus::UpToDate); // Gracefully handle error by assuming up-to-date

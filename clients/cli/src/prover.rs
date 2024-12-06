@@ -172,7 +172,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut rng = rand::thread_rng();
         let input = vec![5, rng.gen::<u8>(), rng.gen::<u8>()];
 
-        let program_name = utils::prover::get_random_program();
+        let program_name = utils::prover::get_program_for_prover(&prover_id);
         let program_file_path = &format!("src/generated/{}", program_name);
 
         let mut vm: NexusVM<MerkleTrie> =
