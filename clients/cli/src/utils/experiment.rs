@@ -1,7 +1,13 @@
-pub struct Experiment{ name: &'static str, target_enrollment_per_1000: u64 }
+pub struct Experiment {
+    name: &'static str,
+    target_enrollment_per_1000: u64,
+}
 
 impl Experiment {
-    pub const CANCER_DIAGNOSTIC: Self = Self{name: "NEX-1", target_enrollment_per_1000: 10};
+    pub const CANCER_DIAGNOSTIC: Self = Self {
+        name: "NEX-1",
+        target_enrollment_per_1000: 10,
+    };
 
     pub fn is_enrolled(&self, prover_id: &str) -> bool {
         // Create a deterministic hash from the prover_id
