@@ -16,15 +16,19 @@ pub fn get_or_generate_prover_id() -> String {
     let nexus_dir = home_path.join(".nexus");
     let prover_id_path = nexus_dir.join("prover-id");
 
+    // 1. If the .nexus directory doesn't exist, we need to create it
     if !nexus_dir.exists() {
         return handle_first_time_setup(&nexus_dir, &prover_id_path, &default_prover_id);
     }
 
+    // 2. If the .nexus directory exists, we need to read the prover-id file
     match read_existing_prover_id(&prover_id_path) {
+        // 2.1 Happy path - we successfully read the prover-id file
         Ok(id) => {
             println!("Successfully read existing prover-id from file: {}", id);
             id
         }
+        // 2.2 We couldn't read the prover-id file, so we may need to create a new one
         Err(e) => {
             eprintln!(
                 "{}: {}",
