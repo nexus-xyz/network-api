@@ -335,7 +335,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let cycles_proved = steps_proven * k;
                 let proof_cycles_per_minute = cycles_proved as f64 / total_minutes;
 
-                //Send analytics about the proof event
+                // Send analytics about the proof event
                 track(
                     "proof".into(),
                     "Proof generated".into(),
