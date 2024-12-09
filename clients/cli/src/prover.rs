@@ -369,6 +369,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
                 encoder.finish().expect("failed to finish encoder");
+
+                let total_duration = start_time.elapsed();
+                let total_minutes = total_duration.as_secs() as f64 / 60.0;
+                let cycles_proved = steps_proven * k;
+                let proof_cycles_per_minute = cycles_proved as f64 / total_minutes;
+
+                //Send analytics about the proof event
+                track(
+                    "proof".into(),
+                    "Proof generated".into(),
+                    &ws_addr_string,
+                    json!({
+                        "steps_in_trace": total_steps,
+                        "steps_to_prove": steps_to_prove,
+                        "steps_proven": steps_proven,
+                        "cycles_proven": steps_proven * k,
+                        "k": k,
+                        "proof_duration_sec": total_duration.as_secs(),
+                        "proof_duration_millis": total_duration.as_millis(),
+                        "proof_cycles_per_minute": proof_cycles_per_minute,
+                        "program_name": program_name,
+                    }),
+                    false,
+                );
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
