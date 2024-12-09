@@ -188,7 +188,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let z_st = tr.input(start).expect("error starting circuit trace");
         let mut proof = IVCProof::new(&z_st);
 
-        let mut completed_fraction = 0.0;
         let mut steps_proven = 0;
 
         println!(
@@ -201,7 +200,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         for step in start..end {
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
-            completed_fraction = steps_proven as f32 / steps_to_prove as f32;
 
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
