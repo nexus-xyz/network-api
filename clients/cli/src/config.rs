@@ -1,5 +1,20 @@
+// Debug version of analytics_id
+#[cfg(debug_assertions)]
+pub fn analytics_id(_ws_addr_string: &str) -> String {
+    // Use one of the tokens in the release version if debugging analytics
+    "".into()
+}
+
+// Debug version of analytics_api_key
+#[cfg(debug_assertions)]
+pub fn analytics_api_key(_ws_addr_string: &str) -> String {
+    // Use one of the tokens in the release version if debugging analytics
+    "".into()
+}
+
 // The following enum is used to determine the environment from the web socket string
 #[derive(Debug)]
+#[cfg(not(debug_assertions))]
 enum Environment {
     Dev,
     Staging,
@@ -8,6 +23,7 @@ enum Environment {
 }
 
 // The web socket addresses for the different environments
+#[cfg(not(debug_assertions))]
 mod web_socket_urls {
     pub const DEV: &str = "wss://dev.orchestrator.nexus.xyz:443/prove";
     pub const STAGING: &str = "wss://staging.orchestrator.nexus.xyz:443/prove";
@@ -15,6 +31,7 @@ mod web_socket_urls {
 }
 
 // the firebase APP IDS by environment
+#[cfg(not(debug_assertions))]
 mod firebase {
     pub const DEV_APP_ID: &str = "1:954530464230:web:f0a14de14ef7bcdaa99627";
     pub const STAGING_APP_ID: &str = "1:222794630996:web:1758d64a85eba687eaaac1";
@@ -29,6 +46,7 @@ mod firebase {
 }
 
 // Release versions (existing code)
+#[cfg(not(debug_assertions))]
 pub fn analytics_id(ws_addr_string: &str) -> String {
     // Determine the environment from the web socket string (ws_addr_string)
     let env = match ws_addr_string {
@@ -47,6 +65,7 @@ pub fn analytics_id(ws_addr_string: &str) -> String {
     }
 }
 
+#[cfg(not(debug_assertions))]
 pub fn analytics_api_key(ws_addr_string: &str) -> String {
     match ws_addr_string {
         web_socket_urls::DEV => firebase::DEV_API_SECRET.to_string(),
