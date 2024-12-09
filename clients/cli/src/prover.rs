@@ -117,7 +117,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prover_id = prover_id_manager::get_or_generate_prover_id();
 
     println!(
-        "\t✔ Your current prover identifier is {}",
+        "\n\t✔ Your current prover identifier is {}",
         prover_id.bright_cyan()
     );
 
