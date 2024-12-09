@@ -188,7 +188,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let z_st = tr.input(start).expect("error starting circuit trace");
         let mut proof = IVCProof::new(&z_st);
 
-        let mut completed_fraction = 0.0;
         let mut steps_proven = 0;
 
         println!(
@@ -196,31 +195,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             total_steps, steps_to_prove, start
         );
 
-        track(
-            "progress".into(),
-            format!(
-                "Program trace is {} steps. Proving {} steps starting at {}...",
-                total_steps, steps_to_prove, start
-            ),
-            &ws_addr_string,
-            json!({
-                "completed_fraction": completed_fraction,
-                "steps_in_trace": total_steps,
-                "steps_to_prove": steps_to_prove,
-                "steps_proven": steps_proven,
-                "cycles_proven": steps_proven * k,
-                "k": k,
-                "prover_id": prover_id,
-                "program_name": program_name,
-            }),
-            false,
-        );
         let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
             proof = prove_seq_step(Some(proof), &pp, &tr).expect("error proving step");
             steps_proven += 1;
-            completed_fraction = steps_proven as f32 / steps_to_prove as f32;
 
             let progress_duration = progress_time.elapsed();
             let proof_cycles_hertz = k as f64 * 1000.0 / progress_duration.as_millis() as f64;
@@ -246,27 +225,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step, proof_cycles_hertz
             );
 
-            track(
-                "progress".into(),
-                format!(
-                    "Proved step {} at {:.2} proof cycles/sec.",
-                    step, proof_cycles_hertz
-                ),
-                &ws_addr_string,
-                json!({
-                    "completed_fraction": completed_fraction,
-                    "steps_in_trace": total_steps,
-                    "steps_to_prove": steps_to_prove,
-                    "steps_proven": steps_proven,
-                    "cycles_proven": steps_proven * 4,
-                    "k": k,
-                    "progress_duration_millis": progress_duration.as_millis(),
-                    "proof_cycles_hertz": proof_cycles_hertz,
-                    "prover_id": prover_id,
-                    "program_name": program_name,
-                }),
-                false,
-            );
             progress_time = Instant::now();
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
@@ -369,6 +327,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .serialize_compressed(&mut encoder)
                     .expect("failed to compress proof");
                 encoder.finish().expect("failed to finish encoder");
+
+                let total_duration = start_time.elapsed();
+                let total_minutes = total_duration.as_secs() as f64 / 60.0;
+                let cycles_proved = steps_proven * k;
+                let proof_cycles_per_minute = cycles_proved as f64 / total_minutes;
+
+                // Send analytics about the proof event
+                track(
+                    "proof".into(),
+                    "Proof generated".into(),
+                    &ws_addr_string,
+                    json!({
+                        "steps_in_trace": total_steps,
+                        "steps_to_prove": steps_to_prove,
+                        "steps_proven": steps_proven,
+                        "cycles_proven": cycles_proved,
+                        "k": k,
+                        "proof_duration_sec": total_duration.as_secs(),
+                        "proof_duration_millis": total_duration.as_millis(),
+                        "proof_cycles_per_minute": proof_cycles_per_minute,
+                        "program_name": program_name,
+                    }),
+                    false,
+                );
             }
         }
         // TODO(collinjackson): Consider verifying the proof before sending it
