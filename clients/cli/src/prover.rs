@@ -384,7 +384,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         "steps_in_trace": total_steps,
                         "steps_to_prove": steps_to_prove,
                         "steps_proven": steps_proven,
-                        "cycles_proven": steps_proven * k,
+                        "cycles_proven": cycles_proved,
                         "k": k,
                         "proof_duration_sec": total_duration.as_secs(),
                         "proof_duration_millis": total_duration.as_millis(),
