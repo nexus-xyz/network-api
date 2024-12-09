@@ -196,25 +196,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             total_steps, steps_to_prove, start
         );
 
-        track(
-            "progress".into(),
-            format!(
-                "Program trace is {} steps. Proving {} steps starting at {}...",
-                total_steps, steps_to_prove, start
-            ),
-            &ws_addr_string,
-            json!({
-                "completed_fraction": completed_fraction,
-                "steps_in_trace": total_steps,
-                "steps_to_prove": steps_to_prove,
-                "steps_proven": steps_proven,
-                "cycles_proven": steps_proven * k,
-                "k": k,
-                "prover_id": prover_id,
-                "program_name": program_name,
-            }),
-            false,
-        );
         let start_time = Instant::now();
         let mut progress_time = start_time;
         for step in start..end {
@@ -246,27 +227,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 step, proof_cycles_hertz
             );
 
-            track(
-                "progress".into(),
-                format!(
-                    "Proved step {} at {:.2} proof cycles/sec.",
-                    step, proof_cycles_hertz
-                ),
-                &ws_addr_string,
-                json!({
-                    "completed_fraction": completed_fraction,
-                    "steps_in_trace": total_steps,
-                    "steps_to_prove": steps_to_prove,
-                    "steps_proven": steps_proven,
-                    "cycles_proven": steps_proven * 4,
-                    "k": k,
-                    "progress_duration_millis": progress_duration.as_millis(),
-                    "proof_cycles_hertz": proof_cycles_hertz,
-                    "prover_id": prover_id,
-                    "program_name": program_name,
-                }),
-                false,
-            );
             progress_time = Instant::now();
 
             //If it has been three minutes since the last orchestrator update, send the orchestator the update
