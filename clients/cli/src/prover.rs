@@ -117,6 +117,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let prover_id = prover_id_manager::get_or_generate_prover_id();
 
     println!(
+        "\t✔ Your current prover identifier is {}",
+        prover_id.bright_cyan()
+    );
+
+    println!(
         "\n===== {}...\n",
         "Connecting to Nexus Network".bold().underline()
     );
@@ -131,11 +136,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_infinite_retry(&ws_addr_string, &prover_id).await;
-
-    println!(
-        "\t✔ Your current prover identifier is {}",
-        prover_id.bright_cyan()
-    );
 
     println!(
         "\n{}",
