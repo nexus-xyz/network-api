@@ -25,7 +25,7 @@ If you don't have Rust installed, you will be prompted to install it.
 ### Linux
 ```bash
 sudo apt update && sudo apt upgrade
-sudo apt install build-essential pkg-config libssl-dev git-all
+sudo apt install build-essential pkg-config libssl-dev git-all protobuf-compiler
 ```
 
 ### macOS
