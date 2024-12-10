@@ -24,9 +24,7 @@ if [ $GIT_IS_AVAILABLE != 0 ]; then
 fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
-# Email verification prompt temporarily disabled
-SKIP_EMAIL_VERIFICATION=1
-if [ -z "$SKIP_EMAIL_VERIFICATION" ] && [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
+if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
     echo "\nTo receive credit for proving in Nexus testnets..."
     echo "\t1. Go to ${GREEN}https://beta.nexus.xyz${NC}"
     echo "\t2. On the bottom left hand corner, copy the ${ORANGE}prover id${NC}"
