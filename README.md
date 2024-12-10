@@ -36,6 +36,21 @@ brew install git
 ### Windows
 [Install WSL](https://learn.microsoft.com/en-us/windows/wsl/install) first, then follow Linux instructions.
 
+## Docker Support
+
+
+```bash
+# Build the image
+docker build -t nexus-api-prover .
+
+# Run without a prover ID (will generate random ID)
+docker run -d --rm nexus-api-prover
+
+# Run with your prover ID
+docker build --build-arg PROVER_ID=your-prover-id-here -t nexus-api-prover .
+docker run -d --rm nexus-api-prover
+```
+
 ## Terms of Use
 
 Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use). First-time users will be prompted to accept the terms. For non-interactive acceptance (e.g., CI environments), use:
