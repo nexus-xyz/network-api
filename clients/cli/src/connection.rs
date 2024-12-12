@@ -9,9 +9,8 @@ pub async fn connect_to_orchestrator(
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
     let (client, _) = tokio_tungstenite::connect_async(ws_addr)
         .await
-        .map_err(|e| {
-            eprintln!("\nError connecting to nexus orchestrator at: {}", ws_addr);
-            e
+        .inspect_err(|_e| {
+            eprintln!("Error connecting to nexus orchestrator at: {}. Nexus team has been alerted and is looking into it. Please try again later.", ws_addr);
         })?;
 
     Ok(client)
