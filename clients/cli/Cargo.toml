@@ -7,9 +7,6 @@ edition = "2021"
 name = "prover"
 path = "src/prover.rs"
 
-[build-dependencies]
-prost-build = "0.13"
-
 [profile.dev]
 opt-level = 1
 
