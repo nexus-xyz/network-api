@@ -3,15 +3,55 @@ use colored::Colorize;
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::{connect_async_tls_with_config, Connector}; // 确保使用 Connector
+use native_tls::TlsConnector;
 
 pub async fn connect_to_orchestrator(
     ws_addr: &str,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
-    let (client, _) = tokio_tungstenite::connect_async(ws_addr)
+    // Parse the WebSocket address
+    let request = ws_addr.into_client_request()?;
+
+    // Create a custom TLS connector that disables certificate validation
+    let tls_connector = TlsConnector::builder()
+        .danger_accept_invalid_certs(true) // 忽略无效证书
+        .danger_accept_invalid_hostnames(true) // 忽略主机名验证
+        .build()?;
+
+    // Use the Connector::NativeTls variant
+    let connector = Connector::NativeTls(tls_connector);
+
+    // Call connect_async_tls_with_config with the appropriate parameters
+    let (client, _) = connect_async_tls_with_config(request, None, true, Some(connector))
         .await
-        .inspect_err(|_e| {
-            eprintln!("Error connecting to nexus orchestrator at: {}. Nexus team has been alerted and is looking into it. Please try again later.", ws_addr);
+        .map_err(|e| {
+            let error_message = format!(
+                "Failed to connect to orchestrator at {}: {}",
+                ws_addr,
+                e
+            )
+            .red();
+            eprintln!("{}", error_message);
+            // Log failure to analytics
+            track(
+                "orchestrator_connection_failed".to_string(),
+                error_message.to_string(), // Convert ColoredString to String
+                ws_addr,                   // WebSocket address
+                json!({ "error": e.to_string() }), // Event properties
+                true                        // Print description
+            );
+            e
         })?;
+
+    // Log success connection event
+    track(
+        "orchestrator_connection_success".to_string(),
+        "Successfully connected to orchestrator.".to_string(), // Description of the success
+        ws_addr, // WebSocket address
+        json!({}), // No additional properties
+        true       // Print description
+    );
 
     Ok(client)
 }
@@ -21,7 +61,6 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
     prover_id: &str,
 ) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
     let mut attempt = 1;
-    let max_attempts_before_alert = 5;
 
     loop {
         match connect_to_orchestrator(ws_addr).await {
@@ -39,17 +78,10 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
             }
             Err(_e) => {
                 eprintln!(
-                    "\tCould not connect to orchestrator (attempt {}). Retrying in {} seconds...",
+                    "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...",
                     attempt,
                     2u64.pow(attempt.min(6)),
                 );
-
-                if attempt >= max_attempts_before_alert {
-                    eprintln!(
-                        "\t\tFailed to connect after {} attempts. The Nexus team has been alerted and is looking into it. Please try again later.",
-                        attempt,
-                    );
-                }
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(attempt.min(6))))
                     .await;
@@ -64,7 +96,7 @@ pub async fn connect_to_orchestrator_with_limited_retry(
     ws_addr: &str,
     prover_id: &str,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
-    let max_attempts = 3;
+    let max_attempts = 5;
     let mut attempt = 1;
 
     loop {
@@ -87,14 +119,14 @@ pub async fn connect_to_orchestrator_with_limited_retry(
             Err(e) => {
                 if attempt >= max_attempts {
                     return Err(format!(
-                        "Failed to connect after {} attempts: {}. The Nexus team has been alerted and is looking into it. Please try again later.",
+                        "Failed to connect after {} attempts: {}",
                         max_attempts, e
                     )
                     .into());
                 }
 
                 eprintln!(
-                    "\tCould not connect to orchestrator (attempt {}/{}). Retrying in {} seconds...",
+                    "Could not connect to orchestrator (attempt {}/{}). Retrying in {} seconds...",
                     attempt,
                     max_attempts,
                     2u64.pow(attempt.min(6)),
