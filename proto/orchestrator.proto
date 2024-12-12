@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 //
 // If you use this protocol to communicate with Nexus's servers,
-// you must agree to the Terms of Service: https://nexus.xyz/tos
+// you must agree to the Terms of Use: https://nexus.xyz/terms-of-use
 
 syntax = "proto3";
 
