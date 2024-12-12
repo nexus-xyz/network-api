@@ -85,6 +85,8 @@ parking_lot = "0.12.3"
 colored = "2.1.0"
 md5 = "0.7.0"
 
+native-tls = "0.2"
+
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }
 
