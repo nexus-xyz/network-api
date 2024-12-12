@@ -1,14 +1,11 @@
 [package]
 name = "nexus-network"
-version = "0.4.0"
+version = "0.4.3"
 edition = "2021"
 
 [[bin]]
 name = "prover"
 path = "src/prover.rs"
-
-[build-dependencies]
-prost-build = "0.13"
 
 [profile.dev]
 opt-level = 1
