@@ -6,6 +6,8 @@ GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
 
+[ -d $NEXUS_HOME ] || mkdir -p $NEXUS_HOME
+
 while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/prover-id" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     case $yn in
@@ -51,7 +53,6 @@ if [ -d "$REPO_PATH" ]; then
   echo "$REPO_PATH exists. Updating.";
   (cd $REPO_PATH && git stash save && git fetch --tags)
 else
-  mkdir -p $NEXUS_HOME
   (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
 fi
 (cd $REPO_PATH && git -c advice.detachedHead=false checkout $(git rev-list --tags --max-count=1))
