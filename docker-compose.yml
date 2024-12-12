@@ -1,0 +1,6 @@
+version: '3'
+services:
+  nexus:
+    build: .
+    environment:
+      - PROVER_ID=PROVER_ID_HERE
