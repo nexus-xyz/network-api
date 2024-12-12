@@ -9,9 +9,8 @@ pub async fn connect_to_orchestrator(
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
     let (client, _) = tokio_tungstenite::connect_async(ws_addr)
         .await
-        .map_err(|e| {
-            eprintln!("Failed to connect to orchestrator at {}: {}", ws_addr, e);
-            e
+        .inspect_err(|_e| {
+            eprintln!("Error connecting to nexus orchestrator at: {}. Nexus team has been alerted and is looking into it. Please try again later.", ws_addr);
         })?;
 
     Ok(client)
@@ -22,6 +21,7 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
     prover_id: &str,
 ) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
     let mut attempt = 1;
+    let max_attempts_before_alert = 5;
 
     loop {
         match connect_to_orchestrator(ws_addr).await {
@@ -39,10 +39,17 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
             }
             Err(_e) => {
                 eprintln!(
-                    "Could not connect to orchestrator (attempt {}). Retrying in {} seconds...",
+                    "\tCould not connect to orchestrator (attempt {}). Retrying in {} seconds...",
                     attempt,
                     2u64.pow(attempt.min(6)),
                 );
+
+                if attempt >= max_attempts_before_alert {
+                    eprintln!(
+                        "\t\tFailed to connect after {} attempts. The Nexus team has been alerted and is looking into it. Please try again later.",
+                        attempt,
+                    );
+                }
 
                 tokio::time::sleep(tokio::time::Duration::from_secs(2u64.pow(attempt.min(6))))
                     .await;
@@ -57,7 +64,7 @@ pub async fn connect_to_orchestrator_with_limited_retry(
     ws_addr: &str,
     prover_id: &str,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
-    let max_attempts = 5;
+    let max_attempts = 3;
     let mut attempt = 1;
 
     loop {
@@ -80,14 +87,14 @@ pub async fn connect_to_orchestrator_with_limited_retry(
             Err(e) => {
                 if attempt >= max_attempts {
                     return Err(format!(
-                        "Failed to connect after {} attempts: {}",
+                        "Failed to connect after {} attempts: {}. The Nexus team has been alerted and is looking into it. Please try again later.",
                         max_attempts, e
                     )
                     .into());
                 }
 
                 eprintln!(
-                    "Could not connect to orchestrator (attempt {}/{}). Retrying in {} seconds...",
+                    "\tCould not connect to orchestrator (attempt {}/{}). Retrying in {} seconds...",
                     attempt,
                     max_attempts,
                     2u64.pow(attempt.min(6)),
