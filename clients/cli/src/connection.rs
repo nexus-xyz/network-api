@@ -22,7 +22,8 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
     prover_id: &str,
 ) -> WebSocketStream<MaybeTlsStream<TcpStream>> {
     let mut attempt = 1;
-    let max_attempts = 5;
+    let max_attempts_before_alert = 5;
+
     loop {
         match connect_to_orchestrator(ws_addr).await {
             Ok(client) => {
@@ -44,7 +45,7 @@ pub async fn connect_to_orchestrator_with_infinite_retry(
                     2u64.pow(attempt.min(6)),
                 );
 
-                if attempt >= max_attempts {
+                if attempt >= max_attempts_before_alert {
                     eprintln!(
                         "\t\tFailed to connect after {} attempts. The Nexus team has been alerted and is looking into it. Please try again later.",
                         attempt,
