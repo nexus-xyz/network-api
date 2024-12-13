@@ -27,12 +27,13 @@ fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\nThe Nexus testnet is over, but you can participate in the Nexus devnet."
-    echo "\nTo like this proving in Nexus devnet to your web prover id..."
-    echo "\t1. Go to ${GREEN}https://beta.nexus.xyz${NC}"
-    echo "\t2. On the bottom left hand corner, copy the ${ORANGE}prover id${NC}"
-    echo "\t3. Paste the ${ORANGE}prover id${NC} here. Press Enter to continue.\n"
-    read -p "Enter your Prover Id (optional)> " PROVER_ID </dev/tty
+    echo "\n${ORANGE}Please note: Nexus testnet is over, but you can participate in the Nexus devnet.${NC}"
+    echo "\nTo link this proving in Nexus devnet to your web Prover ID:"
+    echo "\n\t1. Go to ${GREEN}https://beta.nexus.xyz${NC}"
+    echo "\t2. Select the Testnet option"
+    echo "\t3. On the bottom left hand corner, copy the ${ORANGE}Prover ID${NC}"
+    echo "\t4. Paste the ${ORANGE}Prover ID${NC} here\n"
+    read -p "Enter your Prover ID (optional)> " PROVER_ID </dev/tty
     while [ ! ${#PROVER_ID} -eq "0" ]; do
         if [ ${#PROVER_ID} -eq "28" ]; then
             if [ -f "$NEXUS_HOME/prover-id" ]; then
@@ -43,9 +44,9 @@ if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
             echo Prover id saved to $NEXUS_HOME/prover-id.
             break;
         else
-            echo Unable to validate $PROVER_ID. Please make sure the full prover id is copied.
+            echo Unable to validate $PROVER_ID. Please make sure the full Prover ID is copied.
         fi
-        read -p "Prover Id (optional)> " PROVER_ID </dev/tty
+        read -p "Prover ID (optional)> " PROVER_ID </dev/tty
     done
 fi
 
