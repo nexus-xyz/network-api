@@ -12,6 +12,17 @@ A high-performance command-line interface for contributing proofs to the Nexus n
     </figcaption>
 </figure>
 
+## The Nexus Network
+
+The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
+
+There have been two testnets:
+
+- The first testnet period was in [October 08 to 28 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/).
+- The second testnet period was in [December 9 to 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/).
+
+**Important:** *The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points. Instead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.*
+
 ## Quick Start
 
 ```bash
