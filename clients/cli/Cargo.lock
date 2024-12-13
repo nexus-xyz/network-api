@@ -1624,7 +1624,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-network"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "ark-bn254",
  "ark-crypto-primitives",
