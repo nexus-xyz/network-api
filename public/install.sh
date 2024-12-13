@@ -27,7 +27,8 @@ fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\n${ORANGE}Please note: the Nexus testnet is over, but you can participate in the Nexus devnet.${NC}\n"
+    echo "\n${ORANGE}The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points.${NC}"
+    echo "\nInstead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.\n"
     read -p "Do you want to continue? (Y/n) " yn </dev/tty
     case $yn in
         [Nn]* ) exit;;
