@@ -227,7 +227,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             progress_time = Instant::now();
 
-            //If it has been three minutes since the last orchestrator update, send the orchestator the update
+            //If it has been three minutes since the last orchestrator update, send the orchestrator the update
             if timer_since_last_orchestrator_update.elapsed().as_secs()
                 > PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS
             {
