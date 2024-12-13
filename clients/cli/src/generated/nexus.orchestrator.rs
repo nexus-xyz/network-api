@@ -125,7 +125,7 @@ pub struct TotalCyclesResponse {
 pub struct UserCyclesProvedRequest {
     /// List of all firebase IDs associated with a given email.
     /// This is authenticated through Firebase Admin SDK on the client side
-    /// and then passed to the orchestrator backend
+    /// and then passed to the orchestrator's backend
     #[prost(string, repeated, tag = "1")]
     pub client_ids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
