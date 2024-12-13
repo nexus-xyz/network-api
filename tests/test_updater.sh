@@ -106,7 +106,7 @@ ORIGINAL_PID=$!
 echo -e "${ORANGE}[test-updater script] (7 / 18) Original PID for the CLI main process: $ORIGINAL_PID${NC}"
 echo " "
 
-# Give CLI some timee to start the proving by starting the main thread at prover.rs
+# Give CLI some time to start the proving by starting the main thread at prover.rs
 sleep 30 
 
 # Create new version with higher number than 0.3.5
