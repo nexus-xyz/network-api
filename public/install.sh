@@ -27,7 +27,8 @@ fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
 if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\nTo receive credit for proving in Nexus testnets..."
+    echo "\nThe Nexus testnet is over, but you can participate in the Nexus devnet."
+    echo "\nTo like this proving in Nexus devnet to your web prover id..."
     echo "\t1. Go to ${GREEN}https://beta.nexus.xyz${NC}"
     echo "\t2. On the bottom left hand corner, copy the ${ORANGE}prover id${NC}"
     echo "\t3. Paste the ${ORANGE}prover id${NC} here. Press Enter to continue.\n"
