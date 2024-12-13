@@ -21,7 +21,7 @@ There have been two testnets:
 - The first testnet period was in [October 08 to 28 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/).
 - The second testnet period was in [December 9 to 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/).
 
-**Important:** The testnet periods are over, but the devnet is still active.
+**Important:** *The testnet periods are over, but the devnet is still active.*
 
 ## Quick Start
 
