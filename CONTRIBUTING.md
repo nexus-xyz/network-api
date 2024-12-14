@@ -49,9 +49,9 @@ See [this guide][mcve] on how to create a minimal, complete, and verifiable exam
 
 #### Submitting a feature request
 
-Please include as detailed of an explanation as possible of the feature you would like, and add any additional context you think may be necessary or just helpful.
+Please include as detailed an explanation as possible of the feature you would like, and add any additional context you think may be necessary or just helpful.
 
-If you have examples of other tools that have the feature you are requesting, please include references/links to them as well.
+If you have examples of other tools with the feature you are requesting, please include references/links to them as well.
 
 ## Resolving Issues
 
