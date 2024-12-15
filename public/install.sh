@@ -41,7 +41,7 @@ fi
 REPO_PATH=$NEXUS_HOME/network-api
 if [ -d "$REPO_PATH" ]; then
   echo "$REPO_PATH exists. Updating.";
-  (cd $REPO_PATH && git stash save && git fetch --tags)
+  (cd $REPO_PATH && git stash && git fetch --tags)
 else
   (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
 fi
