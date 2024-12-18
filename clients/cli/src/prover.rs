@@ -10,7 +10,7 @@ pub mod utils;
 mod websocket;
 
 use crate::analytics::track;
-
+use chrono::Local;
 use std::borrow::Cow;
 
 use crate::connection::{
@@ -56,6 +56,19 @@ use crate::utils::updater::AutoUpdaterMode;
 // The interval at which to send updates to the orchestrator
 const PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS: u64 = 180; // 3 minutes
 
+fn println_time_with_time(args: std::fmt::Arguments) {
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    println!("[{}] {}", timestamp, args);
+}
+
+#[macro_export]
+macro_rules! println_time {
+    ($($arg:tt)*) => ({
+        println_time_with_time(format_args!($($arg)*));
+    });
+}
+
+
 #[derive(Parser, Debug)]
 struct Args {
     /// Hostname at which Orchestrator can be reached
@@ -88,7 +101,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Print the banner at startup
     utils::cli_branding::print_banner();
 
-    println!(
+    println_time!(
         "\n===== {}...\n",
         "Setting up CLI configuration".bold().underline()
     );
@@ -116,12 +129,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // get or generate the prover id
     let prover_id = prover_id_manager::get_or_generate_prover_id();
 
-    println!(
+    println_time!(
         "\n\t✔ Your current prover identifier is {}",
         prover_id.bright_cyan()
     );
 
-    println!(
+    println_time!(
         "\n===== {}...\n",
         "Connecting to Nexus Network".bold().underline()
     );
@@ -137,7 +150,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to the Orchestrator with exponential backoff
     let mut client = connect_to_orchestrator_with_infinite_retry(&ws_addr_string, &prover_id).await;
 
-    println!(
+    println_time!(
         "\n{}",
         "Success! Connection complete!\n".green().bold().underline()
     );
@@ -154,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut queued_steps_proven: i32 = 0;
     let mut timer_since_last_orchestrator_update = Instant::now();
 
-    println!(
+    println_time!(
         "\n===== {}...\n",
         "Starting proof generation for programs".bold().underline()
     );
@@ -190,7 +203,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let mut steps_proven = 0;
 
-        println!(
+        println_time!(
             "Program trace is {} steps. Proving {} steps starting at {}...",
             total_steps, steps_to_prove, start
         );
@@ -220,7 +233,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             // Print the proof progress in green or blue depending on the step number
-            println!(
+            println_time!(
                 "\t✓ Proved step {} at {:.2} proof cycles/sec.",
                 step, proof_cycles_hertz
             );
@@ -231,7 +244,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if timer_since_last_orchestrator_update.elapsed().as_secs()
                 > PROOF_PROGRESS_UPDATE_INTERVAL_IN_SECONDS
             {
-                println!(
+                println_time!(
                     "\tWill try sending update to orchestrator with interval queued_steps_proven: {}",
                     queued_steps_proven
                 );
@@ -249,8 +262,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 // Connection is verified working
                                 match client.send(Message::Binary(progress.encode_to_vec())).await {
                                     Ok(_) => {
-                                        // println!("\t\tSuccesfully sent progress to orchestrator\n");
-                                        // println!("{:#?}", progress);
+                                        // println_time!("\t\tSuccesfully sent progress to orchestrator\n");
+                                        // println_time!("{:#?}", progress);
 
                                         // Reset the queued values only after successful send
                                         queued_steps_proven = 0;
@@ -276,7 +289,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                             //... and the pong was not received
                             _ => {
-                                // println!(
+                                // println_time!(
                                 //     "\t\tNo pong from websockets connection received. Will reconnect to orchestrator..."
                                 // );
                                 client = match connect_to_orchestrator_with_limited_retry(
@@ -296,7 +309,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     //The ping failed to send...
                     Err(_) => {
-                        // println!(
+                        // println_time!(
                         //     "\t\tPing failed, will attempt to reconnect to orchestrator: {:?}",
                         //     e
                         // );
@@ -359,7 +372,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         if args.just_once {
             break;
         } else {
-            println!("\n\nWaiting for a new program to prove...\n");
+            println_time!("\n\nWaiting for a new program to prove...\n");
         }
     }
 
