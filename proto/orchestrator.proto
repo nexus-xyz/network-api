@@ -44,7 +44,7 @@ enum Network {
   // Experimental new network types should leave the network unspecified.
   NETWORK_UNSPECIFIED = 0;
 
-  // A open "playground" for those looking to experience the Nexus protocol
+  // An open "playground" for those looking to experience the Nexus protocol
   // as a proof requestor, prover, app developer, or validator.
   NETWORK_DEVNET = 1;
 
