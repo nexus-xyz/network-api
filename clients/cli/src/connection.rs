@@ -3,16 +3,55 @@ use colored::Colorize;
 use serde_json::json;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::{connect_async_tls_with_config, Connector}; // 确保使用 Connector
+use native_tls::TlsConnector;
 
 pub async fn connect_to_orchestrator(
     ws_addr: &str,
 ) -> Result<WebSocketStream<MaybeTlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
-    let (client, _) = tokio_tungstenite::connect_async(ws_addr)
+    // Parse the WebSocket address
+    let request = ws_addr.into_client_request()?;
+
+    // Create a custom TLS connector that disables certificate validation
+    let tls_connector = TlsConnector::builder()
+        .danger_accept_invalid_certs(true) // 忽略无效证书
+        .danger_accept_invalid_hostnames(true) // 忽略主机名验证
+        .build()?;
+
+    // Use the Connector::NativeTls variant
+    let connector = Connector::NativeTls(tls_connector);
+
+    // Call connect_async_tls_with_config with the appropriate parameters
+    let (client, _) = connect_async_tls_with_config(request, None, true, Some(connector))
         .await
         .map_err(|e| {
-            eprintln!("Failed to connect to orchestrator at {}: {}", ws_addr, e);
+            let error_message = format!(
+                "Failed to connect to orchestrator at {}: {}",
+                ws_addr,
+                e
+            )
+            .red();
+            eprintln!("{}", error_message);
+            // Log failure to analytics
+            track(
+                "orchestrator_connection_failed".to_string(),
+                error_message.to_string(), // Convert ColoredString to String
+                ws_addr,                   // WebSocket address
+                json!({ "error": e.to_string() }), // Event properties
+                true                        // Print description
+            );
             e
         })?;
+
+    // Log success connection event
+    track(
+        "orchestrator_connection_success".to_string(),
+        "Successfully connected to orchestrator.".to_string(), // Description of the success
+        ws_addr, // WebSocket address
+        json!({}), // No additional properties
+        true       // Print description
+    );
 
     Ok(client)
 }

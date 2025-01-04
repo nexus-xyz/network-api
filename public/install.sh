@@ -6,6 +6,8 @@ GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
 NC='\033[0m' # No Color
 
+[ -d $NEXUS_HOME ] || mkdir -p $NEXUS_HOME
+
 while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/prover-id" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     case $yn in
@@ -24,36 +26,23 @@ if [ $GIT_IS_AVAILABLE != 0 ]; then
 fi
 
 PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
-# Email verification prompt temporarily disabled
-SKIP_EMAIL_VERIFICATION=1
-if [ -z "$SKIP_EMAIL_VERIFICATION" ] && [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\nTo receive credit for proving in Nexus testnets..."
-    echo "\t1. Go to ${GREEN}https://beta.nexus.xyz${NC}"
-    echo "\t2. On the bottom left hand corner, copy the ${ORANGE}prover id${NC}"
-    echo "\t3. Paste the ${ORANGE}prover id${NC} here. Press Enter to continue.\n"
-    read -p "Enter your Prover Id (optional)> " PROVER_ID </dev/tty
-    while [ ! ${#PROVER_ID} -eq "0" ]; do
-        if [ ${#PROVER_ID} -eq "28" ]; then
-            if [ -f "$NEXUS_HOME/prover-id" ]; then
-                echo Copying $NEXUS_HOME/prover-id to $NEXUS_HOME/prover-id.bak
-                cp $NEXUS_HOME/prover-id $NEXUS_HOME/prover-id.bak
-            fi
-            echo "$PROVER_ID" > $NEXUS_HOME/prover-id
-            echo Prover id saved to $NEXUS_HOME/prover-id.
-            break;
-        else
-            echo Unable to validate $PROVER_ID. Please make sure the full prover id is copied.
-        fi
-        read -p "Prover Id (optional)> " PROVER_ID </dev/tty
-    done
+if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
+    echo "\n${ORANGE}The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points.${NC}"
+    echo "\nInstead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.\n"
+    read -p "Do you want to continue? (Y/n) " yn </dev/tty
+    case $yn in
+        [Nn]* ) exit;;
+        [Yy]* ) ;;
+        "" ) ;;
+        * ) echo "Please answer yes or no."; exit;;
+    esac
 fi
 
 REPO_PATH=$NEXUS_HOME/network-api
 if [ -d "$REPO_PATH" ]; then
   echo "$REPO_PATH exists. Updating.";
-  (cd $REPO_PATH && git stash save && git fetch --tags)
+  (cd $REPO_PATH && git stash && git fetch --tags)
 else
-  mkdir -p $NEXUS_HOME
   (cd $NEXUS_HOME && git clone https://github.com/nexus-xyz/network-api)
 fi
 (cd $REPO_PATH && git -c advice.detachedHead=false checkout $(git rev-list --tags --max-count=1))

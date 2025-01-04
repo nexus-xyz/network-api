@@ -1,81 +1,144 @@
 use colored::Colorize;
 use rand::RngCore;
 use random_word::Lang;
-use std::{fs, path::Path};
+use std::{fs, path::Path, path::PathBuf};
 
 /// Gets an existing prover ID from the filesystem or generates a new one
+/// This is the main entry point for getting a prover ID
 pub fn get_or_generate_prover_id() -> String {
-    // If the prover_id file is found, use the contents, otherwise generate a new random id
-    // and store it. e.g., "happy-cloud-42"
-    let default_prover_id: String = format!(
+    let default_prover_id = generate_default_id();
+
+    let home_path = match get_home_directory() {
+        Ok(path) => path,
+        Err(_) => return default_prover_id,
+    };
+
+    let nexus_dir = home_path.join(".nexus");
+    let prover_id_path = nexus_dir.join("prover-id");
+
+    // 1. If the .nexus directory doesn't exist, we need to create it
+    if !nexus_dir.exists() {
+        return handle_first_time_setup(&nexus_dir, &prover_id_path, &default_prover_id);
+    }
+
+    // 2. If the .nexus directory exists, we need to read the prover-id file
+    match read_existing_prover_id(&prover_id_path) {
+        // 2.1 Happy path - we successfully read the prover-id file
+        Ok(id) => {
+            println!("Successfully read existing prover-id from file: {}", id);
+            id
+        }
+        // 2.2 We couldn't read the prover-id file, so we may need to create a new one
+        Err(e) => {
+            eprintln!(
+                "{}: {}",
+                "Warning: Could not read prover-id file"
+                    .to_string()
+                    .yellow(),
+                e
+            );
+            handle_read_error(e, &prover_id_path, &default_prover_id);
+            default_prover_id
+        }
+    }
+}
+
+fn generate_default_id() -> String {
+    format!(
         "{}-{}-{}",
         random_word::gen(Lang::En),
         random_word::gen(Lang::En),
         rand::thread_rng().next_u32() % 100,
-    );
+    )
+}
 
-    // setting the prover-id we will use (either from the file or generated)
-    let prover_id: String = match home::home_dir() {
-        Some(path) if !path.as_os_str().is_empty() => {
-            let nexus_dir = Path::new(&path).join(".nexus");
+fn get_home_directory() -> Result<PathBuf, &'static str> {
+    match home::home_dir() {
+        Some(path) if !path.as_os_str().is_empty() => Ok(path),
+        _ => {
+            println!("Could not determine home directory");
+            Err("No home directory found")
+        }
+    }
+}
 
-            // Try to read the prover-id file
-            match fs::read(nexus_dir.join("prover-id")) {
-                // 1. If file exists and can be read:
-                Ok(buf) => match String::from_utf8(buf) {
-                    Ok(id) => id.trim().to_string(), // Trim whitespace
-                    Err(e) => {
-                        eprintln!("Failed to read prover-id file. Using default: {}", e);
-                        default_prover_id // Fall back to generated ID, if file has invalid UTF-8
-                    }
-                },
-                // 2. If file doesn't exist or can't be read:
-                Err(e) => {
-                    eprintln!(
-                        "{}: {}",
-                        "Warning: Could not read prover-id file"
-                            .to_string()
-                            .yellow(),
-                        e
-                    );
+fn handle_first_time_setup(
+    nexus_dir: &Path,
+    prover_id_path: &Path,
+    default_prover_id: &str,
+) -> String {
+    println!("Attempting to create .nexus directory");
+    if let Err(e) = fs::create_dir(nexus_dir) {
+        eprintln!(
+            "{}: {}",
+            "Warning: Failed to create .nexus directory"
+                .to_string()
+                .yellow(),
+            e
+        );
+        return default_prover_id.to_string();
+    }
 
-                    // if the error is because the file doesn't exist
-                    // Try to save the generated prover-id to the file
-                    if e.kind() == std::io::ErrorKind::NotFound {
-                        // Try to create the .nexus directory
-                        match fs::create_dir(nexus_dir.clone()) {
-                            Ok(_) => {
-                                // Only try to write file if directory was created successfully
-                                if let Err(e) =
-                                    fs::write(nexus_dir.join("prover-id"), &default_prover_id)
-                                {
-                                    eprintln!("Warning: Could not save prover-id: {}", e);
-                                }
-                            }
-                            Err(e) => {
-                                eprintln!(
-                                    "{}: {}",
-                                    "Warning: Failed to create .nexus directory"
-                                        .to_string()
-                                        .yellow(),
-                                    e
-                                );
-                            }
-                        }
-                    }
+    save_prover_id(prover_id_path, default_prover_id);
+    default_prover_id.to_string()
+}
 
-                    // Use the previously generated prover-id
-                    default_prover_id
-                }
-            }
+fn read_existing_prover_id(prover_id_path: &Path) -> Result<String, std::io::Error> {
+    let buf = fs::read(prover_id_path)?;
+    let id = String::from_utf8(buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
+        .trim()
+        .to_string();
+
+    if id.is_empty() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "Prover ID file is empty",
+        ));
+    }
+
+    Ok(id)
+}
+
+fn save_prover_id(path: &Path, id: &str) {
+    if let Err(e) = fs::write(path, id) {
+        println!("Failed to save prover-id to file: {}", e);
+    } else {
+        println!("Successfully saved new prover-id to file: {}", id);
+    }
+}
+
+fn handle_read_error(e: std::io::Error, path: &Path, default_id: &str) {
+    match e.kind() {
+        std::io::ErrorKind::NotFound => {
+            save_prover_id(path, default_id);
+        }
+        std::io::ErrorKind::PermissionDenied => {
+            eprintln!(
+                "{}: {}",
+                "Error: Permission denied when accessing prover-id file"
+                    .to_string()
+                    .yellow(),
+                e
+            );
+        }
+        std::io::ErrorKind::InvalidData => {
+            eprintln!(
+                "{}: {}",
+                "Error: Prover-id file is corrupted".to_string().yellow(),
+                e
+            );
         }
         _ => {
-            println!("Unable to determine home directory. Using temporary prover-id.");
-            default_prover_id
+            eprintln!(
+                "{}: {}",
+                "Error: Unexpected IO error when reading prover-id file"
+                    .to_string()
+                    .yellow(),
+                e
+            );
         }
-    };
-
-    prover_id
+    }
 }
 
 #[cfg(test)]
@@ -206,5 +269,115 @@ mod tests {
             Some(home) => env::set_var("HOME", home),
         }
         std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+
+    /// Tests handling of corrupted prover-id file
+    #[test]
+    #[serial]
+    fn test_corrupted_prover_id_file() {
+        let temp_dir = TempDir::new().unwrap();
+        env::set_var("HOME", temp_dir.path());
+
+        // Create .nexus directory and corrupted prover-id file
+        let nexus_dir = temp_dir.path().join(".nexus");
+        fs::create_dir(&nexus_dir).unwrap();
+
+        let id_path = nexus_dir.join("prover-id");
+        fs::write(&id_path, vec![0xFF, 0xFE, 0xFF]).unwrap(); // Invalid UTF-8
+
+        let id = get_or_generate_prover_id();
+        assert!(id.contains('-'), "Should generate new valid ID");
+    }
+
+    /// Tests handling of permission denied scenarios
+    #[test]
+    #[serial]
+    #[cfg(unix)] // This test only works on Unix-like systems
+    fn test_permission_denied() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = TempDir::new().unwrap();
+        env::set_var("HOME", temp_dir.path());
+
+        // Create .nexus directory with read-only permissions
+        let nexus_dir = temp_dir.path().join(".nexus");
+        fs::create_dir(&nexus_dir).unwrap();
+
+        let metadata = fs::metadata(&nexus_dir).unwrap();
+        let mut perms = metadata.permissions();
+        perms.set_mode(0o444); // read-only
+        fs::set_permissions(&nexus_dir, perms).unwrap();
+
+        let id = get_or_generate_prover_id();
+        assert!(
+            id.contains('-'),
+            "Should generate new ID when permissions denied"
+        );
+    }
+
+    /// Tests that IDs are properly formatted
+    #[test]
+    #[serial]
+    fn test_id_format() {
+        let id = get_or_generate_prover_id();
+        let parts: Vec<&str> = id.split('-').collect();
+
+        assert_eq!(parts.len(), 3, "ID should have three parts");
+        assert!(
+            parts[0].chars().all(|c| c.is_ascii_alphabetic()),
+            "First word should be alphabetic"
+        );
+        assert!(
+            parts[1].chars().all(|c| c.is_ascii_alphabetic()),
+            "Second word should be alphabetic"
+        );
+        assert!(
+            parts[2].parse::<u32>().is_ok(),
+            "Last part should be a number"
+        );
+        assert!(
+            parts[2].parse::<u32>().unwrap() < 100,
+            "Number should be less than 100"
+        );
+    }
+
+    /// Tests behavior with empty prover-id file
+    #[test]
+    #[serial]
+    fn test_empty_prover_id_file() {
+        let temp_dir = TempDir::new().unwrap();
+        env::set_var("HOME", temp_dir.path());
+
+        let nexus_dir = temp_dir.path().join(".nexus");
+        fs::create_dir(&nexus_dir).unwrap();
+
+        let id_path = nexus_dir.join("prover-id");
+        fs::write(&id_path, "").unwrap();
+
+        let id = get_or_generate_prover_id();
+        assert!(id.contains('-'), "Should generate new ID for empty file");
+    }
+
+    /// Tests behavior when home directory is not available
+    #[test]
+    #[serial]
+    fn test_no_home_directory() {
+        env::remove_var("HOME");
+
+        let id = get_or_generate_prover_id();
+        assert!(
+            id.contains('-'),
+            "Should generate temporary ID without home dir"
+        );
+    }
+
+    /// Tests that generated IDs are unique
+    #[test]
+    fn test_id_uniqueness() {
+        let mut ids = std::collections::HashSet::new();
+        for _ in 0..100 {
+            let id = generate_default_id();
+            assert!(ids.insert(id), "Generated IDs should be unique");
+        }
     }
 }

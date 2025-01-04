@@ -24,9 +24,6 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install protoc
-        uses: arduino/setup-protoc@v3
-
       - name: Set up Rust cache
         uses: Swatinem/rust-cache@v2
         with:

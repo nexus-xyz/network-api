@@ -49,16 +49,16 @@ See [this guide][mcve] on how to create a minimal, complete, and verifiable exam
 
 #### Submitting a feature request
 
-Please include as detailed of an explanation as possible of the feature you would like, and add any additional context you think may be necessary or just helpful.
+Please include as detailed an explanation as possible of the feature you would like, and add any additional context you think may be necessary or just helpful.
 
-If you have examples of other tools that have the feature you are requesting, please include references/links to them as well.
+If you have examples of other tools with the feature you are requesting, please include references/links to them as well.
 
 ## Resolving Issues
 
 Pull requests are the way concrete changes are made to the code, documentation, and dependencies of the Nexus network.
 
 Before making a large change, it is usually a good idea to first open an issue describing the change to solicit feedback and guidance. 
-This will increase the likelihood of the PR getting merged. Striking up a discussion the [Discord][discord] to let the community know
+This will increase the likelihood of the PR getting merged. Striking up a discussion on the [Discord][discord] to let the community know
 what you'll be working on can also be helpful for getting early feedback before diving in.
 
 If you are working on a larger feature, we encourage you to open up a draft pull request and also check in with the [Discord][discord], to make sure that other

@@ -1,14 +1,11 @@
 [package]
 name = "nexus-network"
-version = "0.4.0"
+version = "0.4.6"
 edition = "2021"
 
 [[bin]]
 name = "prover"
 path = "src/prover.rs"
-
-[build-dependencies]
-prost-build = "0.13"
 
 [profile.dev]
 opt-level = 1
@@ -84,6 +81,8 @@ semver = "1.0.23"
 parking_lot = "0.12.3"
 colored = "2.1.0"
 md5 = "0.7.0"
+
+native-tls = "0.2"
 
 [patch.crates-io]
 ark-crypto-primitives = { git = "https://github.com/arkworks-rs/crypto-primitives", rev = "d27a5c8" }

@@ -25,9 +25,9 @@ enum Environment {
 // The web socket addresses for the different environments
 #[cfg(not(debug_assertions))]
 mod web_socket_urls {
-    pub const DEV: &str = "wss://dev.orchestrator.nexus.xyz:443/";
-    pub const STAGING: &str = "wss://staging.orchestrator.nexus.xyz:443/";
-    pub const BETA: &str = "wss://beta.orchestrator.nexus.xyz:443/";
+    pub const DEV: &str = "wss://dev.orchestrator.nexus.xyz:443/prove";
+    pub const STAGING: &str = "wss://staging.orchestrator.nexus.xyz:443/prove";
+    pub const BETA: &str = "wss://beta.orchestrator.nexus.xyz:443/prove";
 }
 
 // the firebase APP IDS by environment
