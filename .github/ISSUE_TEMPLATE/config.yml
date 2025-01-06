@@ -1,11 +1,5 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Question
-    url: https://users.rust-lang.org
-    about: Please ask and answer questions about Rust on the user forum.
-  - name: Feature Request
-    url: https://internals.rust-lang.org/
-    about: Please discuss language feature requests on the internals forum.
-  - name: Clippy Bug
-    url: https://github.com/rust-lang/rust-clippy/issues/new/choose
-    about: Please report Clippy bugs such as false positives in the Clippy repo.
+    url: https://discord.gg/nexus-xyz
+    about: Please ask and answer questions about Nexus on the Discord server.
