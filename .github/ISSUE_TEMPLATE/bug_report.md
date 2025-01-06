@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Create a bug report for Nexus.
+about: Create a bug report for the Nexus network.
 ---
 <!--
 Thank you for filing a bug report! 🐛 Please provide a short summary of the bug,
