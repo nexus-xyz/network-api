@@ -7,10 +7,11 @@ Thank you for filing a bug report! 🐛 Please provide a short summary of the bu
 along with any information you feel relevant to replicating the bug.
 -->
 
-I tried this code:
+<<<<<<< HEAD
+I tried this:
 
-```rust
-<code>
+```sh
+<steps>
 ```
 
 I expected to see this happen: *explanation*
