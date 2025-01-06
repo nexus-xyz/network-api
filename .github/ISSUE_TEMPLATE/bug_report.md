@@ -7,7 +7,6 @@ Thank you for filing a bug report! 🐛 Please provide a short summary of the bu
 along with any information you feel relevant to replicating the bug.
 -->
 
-<<<<<<< HEAD
 I tried this:
 
 ```sh
