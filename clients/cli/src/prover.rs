@@ -238,7 +238,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Send ping to the websocket connection and wait for pong
                 match client.send(Message::Ping(vec![])).await {
-                    //The ping was succesfully sent...
+                    //The ping was successfully sent...
                     Ok(_) => {
                         //...wait for pong response from websocket with timeout...
                         match tokio::time::timeout(std::time::Duration::from_secs(5), client.next())
@@ -249,7 +249,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 // Connection is verified working
                                 match client.send(Message::Binary(progress.encode_to_vec())).await {
                                     Ok(_) => {
-                                        // println!("\t\tSuccesfully sent progress to orchestrator\n");
+                                        // println!("\t\tSuccessfully sent progress to orchestrator\n");
                                         // println!("{:#?}", progress);
 
                                         // Reset the queued values only after successful send
