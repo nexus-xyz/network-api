@@ -6,6 +6,7 @@ mod config;
 mod flops;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
+mod node_id_manager;
 mod orchestrator_client;
 mod setup;
 mod utils;
@@ -24,13 +25,7 @@ use orchestrator_client::OrchestratorClient;
 
 use clap::Parser;
 use colored::Colorize;
-// use serde_json;
-use directories::ProjectDirs;
-use rand::Rng;
-use serde_json::json;
 use sha3::{Digest, Keccak256};
-use std::fs::File;
-use std::io::Write;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -179,7 +174,7 @@ async fn authenticated_proving(
     println!("\tProof size: {} bytes", proof_bytes.len());
     println!("4. Submitting proof...");
     client
-        .submit_proof(&node_id, &proof_hash, proof_bytes)
+        .submit_proof(node_id, &proof_hash, proof_bytes)
         .await?;
     println!("{}", "5. Proof successfully submitted".green());
 

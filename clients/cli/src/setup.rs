@@ -1,15 +1,15 @@
 use colored::Colorize;
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
 // Update the import path to use the proto module
-// use crate::config;
-// use crate::orchestrator_client::OrchestratorClient;
+use crate::node_id_manager::{
+    create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
+};
 
 pub enum SetupResult {
     Anonymous,
-    Connected(String), // String could be the public key or other connection info
+    Connected(String),
     Invalid,
 }
 
@@ -19,51 +19,70 @@ pub struct UserConfig {
     pub user_id: Option<String>,
 }
 
-// fn save_user_config(user_id: &str, node_id: &str) -> std::io::Result<()> {
-//     let proj_dirs =
-//         ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-
-//     let config_dir = proj_dirs.config_dir();
-//     fs::create_dir_all(config_dir)?;
-
-//     let config_path = config_dir.join("user.json");
-//     let config = UserConfig {
-//         user_id: Some(user_id.to_string()),
-//         node_id: node_id.to_string(),
-//     };
-
-//     fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
-
-//     //print the user config was saved properly
-//     println!("User ID: {}", user_id);
-//     println!("Node ID: {}", node_id);
-//     println!("User config saved to: {}", config_path.to_string_lossy());
-
-//     Ok(())
-// }
-
 //function that takes a node_id and saves it to the user config
 fn save_node_id(node_id: &str) -> std::io::Result<()> {
-    let proj_dirs =
-        ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-    let config_path = proj_dirs.config_dir().join("user.json");
-    let config = UserConfig {
-        node_id: node_id.to_string(),
-        user_id: None,
+    //get the home directory
+    let home_path = match get_home_directory() {
+        Ok(path) => path,
+        Err(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to determine home directory",
+            ))
+        }
     };
 
-    fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
+    let nexus_dir = home_path.join(".nexus");
+    let node_id_path = nexus_dir.join("node-id");
 
-    Ok(())
+    //print how to find the node-id file
+    println!("Node ID file: {}", node_id_path.to_string_lossy());
+    //write the node_id to the node-id file
+    fs::write(&node_id_path, node_id).unwrap();
+
+    // 2. If the .nexus directory exists, we need to read the node-id file
+    match read_existing_node_id(&node_id_path) {
+        // 2.1 Happy path - we successfully read the node-id file
+        Ok(id) => {
+            println!(
+                "Successfully read existing node-id '{}' from file: {}",
+                id,
+                node_id_path.to_string_lossy()
+            );
+            Ok(())
+        }
+        // 2.2 We couldn't read the node-id file, so we may need to create a new one
+        Err(e) => {
+            eprintln!(
+                "{}: {}",
+                "Warning: Could not read node-id file".to_string().yellow(),
+                e
+            );
+            handle_read_error(e, &node_id_path, node_id);
+            Ok(())
+        }
+    }
 }
 
 pub async fn run_initial_setup() -> SetupResult {
-    //check if there is a user config file
-    let proj_dirs =
-        ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-    let config_path = proj_dirs.config_dir().join("user.json");
-    if config_path.exists() {
-        println!("\nThis node is already connected to an account");
+    // Get home directory and check for prover-id file
+    let home_path = home::home_dir().expect("Failed to determine home directory");
+
+    //If the .nexus directory doesn't exist, we need to create it
+    let nexus_dir = home_path.join(".nexus");
+    if !nexus_dir.exists() {
+        create_nexus_directory(&nexus_dir).expect("Failed to create .nexus directory");
+    }
+
+    //Check if the node-id file exists, use it. If not, create a new one.
+    let node_id_path = home_path.join(".nexus").join("node-id");
+    let node_id = fs::read_to_string(&node_id_path).unwrap_or_default();
+
+    if node_id_path.exists() {
+        println!(
+            "\nThis node is already connected to an account using node id: {}",
+            node_id
+        );
 
         //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? (y/n)");
@@ -73,19 +92,13 @@ pub async fn run_initial_setup() -> SetupResult {
             .unwrap();
         let use_existing_config = use_existing_config.trim();
         if use_existing_config == "y" {
-            match fs::read_to_string(&config_path) {
-                Ok(content) => match serde_json::from_str::<UserConfig>(&content) {
-                    Ok(user_config) => {
-                        println!("\nUsing existing node ID: {}", user_config.node_id);
-                        return SetupResult::Connected(user_config.node_id);
-                    }
-                    Err(e) => {
-                        println!("{}", format!("Failed to parse config file: {}", e).red());
-                        return SetupResult::Invalid;
-                    }
-                },
+            match fs::read_to_string(&node_id_path) {
+                Ok(content) => {
+                    println!("\nUsing existing node ID: {}", content.trim());
+                    return SetupResult::Connected(content.trim().to_string());
+                }
                 Err(e) => {
-                    println!("{}", format!("Failed to read config file: {}", e).red());
+                    println!("{}", format!("Failed to read node-id file: {}", e).red());
                     return SetupResult::Invalid;
                 }
             }
@@ -142,12 +155,15 @@ pub async fn run_initial_setup() -> SetupResult {
 }
 
 pub fn clear_user_config() -> std::io::Result<()> {
-    let proj_dirs =
-        ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-    let config_path = proj_dirs.config_dir().join("user.json");
-    if config_path.exists() {
-        fs::remove_file(config_path)?;
+    // Clear prover-id file
+    let home_path = home::home_dir().expect("Failed to determine home directory");
+    let prover_id_path = home_path.join(".nexus").join("prover-id");
+    if prover_id_path.exists() {
+        fs::remove_file(prover_id_path)?;
+        println!("Cleared prover ID configuration");
     }
+
+    println!("User configuration cleared");
     Ok(())
 }
 
