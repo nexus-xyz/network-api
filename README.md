@@ -60,12 +60,12 @@ Use of the CLI is subject to the [Terms of Use](https://nexus.xyz/terms-of-use).
 NONINTERACTIVE=1 sh
 ```
 
-## Prover Id
+## Prover ID
 
-The CLI will prompt for your web prover id from the Nexus testnet or devnet on startup. It is ok to skip this prompt and a random id will be generated, but you'll be prompted again on startup until your web prover id is entered.
+The CLI will prompt for your web prover ID from the Nexus testnet or devnet on startup. It is ok to skip this prompt and a random ID will be generated, but you'll be prompted again on startup until your web prover ID is entered.
 
-The prover id prompt is disabled when NONINTERACTIVE=1 is set. In a server environment,
-you can manually overwrite $HOME/.nexus/prover-id with your full prover id.
+The prover ID prompt is disabled when NONINTERACTIVE=1 is set. In a server environment,
+you can manually overwrite $HOME/.nexus/prover-id with your full prover ID.
 
 ## Current Limitations
 
