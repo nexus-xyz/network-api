@@ -1,0 +1,149 @@
+// Copyright (c) 2024 Nexus. All rights reserved.
+//
+// If you use this protocol to communicate with Nexus's servers,
+// you must agree to the Terms of Service: https://nexus.xyz/terms-of-use
+
+syntax = "proto3";
+
+package nexus.orchestrator;
+
+// Register a User.
+message RegisterUserRequest {
+  // UUIDv4 identifier for the user.
+  string uuid = 1;
+
+  // The user's wallet public address.
+  string wallet_address = 2;
+}
+
+enum NodeType {
+  // The node is a web prover.
+  WEB_PROVER = 0;
+
+  // The node is a CLI prover.
+  CLI_PROVER = 1;
+}
+
+// Register a node.
+message RegisterNodeRequest {
+  // The type of this node.
+  NodeType node_type = 1;
+
+  // The owner of the node.
+  string user_id = 2;
+}
+
+// Response to a node registration request.
+message RegisterNodeResponse {
+  // The node's ID.
+  string node_id = 1;
+}
+
+
+// Request a prover task.
+message GetProofTaskRequest {
+  // This node's ID.
+  string node_id = 1;
+
+  // The type of this node.
+  NodeType node_type = 2;
+}
+
+
+// A Prover task.
+message GetProofTaskResponse {
+  // Program id. (Assuming client-side default programs)
+  string program_id = 1;
+
+  // Public inputs to the program.
+  bytes public_inputs = 2;
+}
+
+// Submit the result of a prover task.
+message SubmitProofRequest {
+  // The prover node's ID.
+  string node_id = 1;
+
+  // The type of this node.
+  NodeType node_type = 2;
+
+  // Hash of the proof.
+  string proof_hash = 3;
+
+  // Telemetry data about the node
+  NodeTelemetry node_telemetry = 4;
+
+  // ZK proof of the proof activity
+  bytes proof = 5;
+}
+
+// Performance stats of a node.
+message NodeTelemetry {
+  // Flops per second
+  optional int32 flops_per_sec = 1;
+
+  // Memory used in bytes for the proof activity
+  optional int32 memory_used = 2;
+
+  // Memory capacity in bytes of the node
+  optional int32 memory_capacity = 3;
+
+  // Geo location of the node
+  optional string location = 4;
+}
+
+// Paginated leaderboard.
+message LeaderboardRequest {
+  // The offset of the leaderboard to request.
+  int32 offset = 1;
+
+  // The number of entries to request.
+  int32 limit = 2;
+}
+
+// The response to a leaderboard request.
+message LeaderboardResponse {
+  repeated LeaderboardResponseEntry leaderboard = 1;
+}
+
+// An entry in the leaderboard.
+message LeaderboardResponseEntry {
+  // The user's wallet public address.
+  string wallet_address = 1;
+
+  // Cycles per second proved by all of the user's nodes, averaged over the last time window.
+  double cycles_per_sec = 2;
+
+  // The user's rank in the leaderboard.
+  int64 rank = 3;
+}
+
+// Response to a network speed request.
+message NetworkSpeedResponse {
+  // Cycles per second proved by all nodes in the network, averaged over the last time window.
+  double cycles_per_sec = 1;
+}
+
+// Response to a total cycles request.
+message TotalCyclesResponse {
+  // The total number of cycles proved by the network.
+  int64 total_cycles_proved = 1;
+}
+
+// Request the total number points for each node associated with a wallet address.
+message GetPointsRequest {
+  // The user's wallet public address.
+  string wallet_address = 1;
+}
+
+// Response to a get points request.
+message GetPointsResponse {
+  repeated Points points = 1;
+}
+
+// Total points earned by a node.
+message Points {
+  int64 node_id = 1;
+  NodeType node_type = 2;
+  int64 points = 3;
+}

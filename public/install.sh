@@ -8,13 +8,27 @@ NC='\033[0m' # No Color
 
 [ -d $NEXUS_HOME ] || mkdir -p $NEXUS_HOME
 
-while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/prover-id" ]; do
+if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
+    echo "\n${ORANGE}The Nexus network is currently in Testnet II. You can now earn Nexus Points.${NC}\n\n"
+fi
+
+while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/node-id" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
+    echo ""
+    
     case $yn in
-        [Nn]* ) exit;;
-        [Yy]* ) break;;
-        "" ) break;;
-        * ) echo "Please answer yes or no.";;
+        [Nn]* ) 
+            echo ""
+            exit;;
+        [Yy]* ) 
+            echo ""
+            break;;
+        "" ) 
+            echo ""
+            break;;
+        * ) 
+            echo "Please answer yes or no."
+            echo "";;
     esac
 done
 
@@ -25,18 +39,7 @@ if [ $GIT_IS_AVAILABLE != 0 ]; then
   exit 1;
 fi
 
-PROVER_ID=$(cat $NEXUS_HOME/prover-id 2>/dev/null)
-if [ -z "$NONINTERACTIVE" ] && [ "${#PROVER_ID}" -ne "28" ]; then
-    echo "\n${ORANGE}The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points.${NC}"
-    echo "\nInstead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.\n"
-    read -p "Do you want to continue? (Y/n) " yn </dev/tty
-    case $yn in
-        [Nn]* ) exit;;
-        [Yy]* ) ;;
-        "" ) ;;
-        * ) echo "Please answer yes or no."; exit;;
-    esac
-fi
+
 
 REPO_PATH=$NEXUS_HOME/network-api
 if [ -d "$REPO_PATH" ]; then
@@ -47,4 +50,9 @@ else
 fi
 (cd $REPO_PATH && git -c advice.detachedHead=false checkout $(git rev-list --tags --max-count=1))
 
-(cd $REPO_PATH/clients/cli && cargo run --release --bin prover -- beta.orchestrator.nexus.xyz)
+(cd $REPO_PATH/clients/cli && cargo run --release -- --start --beta)
+
+# For local testing
+# echo "Current location: $(pwd)"
+# (cd clients/cli && cargo run --release -- --start --staging)
+

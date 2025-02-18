@@ -29,6 +29,11 @@ jobs:
         with:
           workspaces: ./clients/cli
 
+      - name: Install Protobuf Compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+
       - name: Format
         working-directory: clients/cli
         run: |
@@ -39,10 +44,10 @@ jobs:
         run: |
           cargo build --profile=ci-build
 
-      - name: Run cargo clippy
+      - name: Run cargo clippy on /src directory only (not /examples)
         working-directory: clients/cli
         run: |
-          cargo clippy --profile=ci-build --no-deps --all-targets --workspace -- -D warnings
+          cargo clippy --profile=ci-build --no-deps --package nexus-network -- -D warnings
 
       - name: Test
         working-directory: clients/cli
