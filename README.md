@@ -21,7 +21,7 @@ There have been two testnets:
 - The first testnet period was in [October 08 to 28 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/).
 - The second testnet period was in [December 9 to 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/).
 
-**Important:** *The Nexus network is currently in devnet. It is important to note that you cannot earn Nexus points. Instead, devnet allows developers to experiment and build with the network. Stay tuned for updates regarding future testnets.*
+**Important:** *The Nexus network is currently in Testnet II. You can now earn Nexus Points.*
 
 ## Quick Start
 
