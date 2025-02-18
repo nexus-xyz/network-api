@@ -72,15 +72,6 @@ cargo run -r -- --start --beta    # Start the prover on beta network
 cargo run -r -- logout --beta  # Clear credentials
 ```
 
-### Precompute proofs (optimized implementation)
-
-This command will loop through a number of inputs and precompute the proofs and proof hashes.
-It will print at the end the number of proofs generated and the location of the proof hashes and raw proofs.
-
-```sh
-cargo run -r -- precompute 
-```
-
 ## Troubleshooting
 
 ### Protocol Buffer Compiler (protoc) Installation
