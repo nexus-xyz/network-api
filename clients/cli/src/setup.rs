@@ -45,14 +45,6 @@ fn save_user_config(user_id: &str, node_id: &str) -> std::io::Result<()> {
 
 //function that takes a node_id and saves it to the user config
 fn save_node_id(node_id: &str) -> std::io::Result<()> {
-    // let proj_dirs =
-    //     ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-    // let config_path = proj_dirs.config_dir().join("user.json");
-    // let config = UserConfig {
-    //     node_id: node_id.to_string(),
-    //     user_id: None,
-    // };
-
     get_or_generate_prover_id(node_id);
 
     Ok(())
@@ -63,8 +55,16 @@ pub async fn run_initial_setup() -> SetupResult {
     let home_path = home::home_dir().expect("Failed to determine home directory");
     let prover_id_path = home_path.join(".nexus").join("prover-id");
 
+    let node_id = match fs::read_to_string(&prover_id_path) {
+        Ok(content) => content,
+        Err(_) => String::new(), // Return empty string if file doesn't exist or can't be read
+    };
+
     if prover_id_path.exists() {
-        println!("\nThis node is already connected to an account");
+        println!(
+            "\nThis node is already connected to an account using node id: {}",
+            node_id
+        );
 
         //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? (y/n)");
@@ -137,14 +137,15 @@ pub async fn run_initial_setup() -> SetupResult {
 }
 
 pub fn clear_user_config() -> std::io::Result<()> {
-    let proj_dirs =
-        ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-    let config_path = proj_dirs.config_dir().join("user.json");
-    if config_path.exists() {
-        fs::remove_file(config_path)?;
-    } else {
-        println!("No user config found");
+    // Clear prover-id file
+    let home_path = home::home_dir().expect("Failed to determine home directory");
+    let prover_id_path = home_path.join(".nexus").join("prover-id");
+    if prover_id_path.exists() {
+        fs::remove_file(prover_id_path)?;
+        println!("Cleared prover ID configuration");
     }
+
+    println!("User configuration cleared");
     Ok(())
 }
 

@@ -30,12 +30,6 @@ pub fn get_or_generate_prover_id(node_id: &str) -> String {
     println!("Prover ID file: {}", prover_id_path.to_string_lossy());
     //write the node_id to the prover-id file
     fs::write(&prover_id_path, node_id).unwrap();
-    //print the contents of the prover-id file
-    println!(
-        "Prover ID file contents: {}",
-        fs::read_to_string(&prover_id_path).unwrap()
-    );
-    //
 
     // 2. If the .nexus directory exists, we need to read the prover-id file
     match read_existing_prover_id(&prover_id_path) {
