@@ -58,7 +58,7 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
                 "Warning: Could not read node-id file".to_string().yellow(),
                 e
             );
-            handle_read_error(e, &node_id_path, &node_id);
+            handle_read_error(e, &node_id_path, node_id);
             Ok(())
         }
     }
