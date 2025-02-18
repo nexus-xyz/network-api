@@ -174,7 +174,7 @@ async fn authenticated_proving(
     println!("\tProof size: {} bytes", proof_bytes.len());
     println!("4. Submitting proof...");
     client
-        .submit_proof(&node_id, &proof_hash, proof_bytes)
+        .submit_proof(node_id, &proof_hash, proof_bytes)
         .await?;
     println!("{}", "5. Proof successfully submitted".green());
 

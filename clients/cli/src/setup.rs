@@ -1,16 +1,13 @@
 use colored::Colorize;
-use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
 // Update the import path to use the proto module
-// use crate::config;
-// use crate::orchestrator_client::OrchestratorClient;
 use crate::prover_id_manager::get_or_generate_prover_id;
 
 pub enum SetupResult {
     Anonymous,
-    Connected(String), // String could be the public key or other connection info
+    Connected(String),
     Invalid,
 }
 
@@ -18,29 +15,6 @@ pub enum SetupResult {
 pub struct UserConfig {
     pub node_id: String,
     pub user_id: Option<String>,
-}
-
-fn save_user_config(user_id: &str, node_id: &str) -> std::io::Result<()> {
-    let proj_dirs =
-        ProjectDirs::from("xyz", "nexus", "cli").expect("Failed to determine config directory");
-
-    let config_dir = proj_dirs.config_dir();
-    fs::create_dir_all(config_dir)?;
-
-    let config_path = config_dir.join("user.json");
-    let config = UserConfig {
-        user_id: Some(user_id.to_string()),
-        node_id: node_id.to_string(),
-    };
-
-    fs::write(&config_path, serde_json::to_string_pretty(&config)?)?;
-
-    //print the user config was saved properly
-    println!("User ID: {}", user_id);
-    println!("Node ID: {}", node_id);
-    println!("User config saved to: {}", config_path.to_string_lossy());
-
-    Ok(())
 }
 
 //function that takes a node_id and saves it to the user config
@@ -55,10 +29,7 @@ pub async fn run_initial_setup() -> SetupResult {
     let home_path = home::home_dir().expect("Failed to determine home directory");
     let prover_id_path = home_path.join(".nexus").join("prover-id");
 
-    let node_id = match fs::read_to_string(&prover_id_path) {
-        Ok(content) => content,
-        Err(_) => String::new(), // Return empty string if file doesn't exist or can't be read
-    };
+    let node_id = fs::read_to_string(&prover_id_path).unwrap_or_default();
 
     if prover_id_path.exists() {
         println!(
