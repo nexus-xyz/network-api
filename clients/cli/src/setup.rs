@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 
 // Update the import path to use the proto module
-use crate::prover_id_manager::get_or_generate_prover_id;
+use crate::node_id_manager::{
+    create_nexus_directory, get_home_directory, handle_read_error, read_existing_node_id,
+};
 
 pub enum SetupResult {
     Anonymous,
@@ -19,19 +21,64 @@ pub struct UserConfig {
 
 //function that takes a node_id and saves it to the user config
 fn save_node_id(node_id: &str) -> std::io::Result<()> {
-    get_or_generate_prover_id(node_id);
+    //get the home directory
+    let home_path = match get_home_directory() {
+        Ok(path) => path,
+        Err(_) => {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to determine home directory",
+            ))
+        }
+    };
 
-    Ok(())
+    let nexus_dir = home_path.join(".nexus");
+    let node_id_path = nexus_dir.join("node-id");
+
+    //print how to find the node-id file
+    println!("Node ID file: {}", node_id_path.to_string_lossy());
+    //write the node_id to the node-id file
+    fs::write(&node_id_path, node_id).unwrap();
+
+    // 2. If the .nexus directory exists, we need to read the node-id file
+    match read_existing_node_id(&node_id_path) {
+        // 2.1 Happy path - we successfully read the node-id file
+        Ok(id) => {
+            println!(
+                "Successfully read existing node-id '{}' from file: {}",
+                id,
+                node_id_path.to_string_lossy()
+            );
+            Ok(())
+        }
+        // 2.2 We couldn't read the node-id file, so we may need to create a new one
+        Err(e) => {
+            eprintln!(
+                "{}: {}",
+                "Warning: Could not read node-id file".to_string().yellow(),
+                e
+            );
+            handle_read_error(e, &node_id_path, &node_id);
+            Ok(())
+        }
+    }
 }
 
 pub async fn run_initial_setup() -> SetupResult {
     // Get home directory and check for prover-id file
     let home_path = home::home_dir().expect("Failed to determine home directory");
-    let prover_id_path = home_path.join(".nexus").join("prover-id");
 
-    let node_id = fs::read_to_string(&prover_id_path).unwrap_or_default();
+    //If the .nexus directory doesn't exist, we need to create it
+    let nexus_dir = home_path.join(".nexus");
+    if !nexus_dir.exists() {
+        create_nexus_directory(&nexus_dir).expect("Failed to create .nexus directory");
+    }
 
-    if prover_id_path.exists() {
+    //Check if the node-id file exists, use it. If not, create a new one.
+    let node_id_path = home_path.join(".nexus").join("node-id");
+    let node_id = fs::read_to_string(&node_id_path).unwrap_or_default();
+
+    if node_id_path.exists() {
         println!(
             "\nThis node is already connected to an account using node id: {}",
             node_id
@@ -45,13 +92,13 @@ pub async fn run_initial_setup() -> SetupResult {
             .unwrap();
         let use_existing_config = use_existing_config.trim();
         if use_existing_config == "y" {
-            match fs::read_to_string(&prover_id_path) {
+            match fs::read_to_string(&node_id_path) {
                 Ok(content) => {
                     println!("\nUsing existing node ID: {}", content.trim());
                     return SetupResult::Connected(content.trim().to_string());
                 }
                 Err(e) => {
-                    println!("{}", format!("Failed to read prover-id file: {}", e).red());
+                    println!("{}", format!("Failed to read node-id file: {}", e).red());
                     return SetupResult::Invalid;
                 }
             }

@@ -6,8 +6,8 @@ mod config;
 mod flops;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
+mod node_id_manager;
 mod orchestrator_client;
-mod prover_id_manager;
 mod setup;
 mod utils;
 
