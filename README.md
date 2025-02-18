@@ -29,6 +29,11 @@ There have been two testnets:
 curl https://cli.nexus.xyz/ | sh
 ```
 
+Running `install.sh` locally
+```sh
+./install.sh
+```
+
 If you don't have Rust installed, you will be prompted to install it.
 
 ## Prerequisites

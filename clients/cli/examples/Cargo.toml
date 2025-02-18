@@ -1,0 +1,16 @@
+[package]
+name = "example"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+nexus-rt = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "neo", package = "nexus-rt" }
+
+[lints.clippy]
+print_with_newline = { level = "allow", priority = 0 }
+needless_range_loop = { level = "allow", priority = 0 }
+manual_memcpy = { level = "allow", priority = 0 }
+
+[features]
+
+cycles = []

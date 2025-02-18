@@ -61,10 +61,10 @@ pub fn print_banner() {
     );
 }
 
-pub fn print_success(message: &str) {
-    println!("✨ {}", message.green());
-}
+// pub fn print_success(message: &str) {
+//     println!("✨ {}", message.green());
+// }
 
-pub fn print_error(message: &str) {
-    println!("❌ {}", message.red());
-}
+// pub fn print_error(message: &str) {
+//     println!("❌ {}", message.red());
+// }

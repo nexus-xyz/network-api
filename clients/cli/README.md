@@ -62,13 +62,43 @@ repo somewhere else.
 To run an optimized build using Nexus servers, run the following command in clients/cli:
 
 ```
-cargo run --release -- beta.orchestrator.nexus.xyz
+cargo run -r -- --start --beta
 ```
 
-To run the CLI with tracing enabled, run:
+To run the CLI with prover enabled, run:
 
 ```sh
-cargo run -- beta.orchestrator.nexus.xyz
+cargo run -r -- --start --beta    # Start the prover on beta network
+cargo run -r -- logout --beta  # Clear credentials
+```
+
+## Troubleshooting
+
+### Protocol Buffer Compiler (protoc) Installation
+
+If you encounter an error about `protoc` not being installed, you can install it:
+
+#### macOS
+```bash
+# Install using Homebrew
+brew install protobuf
+
+# Verify installation
+protoc --version
+```
+
+#### Windows
+
+```bash
+# Install using Chocolatey
+choco install protobuf
+```
+
+#### Linux
+
+```bash
+# Install using apt
+sudo apt install protobuf-compiler
 ```
 
 ## Resources
