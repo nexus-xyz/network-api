@@ -96,7 +96,7 @@ pub async fn run_initial_setup() -> SetupResult {
 
     println!("\nThis node is not connected to any account.\n");
     println!("[1] Enter '1' to start proving without earning NEX");
-    println!("[2] Enter '2' to start earning NEX by connecting adding your node ID");
+    println!("[2] Enter '2' to start earning NEX by connecting your node ID");
 
     let mut option = String::new();
     std::io::stdin().read_line(&mut option).unwrap();
