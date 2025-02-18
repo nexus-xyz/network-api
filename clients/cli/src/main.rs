@@ -7,6 +7,7 @@ mod flops;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod orchestrator_client;
+mod prover_id_manager;
 mod setup;
 mod utils;
 
@@ -24,13 +25,7 @@ use orchestrator_client::OrchestratorClient;
 
 use clap::Parser;
 use colored::Colorize;
-// use serde_json;
-use directories::ProjectDirs;
-use rand::Rng;
-use serde_json::json;
 use sha3::{Digest, Keccak256};
-use std::fs::File;
-use std::io::Write;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
