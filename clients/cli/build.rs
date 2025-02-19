@@ -30,6 +30,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     config.out_dir(out_dir);
     // .file_descriptor_set_path("src/proto/orchestrator.rs");
 
+    // **Pass required flag for proto3 optional fields**
+    config.protoc_arg("--experimental_allow_proto3_optional");
+
     // Check if protoc is installed and accessible
     let output = Command::new("which")
         .arg("protoc")
