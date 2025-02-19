@@ -50,9 +50,10 @@ pub const LOGO_NAME: &str = r#"
 pub fn print_banner() {
     println!("{}", LOGO_NAME.bright_cyan());
     println!(
-        "{} {}\n",
+        "{} {} {}\n",
         "Welcome to the".bright_white(),
-        "Nexus Network CLI".bright_cyan().bold()
+        "Nexus Network CLI".bright_cyan().bold(),
+        "v0.5.1".bright_white()
     );
     println!(
         "{}",
@@ -60,11 +61,3 @@ pub fn print_banner() {
             .bright_white()
     );
 }
-
-// pub fn print_success(message: &str) {
-//     println!("✨ {}", message.green());
-// }
-
-// pub fn print_error(message: &str) {
-//     println!("❌ {}", message.red());
-// }
