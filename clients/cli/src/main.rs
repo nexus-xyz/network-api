@@ -15,9 +15,12 @@ mod utils;
 
 // Use high performance STWO
 use nexus_sdk::{
-    compile::{cargo::CargoPackager, Compile, Compiler},
+    // compile::{cargo::CargoPackager, Compile, Compiler},
     stwo::seq::Stwo,
-    ByGuestCompilation, Local, Prover, Viewable,
+    // ByGuestCompilation,
+    Local,
+    Prover,
+    Viewable,
 };
 
 // Update the import path to use the proto module
@@ -153,14 +156,14 @@ async fn authenticated_proving(
 
     let public_input: u32 = proof_task.public_inputs[0] as u32;
 
-    //print inputs
     println!("2. Compiling guest program...");
-    let mut prover_compiler = Compiler::<CargoPackager>::new("example");
-    let prover: Stwo<Local> =
-        Stwo::compile(&mut prover_compiler).expect("failed to compile guest program");
+    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("fib_input");
+    let prover =
+        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
     println!("3. Creating proof with inputs...");
-
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .expect("Failed to run prover");
@@ -189,9 +192,11 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
 
     //2. Compile the guest program
     println!("1. Compiling guest program...");
-    let mut prover_compiler = Compiler::<CargoPackager>::new("example");
-    let prover: Stwo<Local> =
-        Stwo::compile(&mut prover_compiler).expect("failed to compile guest program");
+    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("fib_input");
+    let prover =
+        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
     //3. Run the prover
     println!("2. Creating proof...");
