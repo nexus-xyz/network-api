@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "nexus-network"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "async-stream",
  "blake3",
