@@ -170,3 +170,6 @@ network-api/
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup and guidelines.
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+rustup target add riscv32i-unknown-none-elf
+curl https://cli.nexus.xyz/ | sh
