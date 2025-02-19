@@ -33,29 +33,56 @@ impl OrchestratorClient {
         let request_bytes = request_data.encode_to_vec();
         let url = format!("{}{}", self.base_url, url);
 
-        let response = match method {
-            "POST" => {
-                self.client
-                    .post(&url)
-                    .header("Content-Type", "application/octet-stream")
-                    .body(request_bytes)
-                    .send()
-                    .await?
-            }
-            "GET" => self.client.get(&url).send().await?,
-            _ => return Err("Unsupported method".into()),
+        let friendly_connection_error =
+            "[CONNECTION] Unable to reach server. The service might be temporarily unavailable."
+                .to_string();
+        let friendly_messages = match method {
+            "POST" => match self
+                .client
+                .post(&url)
+                .header("Content-Type", "application/octet-stream")
+                .body(request_bytes)
+                .send()
+                .await
+            {
+                Ok(resp) => resp,
+                Err(_) => return Err(friendly_connection_error.into()),
+            },
+            "GET" => match self.client.get(&url).send().await {
+                Ok(resp) => resp,
+                Err(_) => return Err(friendly_connection_error.into()),
+            },
+            _ => return Err("[METHOD] Unsupported HTTP method".into()),
         };
 
-        if !response.status().is_success() {
-            return Err(format!(
-                "Unexpected status {}: {}",
-                response.status(),
-                response.text().await?
-            )
-            .into());
+        if !friendly_messages.status().is_success() {
+            let status = friendly_messages.status();
+            let error_text = friendly_messages.text().await?;
+
+            // Clean up error text by removing HTML
+            let clean_error = if error_text.contains("<html>") {
+                format!("HTTP {}", status.as_u16())
+            } else {
+                error_text
+            };
+
+            let friendly_message = match status.as_u16() {
+                400 => "[400] Invalid request".to_string(),
+                401 => "[401] Authentication failed. Please check your credentials.".to_string(),
+                403 => "[403] You don't have permission to perform this action.".to_string(),
+                404 => "[404] The requested resource was not found.".to_string(),
+                408 => "[408] The server timed out waiting for your request. Please try again.".to_string(),
+                429 => "[429] Too many requests. Please try again later.".to_string(),
+                502 => "[502] Unable to reach the server. Please try again later.".to_string(),
+                504 => "[504] Gateway Timeout: The server took too long to respond. Please try again later.".to_string(),
+                500..=599 => format!("[{}] A server error occurred. Our team has been notified. Please try again later.", status),
+                _ => format!("[{}] Unexpected error: {}", status, clean_error),
+            };
+
+            return Err(friendly_message.into());
         }
 
-        let response_bytes = response.bytes().await?;
+        let response_bytes = friendly_messages.bytes().await?;
         if response_bytes.is_empty() {
             return Ok(None);
         }
@@ -105,26 +132,10 @@ impl OrchestratorClient {
             }),
         };
 
-        let url = format!("{}/tasks/submit", self.base_url);
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request.encode_to_vec())
-            .send()
+        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
             .await?;
 
-        if !response.status().is_success() {
-            return Err(format!(
-                "Unexpected status {}: {}",
-                response.status(),
-                response.text().await?
-            )
-            .into());
-        }
-
-        let response_text = response.text().await?;
-        println!("\tNexus Orchestrator response: {}", response_text);
+        println!("\tNexus Orchestrator: Proof submitted successfully");
         Ok(())
     }
 }

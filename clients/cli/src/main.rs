@@ -98,7 +98,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut proof_count = 1;
                 loop {
                     println!("\n================================================");
-                    println!("\nStarting proof #{}...\n", proof_count);
+                    println!(
+                        "{}",
+                        format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                    );
                     match anonymous_proving() {
                         Ok(_) => (),
                         Err(e) => println!("Error in anonymous proving: {}", e),
@@ -116,17 +119,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .bright_cyan()
                 );
                 let flops = flops::measure_flops();
-                println!("Node computational capacity: {:.2} FLOPS", flops);
-                println!("You are proving with the following node ID: {}", node_id);
+                let flops_formatted = format!("{:.2}", flops);
+                let flops_str = format!("{} FLOPS", flops_formatted);
+                println!(
+                    "{}: {}",
+                    "Computational capacity of this node".bold(),
+                    flops_str.bright_cyan()
+                );
+                println!(
+                    "{}: {}",
+                    "You are proving with node ID".bold(),
+                    node_id.bright_cyan()
+                );
 
                 let mut proof_count = 1;
                 loop {
                     println!("\n================================================");
-                    println!("\nStarting proof #{}...\n", proof_count);
+                    println!(
+                        "{}",
+                        format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                    );
 
                     match authenticated_proving(&node_id, &environment).await {
                         Ok(_) => (),
-                        Err(e) => println!("Error in authenticated proving: {}", e),
+                        Err(e) => println!("\tError: {}", e),
                     }
                     proof_count += 1;
                     tokio::time::sleep(std::time::Duration::from_secs(4)).await;
@@ -151,19 +167,20 @@ async fn authenticated_proving(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
+    println!("1. Fetching a task to prove from Nexus Orchestrator...");
     let proof_task = client.get_proof_task(node_id).await?;
-    println!("1. Received proof task from Nexus Orchestrator...");
+    println!("2. Received a task to prove from Nexus Orchestrator...");
 
     let public_input: u32 = proof_task.public_inputs[0] as u32;
 
-    println!("2. Compiling guest program...");
+    println!("3. Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
     let prover =
         Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
-    println!("3. Creating proof with inputs...");
+    println!("4. Creating ZK proof with inputs...");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .expect("Failed to run prover");
@@ -175,11 +192,11 @@ async fn authenticated_proving(
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     println!("\tProof size: {} bytes", proof_bytes.len());
-    println!("4. Submitting proof...");
+    println!("5. Submitting ZK proof to Nexus Orchestrator...");
     client
         .submit_proof(node_id, &proof_hash, proof_bytes)
         .await?;
-    println!("{}", "5. Proof successfully submitted".green());
+    println!("{}", "6. ZK proof successfully submitted".green());
 
     Ok(())
 }
@@ -199,7 +216,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
         Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
     //3. Run the prover
-    println!("2. Creating proof...");
+    println!("2. Creating ZK proof...");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .expect("Failed to run prover");
@@ -211,11 +228,10 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "3. Proof successfully created with size: {} bytes",
+            "3. ZK proof successfully created with size: {} bytes",
             proof_bytes.len()
         )
         .green(),
     );
-    println!("{}", "\nProof successfully created".green());
     Ok(())
 }
