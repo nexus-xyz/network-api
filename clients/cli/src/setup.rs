@@ -86,7 +86,7 @@ pub async fn run_initial_setup() -> SetupResult {
 
         //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? (y/n) y");
-        let mut use_existing_config = "y" // String::new();
+        let mut use_existing_config = "y"; // String::new();
 
         /*
         std::io::stdin()
