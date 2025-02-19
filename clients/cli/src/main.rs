@@ -119,11 +119,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         .bright_cyan()
                 );
                 let flops = flops::measure_flops();
+                let flops_formatted = format!("{:.2}", flops);
+                let flops_str = format!("{} FLOPS", flops_formatted);
                 println!(
-                    "Node computational capacity: {:.2} FLOPS",
-                    format!("{:.2}", flops).bright_cyan()
+                    "{}: {}",
+                    "Computational capacity of this node".bold(),
+                    flops_str.bright_cyan()
                 );
-                println!("You are proving with node ID: {}", node_id.bright_cyan());
+                println!(
+                    "{}: {}",
+                    "You are proving with node ID".bold(),
+                    node_id.bright_cyan()
+                );
 
                 let mut proof_count = 1;
                 loop {
@@ -135,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     match authenticated_proving(&node_id, &environment).await {
                         Ok(_) => (),
-                        Err(e) => println!("\tError in authenticated proving: {}", e),
+                        Err(e) => println!("\tError: {}", e),
                     }
                     proof_count += 1;
                     tokio::time::sleep(std::time::Duration::from_secs(4)).await;

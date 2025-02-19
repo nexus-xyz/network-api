@@ -94,7 +94,6 @@ pub async fn run_initial_setup() -> SetupResult {
         if use_existing_config == "y" {
             match fs::read_to_string(&node_id_path) {
                 Ok(content) => {
-                    println!("\nUsing existing node ID: {}", content.trim().bright_cyan());
                     return SetupResult::Connected(content.trim().to_string());
                 }
                 Err(e) => {
