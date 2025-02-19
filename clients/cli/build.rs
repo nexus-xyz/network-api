@@ -54,6 +54,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Attempt to compile the .proto file
+    config.protoc_arg("--experimental_allow_proto3_optional");
     match config.compile_protos(&["proto/orchestrator.proto"], &["proto"]) {
         Ok(_) => {
             println!("Successfully compiled protobuf files.");
