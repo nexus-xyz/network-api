@@ -53,6 +53,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Created output directory {}.", out_dir);
     }
 
+    // Allow proto3 experimental
+    config.protoc_arg("--experimental_allow_proto3_optional");
+    
     // Attempt to compile the .proto file
     match config.compile_protos(&["proto/orchestrator.proto"], &["proto"]) {
         Ok(_) => {
