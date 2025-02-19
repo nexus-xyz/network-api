@@ -47,12 +47,30 @@ impl OrchestratorClient {
         };
 
         if !response.status().is_success() {
-            return Err(format!(
-                "Unexpected status {}: {}",
-                response.status(),
-                response.text().await?
-            )
-            .into());
+            let status = response.status();
+            let error_text = response.text().await?;
+
+            // Clean up error text by removing HTML
+            let clean_error = if error_text.contains("<html>") {
+                format!("HTTP {}", status.as_u16())
+            } else {
+                error_text
+            };
+
+            let friendly_message = match status.as_u16() {
+                400 => "[400] Invalid request".to_string(),
+                401 => "[401] Authentication failed. Please check your credentials.".to_string(),
+                403 => "[403] You don't have permission to perform this action.".to_string(),
+                404 => "[404] The requested resource was not found.".to_string(),
+                408 => "[408] The server timed out waiting for your request. We are working on it. Please try again.".to_string(),
+                429 => "[429] Too many requests. We are working on it. Please try again later.".to_string(),
+                502 => "[502] Unable to reach the server. We are working on it. Please try again later.".to_string(),
+                504 => "[504] The server timed out while processing your request. Too many requests. We are working on it. Please try again later.".to_string(),
+                500..=599 => format!("[{}] A server error occurred. Our team has been notified. Please try again later.", status),
+                _ => format!("[{}] Unexpected error: {}", status, clean_error),
+            };
+
+            return Err(friendly_message.into());
         }
 
         let response_bytes = response.bytes().await?;
@@ -105,26 +123,10 @@ impl OrchestratorClient {
             }),
         };
 
-        let url = format!("{}/tasks/submit", self.base_url);
-        let response = self
-            .client
-            .post(&url)
-            .header("Content-Type", "application/octet-stream")
-            .body(request.encode_to_vec())
-            .send()
+        self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
             .await?;
 
-        if !response.status().is_success() {
-            return Err(format!(
-                "Unexpected status {}: {}",
-                response.status(),
-                response.text().await?
-            )
-            .into());
-        }
-
-        let response_text = response.text().await?;
-        println!("\tNexus Orchestrator response: {}", response_text);
+        println!("\tNexus Orchestrator: Proof submitted successfully");
         Ok(())
     }
 }
