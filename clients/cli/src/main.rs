@@ -10,6 +10,7 @@ mod node_id_manager;
 mod orchestrator_client;
 mod setup;
 mod utils;
+mod memory_stats;
 
 // use setup::SetupResult;
 

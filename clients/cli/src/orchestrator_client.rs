@@ -1,4 +1,6 @@
 use crate::config;
+use crate::flops::measure_flops;
+use crate::memory_stats::get_memory_info;
 use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
 };
@@ -119,15 +121,18 @@ impl OrchestratorClient {
         proof_hash: &str,
         proof: Vec<u8>,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        let (program_memory, total_memory) = get_memory_info();
+        let flops = measure_flops();
+
         let request = SubmitProofRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
             proof_hash: proof_hash.to_string(),
             proof,
             node_telemetry: Some(crate::nexus_orchestrator::NodeTelemetry {
-                flops_per_sec: Some(1),
-                memory_used: Some(1),
-                memory_capacity: Some(1),
+                flops_per_sec: Some(flops as i32),
+                memory_used: Some(program_memory),
+                memory_capacity: Some(total_memory),
                 location: Some("US".to_string()),
             }),
         };
