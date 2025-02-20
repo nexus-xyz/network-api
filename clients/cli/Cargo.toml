@@ -1,6 +1,6 @@
 [package]
 name = "nexus-network"
-version = "0.5.1"
+version = "0.5.3"
 edition = "2021"
 rust-version = "1.75"
 build = "build.rs"
@@ -62,6 +62,7 @@ native-tls = "0.2"
 serde ={ version = "1.0.217", features = ["derive"]}
 serde_json = { version = "1.0.138"}
 regex = "1.5"
+sysinfo = "0.33.1"
 
 nexus-core = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "neo", package = "nexus-core" }
 nexus-vm = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "neo", package = "nexus-vm" }

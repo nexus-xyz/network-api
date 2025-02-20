@@ -66,7 +66,8 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
 
 pub async fn run_initial_setup() -> SetupResult {
     // Get home directory and check for prover-id file
-    let home_path = home::home_dir().expect("Failed to determine home directory");
+    let home_path: std::path::PathBuf =
+        home::home_dir().expect("Failed to determine home directory");
 
     //If the .nexus directory doesn't exist, we need to create it
     let nexus_dir = home_path.join(".nexus");
@@ -94,7 +95,6 @@ pub async fn run_initial_setup() -> SetupResult {
         if use_existing_config == "y" {
             match fs::read_to_string(&node_id_path) {
                 Ok(content) => {
-                    println!("\nUsing existing node ID: {}", content.trim());
                     return SetupResult::Connected(content.trim().to_string());
                 }
                 Err(e) => {
@@ -154,17 +154,41 @@ pub async fn run_initial_setup() -> SetupResult {
     }
 }
 
-pub fn clear_user_config() -> std::io::Result<()> {
-    // Clear prover-id file
-    let home_path = home::home_dir().expect("Failed to determine home directory");
-    let prover_id_path = home_path.join(".nexus").join("prover-id");
-    if prover_id_path.exists() {
-        fs::remove_file(prover_id_path)?;
-        println!("Cleared prover ID configuration");
+pub fn clear_node_id() -> std::io::Result<()> {
+    let home_path: std::path::PathBuf =
+        home::home_dir().expect("Failed to determine home directory");
+
+    //If the .nexus directory doesn't exist, nothing to clear
+    let nexus_dir = home_path.join(".nexus");
+    if !nexus_dir.exists() {
+        // nothing to clear
+        return Ok(());
     }
 
-    println!("User configuration cleared");
-    Ok(())
+    // if the nexus directory exists, check if the node-id file exists
+    let node_id_path = home_path.join(".nexus").join("node-id");
+    if !node_id_path.exists() {
+        // nothing to clear
+        return Ok(());
+    }
+
+    //if the node-id file exists, clear it
+    match fs::remove_file(&node_id_path) {
+        Ok(_) => {
+            println!(
+                "Successfully cleared node ID configuration with file: {}",
+                node_id_path.to_string_lossy()
+            );
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!(
+                "{}",
+                format!("Failed to clear node ID configuration: {}", e).red()
+            );
+            Err(e)
+        }
+    }
 }
 
 fn get_node_id_from_user() -> String {
