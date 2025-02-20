@@ -74,7 +74,7 @@ pub enum VersionStatus {
     UpToDate,
 }
 
-// Struct to manage the version of the CLI it is running at all times
+/// Struct to manage the version of the CLI it is running at all times
 // This is also used to check for updates and apply them
 pub struct VersionManager {
     current_version: Arc<RwLock<Version>>,
