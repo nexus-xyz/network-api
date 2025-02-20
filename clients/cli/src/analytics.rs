@@ -9,10 +9,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-fn generate_instance_id(prover_id: &str) -> String {
+fn generate_instance_id(node_id: &str) -> String {
     // Create a hash of the prover_id to get a consistent 32-digit hex
     let mut hasher = Sha256::new();
-    hasher.update(prover_id.as_bytes());
+    hasher.update(node_id.as_bytes());
     format!("{:x}", hasher.finalize())[..32].to_string()
 }
 
