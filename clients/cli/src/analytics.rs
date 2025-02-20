@@ -106,7 +106,6 @@ pub fn track(
             .post(&url)
             .json(&body)
             .header(ACCEPT, "application/json")
-            .header("User-Agent", "Nexus-CLI/0.5.3")
             .send()
             .await
         {
