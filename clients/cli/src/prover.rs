@@ -1,6 +1,5 @@
 use nexus_sdk::{
     stwo::seq::Stwo,
-    // ByGuestCompilation,
     Local,
     Prover,
     Viewable,
