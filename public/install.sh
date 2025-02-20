@@ -104,6 +104,5 @@ fi
 # and uncomment the line below.
 #
 # echo "Current location: $(pwd)"
-# (cd clients/cli &&   cargo run -r -- start --env beta
-# )
+# (cd clients/cli &&   cargo run -r -- start --env beta)
 # -----------------------------------------------------------------------------
