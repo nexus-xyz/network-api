@@ -1,27 +1,36 @@
-use crate::config::{analytics_api_key, analytics_id};
+use crate::config::{analytics_api_key, analytics_id, Environment};
 use chrono::Datelike;
 use chrono::Timelike;
-use reqwest::header::{ACCEPT, CONTENT_TYPE};
+use reqwest::header::ACCEPT;
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
 
+fn generate_instance_id(prover_id: &str) -> String {
+    // Create a hash of the prover_id to get a consistent 32-digit hex
+    let mut hasher = Sha256::new();
+    hasher.update(prover_id.as_bytes());
+    format!("{:x}", hasher.finalize())[..32].to_string()
+}
+
 pub fn track(
     event_name: String,
     description: String,
-    ws_addr_string: &str,
     event_properties: Value,
     print_description: bool,
+    environment: &Environment,
 ) {
     if print_description {
         println!("{}", description);
     }
 
-    let firebase_app_id = analytics_id(ws_addr_string);
-    let firebase_api_key = analytics_api_key(ws_addr_string);
-    if firebase_app_id.is_empty() {
+    let analytics_id = analytics_id(&environment);
+    let analytics_api_key = analytics_api_key(&environment);
+
+    if analytics_id.is_empty() {
         return;
     }
     let local_now = chrono::offset::Local::now();
@@ -48,20 +57,20 @@ pub fn track(
         |tz| tz,
     );
 
+    let instance_id =
+        generate_instance_id(event_properties["prover_id"].as_str().unwrap_or("unknown"));
+
     let mut properties = json!({
-        "time": system_time,
-        // app_instance_id is the standard key Firebase uses this key to track the same user across sessions
-        // It is a bit redundant, but I wanted to keep the recommended format Firebase uses to minimize surprises
-        // I still left the distinct_id key as well for backwards compatibility
-        "app_instance_id": event_properties["prover_id"],
-        "distinct_id": event_properties["prover_id"],
-        "prover_type": "volunteer",
-        "client_type": "cli",
-        "operating_system": env::consts::OS,
-        "time_zone": timezone,
+        "engagement_time_msec": 1,
+        "session_id": instance_id,
+        "platform": "CLI",
+        "os": env::consts::OS,
+        "os_version": env::consts::OS,  // We could get more specific version if needed
+        "app_version": env!("CARGO_PKG_VERSION"),
+        "prover_id": event_properties["prover_id"],
+        "timezone": timezone,
         "local_hour": local_now.hour(),
-        "local_weekday_number_from_monday": local_now.weekday().number_from_monday(),
-        "ws_addr_string": ws_addr_string,
+        "day_of_week": local_now.weekday().number_from_monday(),
     });
 
     // Add event properties to the properties JSON
@@ -76,9 +85,9 @@ pub fn track(
         None => eprintln!("Warning: event_properties is not a valid JSON object"),
     }
 
-    // Firebase format for events
+    // Format for events
     let body = json!({
-        "app_instance_id": event_properties["prover_id"],
+        "client_id": instance_id,
         "events": [{
             "name": event_name,
             "params": properties
@@ -88,28 +97,44 @@ pub fn track(
     tokio::spawn(async move {
         let client = reqwest::Client::new();
 
+        // First send a validation request
+        let validation_url = format!(
+            "https://www.google-analytics.com/debug/mp/collect?measurement_id={}&api_secret={}",
+            analytics_id, analytics_api_key
+        );
+
         let url = format!(
-            "https://www.google-analytics.com/mp/collect?firebase_app_id={}&api_secret={}",
-            firebase_app_id, firebase_api_key
+            "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
+            analytics_id, analytics_api_key
         );
 
         match client
             .post(&url)
-            .body(format!("[{}]", body))
-            .header(ACCEPT, "text/plain")
-            .header(CONTENT_TYPE, "application/json")
+            .json(&body)
+            .header(ACCEPT, "application/json")
+            .header("User-Agent", "Nexus-CLI/0.5.3")
             .send()
             .await
         {
-            Ok(response) => match response.text().await {
-                Ok(_) => {}
-                Err(e) => {
-                    eprintln!(
-                        "Failed to read analytics response for event '{}': {}",
-                        event_name, e
-                    );
+            Ok(response) => {
+                let status = response.status();
+                if !status.is_success() {
+                    match response.text().await {
+                        Ok(error_text) => {
+                            eprintln!(
+                                "Analytics request failed for event '{}' with status {}: {}",
+                                event_name, status, error_text
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Analytics request failed for event '{}' with status {}. Failed to read error response: {}",
+                                event_name, status, e
+                            );
+                        }
+                    }
                 }
-            },
+            }
             Err(e) => {
                 eprintln!(
                     "Failed to send analytics request for event '{}' to {}: {}",

@@ -1,5 +1,6 @@
 use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 
+use crate::analytics;
 use crate::config;
 use crate::flops;
 use crate::orchestrator_client::OrchestratorClient;
@@ -123,6 +124,16 @@ pub async fn start_prover(
                     Err(e) => println!("Error in anonymous proving: {}", e),
                 }
                 proof_count += 1;
+
+                analytics::track(
+                    "cli_proof_anon".to_string(),
+                    format!("Completed proof iteration #{}", proof_count),
+                    serde_json::json!({
+                        "proof_count": proof_count,
+                    }),
+                    false,
+                    &environment,
+                );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
@@ -171,6 +182,17 @@ pub async fn start_prover(
                 }
 
                 proof_count += 1;
+
+                analytics::track(
+                    "cli_proof_node".to_string(),
+                    format!("Completed proof iteration #{}", proof_count),
+                    serde_json::json!({
+                        "prover_id": node_id,
+                        "proof_count": proof_count,
+                    }),
+                    false,
+                    &environment,
+                );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
