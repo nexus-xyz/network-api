@@ -63,6 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
     //each arm of the match is a command
+    //possible commands: start, logout
     match cli.command {
         Command::Start { env } => {
             match prover::start_prover(&config::Environment::from_args(env.as_ref())).await {
