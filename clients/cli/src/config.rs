@@ -17,18 +17,13 @@ impl Environment {
         }
     }
 
-    pub fn from_args(local: bool, dev: bool, staging: bool, beta: bool) -> Self {
-        if local {
-            Environment::Local
-        } else if dev {
-            Environment::Dev
-        } else if beta {
-            Environment::Beta
-        } else if staging {
-            Environment::Staging
-        } else {
-            // Default to staging when no flag is set
-            Environment::Staging
+    pub fn from_args(env: Option<&crate::Environment>) -> Self {
+        match env {
+            Some(crate::Environment::Local) => Environment::Local,
+            Some(crate::Environment::Dev) => Environment::Dev,
+            Some(crate::Environment::Staging) => Environment::Staging,
+            Some(crate::Environment::Beta) => Environment::Beta,
+            None => Environment::Local, // Default
         }
     }
 }

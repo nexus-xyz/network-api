@@ -4,15 +4,13 @@
 mod config;
 // mod prover;
 mod flops;
+mod memory_stats;
 #[path = "proto/nexus.orchestrator.rs"]
 mod nexus_orchestrator;
 mod node_id_manager;
 mod orchestrator_client;
 mod setup;
 mod utils;
-mod memory_stats;
-
-// use setup::SetupResult;
 
 // Use high performance STWO
 use nexus_sdk::{
@@ -27,28 +25,36 @@ use nexus_sdk::{
 // Update the import path to use the proto module
 use orchestrator_client::OrchestratorClient;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
+
+#[derive(clap::ValueEnum, Clone, Debug)]
+enum Environment {
+    Local,
+    Dev,
+    Staging,
+    Beta,
+}
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Environment flags
-    #[arg(long, group = "env")]
-    local: bool,
-    #[arg(long, group = "env")]
-    dev: bool,
-    #[arg(long, group = "env")]
-    staging: bool,
-    #[arg(long, group = "env")]
-    beta: bool,
+    /// Environment to run in
+    #[arg(long, value_enum)]
+    env: Option<Environment>,
 
     /// Command to execute
-    #[arg(long)]
-    start: bool,
-    #[arg(long)]
-    logout: bool,
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Start the prover
+    Start,
+    /// Logout from the current session
+    Logout,
 }
 
 #[derive(Parser, Debug)]
@@ -69,96 +75,18 @@ struct Args {
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
 
-    // Use if/else instead of match for commands
-    if cli.start {
-        // Print the banner at startup
-        utils::cli_branding::print_banner();
+    // Set environment once at the start
+    let environment = config::Environment::from_args(cli.env.as_ref());
 
-        // Set environment once at the start
-        let environment = config::Environment::from_args(cli.local, cli.dev, cli.staging, cli.beta);
-
-        println!(
-            "\n===== {} =====\n",
-            "Setting up CLI configuration"
-                .bold()
-                .underline()
-                .bright_cyan(),
-        );
-
-        // Run the initial setup to determine anonymous or connected node
-        match setup::run_initial_setup().await {
-            setup::SetupResult::Anonymous => {
-                println!(
-                    "\n===== {} =====\n",
-                    "Starting Anonymous proof generation for programs"
-                        .bold()
-                        .underline()
-                        .bright_cyan()
-                );
-                // Run the proof generation loop with anonymous proving
-                let mut proof_count = 1;
-                loop {
-                    println!("\n================================================");
-                    println!(
-                        "{}",
-                        format!("\nStarting proof #{} ...\n", proof_count).yellow()
-                    );
-                    match anonymous_proving() {
-                        Ok(_) => (),
-                        Err(e) => println!("Error in anonymous proving: {}", e),
-                    }
-                    proof_count += 1;
-                    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-                }
-            }
-            setup::SetupResult::Connected(node_id) => {
-                println!(
-                    "\n===== {} =====\n",
-                    "Starting proof generation for programs"
-                        .bold()
-                        .underline()
-                        .bright_cyan()
-                );
-                let flops = flops::measure_flops();
-                let flops_formatted = format!("{:.2}", flops);
-                let flops_str = format!("{} FLOPS", flops_formatted);
-                println!(
-                    "{}: {}",
-                    "Computational capacity of this node".bold(),
-                    flops_str.bright_cyan()
-                );
-                println!(
-                    "{}: {}",
-                    "You are proving with node ID".bold(),
-                    node_id.bright_cyan()
-                );
-
-                let mut proof_count = 1;
-                loop {
-                    println!("\n================================================");
-                    println!(
-                        "{}",
-                        format!("\nStarting proof #{} ...\n", proof_count).yellow()
-                    );
-
-                    match authenticated_proving(&node_id, &environment).await {
-                        Ok(_) => (),
-                        Err(e) => println!("\tError: {}", e),
-                    }
-                    proof_count += 1;
-                    tokio::time::sleep(std::time::Duration::from_secs(4)).await;
-                }
-            }
-            setup::SetupResult::Invalid => {
-                return Err("Invalid setup option selected".into());
-            }
-        };
-    } else if cli.logout {
-        setup::clear_user_config()?;
-        println!("Successfully logged out");
-    } else {
-        println!("No command specified. Use --start, --logout");
+    //each arm of the match is a command
+    match cli.command {
+        Command::Start => start_prover(&environment).await?,
+        Command::Logout => {
+            setup::clear_node_id()?;
+            println!("Successfully logged out");
+        }
     }
+
     Ok(())
 }
 
@@ -235,4 +163,86 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
         .green(),
     );
     Ok(())
+}
+
+async fn start_prover(environment: &config::Environment) -> Result<(), Box<dyn std::error::Error>> {
+    // Print the banner at startup
+    utils::cli_branding::print_banner();
+
+    println!(
+        "\n===== {} =====\n",
+        "Setting up CLI configuration"
+            .bold()
+            .underline()
+            .bright_cyan(),
+    );
+
+    // Run the initial setup to determine anonymous or connected node
+    match setup::run_initial_setup().await {
+        setup::SetupResult::Anonymous => {
+            println!(
+                "\n===== {} =====\n",
+                "Starting Anonymous proof generation for programs"
+                    .bold()
+                    .underline()
+                    .bright_cyan()
+            );
+            // Run the proof generation loop with anonymous proving
+            let mut proof_count = 1;
+            loop {
+                println!("\n================================================");
+                println!(
+                    "{}",
+                    format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                );
+                match anonymous_proving() {
+                    Ok(_) => (),
+                    Err(e) => println!("Error in anonymous proving: {}", e),
+                }
+                proof_count += 1;
+                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+            }
+        }
+        setup::SetupResult::Connected(node_id) => {
+            println!(
+                "\n===== {} =====\n",
+                "Starting proof generation for programs"
+                    .bold()
+                    .underline()
+                    .bright_cyan()
+            );
+            let flops = flops::measure_flops();
+            let flops_formatted = format!("{:.2}", flops);
+            let flops_str = format!("{} FLOPS", flops_formatted);
+            println!(
+                "{}: {}",
+                "Computational capacity of this node".bold(),
+                flops_str.bright_cyan()
+            );
+            println!(
+                "{}: {}",
+                "You are proving with node ID".bold(),
+                node_id.bright_cyan()
+            );
+
+            let mut proof_count = 1;
+            loop {
+                println!("\n================================================");
+                println!(
+                    "{}",
+                    format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                );
+
+                match authenticated_proving(&node_id, &environment).await {
+                    Ok(_) => (),
+                    Err(e) => println!("\tError: {}", e),
+                }
+                proof_count += 1;
+                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+            }
+        }
+        setup::SetupResult::Invalid => {
+            return Err("Invalid setup option selected".into());
+        }
+    };
 }
