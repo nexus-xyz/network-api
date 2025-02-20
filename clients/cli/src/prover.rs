@@ -17,6 +17,7 @@ use colored::Colorize;
 use sha3::{Digest, Keccak256};
 
 /// Proves a program with a given node ID
+#[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
@@ -43,7 +44,6 @@ async fn authenticated_proving(
 
     assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
 
-    //REAL PROOF VERSION (DOES NOT WORK BECAUSE OF THE SIZE OF THE PROOF AT 157KB)
     let proof_bytes = serde_json::to_vec(&proof)?;
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
@@ -154,6 +154,11 @@ pub async fn start_prover(
                 "You are proving with node ID".bold(),
                 node_id.bright_cyan()
             );
+            println!(
+                "{}: {}",
+                "Environment".bold(),
+                environment.to_string().bright_cyan()
+            );
 
             let mut proof_count = 1;
             loop {
@@ -163,9 +168,9 @@ pub async fn start_prover(
                     format!("\nStarting proof #{} ...\n", proof_count).yellow()
                 );
 
-                match authenticated_proving(&node_id, &environment).await {
+                match anonymous_proving() {
                     Ok(_) => (),
-                    Err(e) => println!("\tError: {}", e),
+                    Err(e) => println!("Error in anonymous proving: {}", e),
                 }
                 proof_count += 1;
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
