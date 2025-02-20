@@ -52,7 +52,7 @@ The `install.sh` script is designed to do few things:
 # this is the part in the install.sh script has the brittle `< /dev/tty` part within CI environments
 (
   cd "$REPO_PATH/clients/cli" || exit
-  cargo run --release -- --start --beta
+  cargo run --release -- --start --env --beta
 ) < /dev/tty
 ```
 
