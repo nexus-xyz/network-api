@@ -56,7 +56,7 @@ async fn authenticated_proving(
 }
 
 fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
-    //1. Instead of fetching the proof task from the orchestrator, we will use hardcoded input program and values
+    // 1. Instead of fetching the proof task from the orchestrator, we will use hardcoded input program and values
 
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
