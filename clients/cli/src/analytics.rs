@@ -58,16 +58,16 @@ pub fn track(
     );
 
     let instance_id =
-        generate_instance_id(event_properties["prover_id"].as_str().unwrap_or("unknown"));
+        generate_instance_id(event_properties["node_id"].as_str().unwrap_or("unknown"));
 
     let mut properties = json!({
-        "engagement_time_msec": 1,
+        "time": system_time,
         "session_id": instance_id,
         "platform": "CLI",
         "os": env::consts::OS,
         "os_version": env::consts::OS,  // We could get more specific version if needed
         "app_version": env!("CARGO_PKG_VERSION"),
-        "prover_id": event_properties["prover_id"],
+        "node_id": event_properties["node_id"],
         "timezone": timezone,
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),
@@ -96,12 +96,6 @@ pub fn track(
 
     tokio::spawn(async move {
         let client = reqwest::Client::new();
-
-        // First send a validation request
-        let validation_url = format!(
-            "https://www.google-analytics.com/debug/mp/collect?measurement_id={}&api_secret={}",
-            analytics_id, analytics_api_key
-        );
 
         let url = format!(
             "https://www.google-analytics.com/mp/collect?measurement_id={}&api_secret={}",
