@@ -176,8 +176,6 @@ pub async fn start_prover(
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
-        setup::SetupResult::Invalid => {
-            return Err("Invalid setup option selected".into());
-        }
-    };
+        setup::SetupResult::Invalid => Err("Invalid setup option selected".into()),
+    }
 }
