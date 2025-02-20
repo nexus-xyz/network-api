@@ -1,9 +1,4 @@
-use nexus_sdk::{
-    stwo::seq::Stwo,
-    Local,
-    Prover,
-    Viewable,
-};
+use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 
 use crate::config;
 use crate::flops;
@@ -13,8 +8,6 @@ use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
 
-/// Proves a program with a given node ID
-#[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
@@ -165,7 +158,7 @@ pub async fn start_prover(
                     format!("\nStarting proof #{} ...\n", proof_count).yellow()
                 );
 
-                match anonymous_proving() {
+                match authenticated_proving(&node_id, environment).await {
                     Ok(_) => (),
                     Err(e) => println!("Error in anonymous proving: {}", e),
                 }
