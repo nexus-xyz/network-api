@@ -158,12 +158,16 @@ pub async fn start_prover(
                 println!("\n================================================");
                 println!(
                     "{}",
-                    format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                    format!(
+                        "\n[node: {}] Starting proof #{} ...\n",
+                        node_id, proof_count
+                    )
+                    .yellow()
                 );
 
                 match authenticated_proving(&node_id, environment).await {
                     Ok(_) => (),
-                    Err(e) => println!("Error in authenticated proving: {}", e),
+                    Err(_e) => (),
                 }
 
                 proof_count += 1;
