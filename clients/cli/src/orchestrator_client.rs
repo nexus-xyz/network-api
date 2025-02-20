@@ -91,8 +91,8 @@ impl OrchestratorClient {
 
         match U::decode(response_bytes) {
             Ok(msg) => Ok(Some(msg)),
-            Err(e) => {
-                println!("Failed to decode response: {:?}", e);
+            Err(_e) => {
+                // println!("Failed to decode response: {:?}", e);
                 Ok(None)
             }
         }
@@ -140,7 +140,6 @@ impl OrchestratorClient {
         self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)
             .await?;
 
-        println!("\tNexus Orchestrator: Proof submitted successfully");
         Ok(())
     }
 }

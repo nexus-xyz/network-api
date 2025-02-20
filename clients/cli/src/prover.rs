@@ -1,9 +1,4 @@
-use nexus_sdk::{
-    stwo::seq::Stwo,
-    Local,
-    Prover,
-    Viewable,
-};
+use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 
 use crate::config;
 use crate::flops;
@@ -34,7 +29,7 @@ async fn authenticated_proving(
     let prover =
         Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
-    println!("4. Creating ZK proof with inputs...");
+    println!("4. Creating ZK proof with inputs");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .expect("Failed to run prover");
@@ -106,6 +101,7 @@ pub async fn start_prover(
 
     // Run the initial setup to determine anonymous or connected node
     match setup::run_initial_setup().await {
+        //each arm of the match is a choice by the user: anonymous or connected or invalid as catchall
         setup::SetupResult::Anonymous => {
             println!(
                 "\n===== {} =====\n",
@@ -162,13 +158,18 @@ pub async fn start_prover(
                 println!("\n================================================");
                 println!(
                     "{}",
-                    format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                    format!(
+                        "\n[node: {}] Starting proof #{} ...\n",
+                        node_id, proof_count
+                    )
+                    .yellow()
                 );
 
-                match anonymous_proving() {
+                match authenticated_proving(&node_id, environment).await {
                     Ok(_) => (),
-                    Err(e) => println!("Error in anonymous proving: {}", e),
+                    Err(_e) => (),
                 }
+
                 proof_count += 1;
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
