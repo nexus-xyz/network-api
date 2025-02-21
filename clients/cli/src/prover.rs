@@ -9,80 +9,65 @@ use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
 
+fn run_prover(public_input: u32) -> Result<(ViewType, ProofType), anyhow::Error> {
+    let elf_file_path = ...;
+    let prover = Stwo::<Local>::new_from_file(&elf_file_path)?;
+    let (view, proof) = prover.prove_with_input::<(), u32>(&(), &public_input)?;
+    if view.exit_code()? != 0 {
+        anyhow::bail!("Prover exited with non-zero code");
+    }
+    Ok((view, proof))
+}
 /// Proves a program with a given node ID
-#[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
     println!("1. Fetching a task to prove from Nexus Orchestrator...");
     let proof_task = client.get_proof_task(node_id).await?;
     println!("2. Received a task to prove from Nexus Orchestrator...");
 
-    let public_input: u32 = proof_task.public_inputs[0] as u32;
+    let public_input = proof_task.public_inputs[0] as u32;
+    let proof_bytes = generate_proof(public_input)?;
 
-    println!("3. Compiling guest program...");
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
-    let prover =
-        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
-
-    println!("4. Creating ZK proof with inputs");
-    let (view, proof) = prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .expect("Failed to run prover");
-
-    assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
-
-    let proof_bytes = serde_json::to_vec(&proof)?;
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
-
-    println!("\tProof size: {} bytes", proof_bytes.len());
     println!("5. Submitting ZK proof to Nexus Orchestrator...");
-    client
-        .submit_proof(node_id, &proof_hash, proof_bytes)
-        .await?;
+    client.submit_proof(node_id, &proof_hash, proof_bytes).await?;
     println!("{}", "6. ZK proof successfully submitted".green());
 
     Ok(())
 }
 
-fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
+fn anonymous_proving() -> Result<(), Box<dyn Error>> {
     // 1. Instead of fetching the proof task from the orchestrator, we will use hardcoded input program and values
 
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
-
-    //2. Compile the guest program
-    println!("1. Compiling guest program...");
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
-    let prover =
-        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
-
-    //3. Run the prover
-    println!("2. Creating ZK proof...");
-    let (view, proof) = prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .expect("Failed to run prover");
-
-    assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
-
-    let proof_bytes = serde_json::to_vec(&proof)?;
+    let proof_bytes = generate_proof(public_input)?;
 
     println!(
         "{}",
-        format!(
-            "3. ZK proof successfully created with size: {} bytes",
-            proof_bytes.len()
-        )
-        .green(),
+        format!("3. ZK proof successfully created with size: {} bytes", proof_bytes.len()).green(),
     );
     Ok(())
+}
+
+fn generate_proof(public_input: u32) -> Result<Vec<u8>, Box<dyn Error>> {
+    println!("3. Compiling guest program...");
+    let elf_file_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("fib_input");
+    let prover = Stwo::<Local>::new_from_file(&elf_file_path)?;
+
+    println!("4. Creating ZK proof with inputs");
+    let (view, proof) = prover.prove_with_input::<(), u32>(&(), &public_input)?;
+    assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
+
+    let proof_bytes = serde_json::to_vec(&proof)?;
+    println!("\tProof size: {} bytes", proof_bytes.len());
+    Ok(proof_bytes)
 }
 
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator
