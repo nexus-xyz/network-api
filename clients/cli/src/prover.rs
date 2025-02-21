@@ -8,6 +8,8 @@ use crate::setup;
 use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
+use log::{error, info, warn};
+use std::time::Duration;
 
 /// Proves a program with a given node ID
 #[allow(dead_code)]
@@ -17,36 +19,70 @@ async fn authenticated_proving(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
-    println!("1. Fetching a task to prove from Nexus Orchestrator...");
-    let proof_task = client.get_proof_task(node_id).await?;
-    println!("2. Received a task to prove from Nexus Orchestrator...");
+    info!("1. Fetching a task to prove from Nexus Orchestrator...");
+    let proof_task = match client.get_proof_task(node_id).await {
+        Ok(task) =>{
+            info!("Successfully fetched task from Nexus Orchestrator.");
+            task
+        }
+        Err(e) =>{
+            error!("Failed to fetch proof task: {}", e);
+            return Err(e.into());
+        }
+    };
 
-    let public_input: u32 = proof_task.public_inputs[0] as u32;
+    let public_input: u32 = proof_task.public_inputs.get(0).cloned().unwrap_or_default() as u32;
 
-    println!("3. Compiling guest program...");
+    info!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
     let prover =
-        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
+        match Stwo::<Local>::new_from_file(&elf_file_path){
+            Ok(prover) => prover,
+            Err(e) => {
+                error!("Failed to load guest program: {}", e);
+                return Err(e.into())
+            }
+        };
 
-    println!("4. Creating ZK proof with inputs");
-    let (view, proof) = prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .expect("Failed to run prover");
+    info!("Creating ZK proof with inputs...");
+    let (view, proof) = match prover
+        .prove_with_input::<(), u32>(&(), &public_input){
+            Ok(result) => result,
+            Err(e) => {
+                error!("Failed to run prover: {}", e);
+                return Err(e.into());
+            }
+        };
 
-    assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
+    let code = view.exit_code()
+        .map(|u| u as i32) // convert on success
+        .unwrap_or_else(|_err| {
+            eprintln!("Failed to retrieve exit code: {:?}", _err);
+            -1
+        });
+    
+    assert_eq!(code, 0, "Unexpected exit code!");
 
-    let proof_bytes = serde_json::to_vec(&proof)?;
+    let proof_bytes = match serde_json::to_vec(&proof) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            error!("Failed to serialize proof: {}", e);
+            return Err(e.into());
+        }
+    };
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
-    println!("\tProof size: {} bytes", proof_bytes.len());
-    println!("5. Submitting ZK proof to Nexus Orchestrator...");
-    client
+    info!("Submitting ZK proof to Nexus Orchestrator...");
+    if let Err(e) = client
         .submit_proof(node_id, &proof_hash, proof_bytes)
-        .await?;
-    println!("{}", "6. ZK proof successfully submitted".green());
-
+        .await{
+            error!("Failed to submit proof: {}", e);
+            return Err(e.into());
+        }
+    
+    info!("{}", "6. ZK proof successfully submitted".green());
     Ok(())
 }
 
@@ -55,32 +91,40 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
 
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
-
-    //2. Compile the guest program
-    println!("1. Compiling guest program...");
+    info!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
-    let prover =
-        Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
+
+    let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+        .map_err(|e| {
+            error!("Failed to load guest program: {}", e);
+            e
+        })?;
 
     //3. Run the prover
-    println!("2. Creating ZK proof...");
+    info!("Creating ZK proof (anonymous)...");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
-        .expect("Failed to run prover");
+        .map_err(|e| {
+            error!("Failed to run prover: {}", e);
+            e
+    })?;
 
-    assert_eq!(view.exit_code().expect("failed to retrieve exit code"), 0);
+    let exit_code = view.exit_code().expect("Failed to retrieve exit code");
+    if exit_code != 0 {
+        error!("Unexpected exit code: {} (expected 0)", exit_code);
+        return Err(format!("Exit code was {}", exit_code).into());
+    }
 
     let proof_bytes = serde_json::to_vec(&proof)?;
-
-    println!(
+    info!(
         "{}",
         format!(
-            "3. ZK proof successfully created with size: {} bytes",
+            "ZK proof created (anonymous) with size: {} bytes",
             proof_bytes.len()
         )
-        .green(),
+        .green()
     );
     Ok(())
 }
@@ -102,7 +146,7 @@ pub async fn start_prover(
 
     // Run the initial setup to determine anonymous or connected node
     match setup::run_initial_setup().await {
-        //each arm of the match is a choice by the user: anonymous or connected or invalid as catchall
+        // If the user selected "anonymous"
         setup::SetupResult::Anonymous => {
             println!(
                 "\n===== {} =====\n",
@@ -112,20 +156,47 @@ pub async fn start_prover(
                     .bright_cyan()
             );
             let client_id = format!("{:x}", md5::compute(b"anonymous"));
-            // Run the proof generation loop with anonymous proving
             let mut proof_count = 1;
+
             loop {
                 println!("\n================================================");
                 println!(
                     "{}",
-                    format!("\nStarting proof #{} ...\n", proof_count).yellow()
+                    format!("\nStarting proof #{} (anonymous) ...\n", proof_count).yellow()
                 );
-                match anonymous_proving() {
-                    Ok(_) => (),
-                    Err(e) => println!("Error in anonymous proving: {}", e),
-                }
-                proof_count += 1;
 
+                // We'll do a few attempts (e.g. 3) in case of transient failures
+                let max_attempts = 3;
+                let mut attempt = 1;
+                let mut success = false;
+
+                while attempt <= max_attempts {
+                    info!("Attempt #{} for anonymous proving", attempt);
+                    match anonymous_proving() {
+                        Ok(_) => {
+                            info!("Anonymous proving succeeded on attempt #{attempt}!");
+                            success = true;
+                            break;
+                        }
+                        Err(e) => {
+                            warn!("Attempt #{attempt} failed: {e}");
+                            attempt += 1;
+                            if attempt <= max_attempts {
+                                warn!("Retrying anonymous proving in 2s...");
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                            }
+                        }
+                    }
+                }
+
+                if !success {
+                    error!(
+                        "All {} attempts to prove anonymously failed. Moving on to next proof iteration.",
+                        max_attempts
+                    );
+                }
+
+                proof_count += 1;
                 analytics::track(
                     "cli_proof_anon".to_string(),
                     format!("Completed anon proof iteration #{}", proof_count),
@@ -137,9 +208,13 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
+
+                // Sleep before next proof
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
+
+        // If the user selected "connected"
         setup::SetupResult::Connected(node_id) => {
             println!(
                 "\n===== {} =====\n",
@@ -169,24 +244,50 @@ pub async fn start_prover(
 
             let client_id = format!("{:x}", md5::compute(node_id.as_bytes()));
             let mut proof_count = 1;
+
             loop {
                 println!("\n================================================");
                 println!(
                     "{}",
                     format!(
-                        "\n[node: {}] Starting proof #{} ...\n",
+                        "\n[node: {}] Starting proof #{} (connected) ...\n",
                         node_id, proof_count
                     )
                     .yellow()
                 );
 
-                match authenticated_proving(&node_id, environment).await {
-                    Ok(_) => (),
-                    Err(_e) => (),
+                // Retry logic for authenticated_proving
+                let max_attempts = 3;
+                let mut attempt = 1;
+                let mut success = false;
+
+                while attempt <= max_attempts {
+                    info!("Attempt #{} for authenticated proving (node_id={})", attempt, node_id);
+                    match authenticated_proving(&node_id, environment).await {
+                        Ok(_) => {
+                            info!("Proving succeeded on attempt #{attempt}!");
+                            success = true;
+                            break;
+                        }
+                        Err(e) => {
+                            warn!("Attempt #{attempt} failed with error: {e}");
+                            attempt += 1;
+                            if attempt <= max_attempts {
+                                warn!("Retrying in 2s...");
+                                tokio::time::sleep(Duration::from_secs(2)).await;
+                            }
+                        }
+                    }
+                }
+
+                if !success {
+                    error!(
+                        "All {} attempts to prove with node {} failed. Continuing to next proof iteration.",
+                        max_attempts, node_id
+                    );
                 }
 
                 proof_count += 1;
-
                 analytics::track(
                     "cli_proof_node".to_string(),
                     format!("Completed proof iteration #{}", proof_count),
@@ -201,6 +302,11 @@ pub async fn start_prover(
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
-        setup::SetupResult::Invalid => Err("Invalid setup option selected".into()),
+
+        // If setup is invalid
+        setup::SetupResult::Invalid => {
+            error!("Invalid setup option selected.");
+            Err("Invalid setup option selected".into())
+        }
     }
 }
