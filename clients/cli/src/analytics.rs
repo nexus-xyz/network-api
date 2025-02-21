@@ -9,7 +9,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-fn generate_instance_id(node_id: &str) -> String {
+fn generate_client_id(node_id: &str) -> String {
     // Create a hash of the prover_id to get a consistent 32-digit hex
     let mut hasher = Sha256::new();
     hasher.update(node_id.as_bytes());
@@ -57,12 +57,8 @@ pub fn track(
         |tz| tz,
     );
 
-    let instance_id =
-        generate_instance_id(event_properties["node_id"].as_str().unwrap_or("unknown"));
-
     let mut properties = json!({
         "time": system_time,
-        "session_id": instance_id,
         "platform": "CLI",
         "os": env::consts::OS,
         "os_version": env::consts::OS,  // We could get more specific version if needed
@@ -85,9 +81,11 @@ pub fn track(
         None => eprintln!("Warning: event_properties is not a valid JSON object"),
     }
 
+    let client_id = generate_client_id(event_properties["node_id"].as_str().unwrap_or("unknown"));
+
     // Format for events
     let body = json!({
-        "client_id": instance_id,
+        "client_id": client_id,
         "events": [{
             "name": event_name,
             "params": properties
