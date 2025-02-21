@@ -4,16 +4,17 @@ use std::time::Instant;
 
 const NTESTS: u64 = 1_000_000;
 const OPERATIONS_PER_ITERATION: u64 = 4; // sin, add, multiply, divide
-const NUM_REPEATS: usize = 5; // Число повторов для усреднения
+const NUM_REPEATS: usize = 5; // Number of repeats to average the results
 
 pub fn measure_flops() -> f64 {
-    let num_threads = rayon::current_num_threads();
+    let num_cores = num_cpus::get() as u64;
+    println!("Using {} logical cores for FLOPS measurement", num_cores);
     
     let avg_flops: f64 = (0..NUM_REPEATS)
         .map(|_| {
             let start = Instant::now();
 
-            let total_flops: u64 = (0..num_threads)
+            let total_flops: u64 = (0..num_cores)
                 .into_par_iter()
                 .map(|_| {
                     let mut x: f64 = 1.0;
@@ -24,16 +25,10 @@ pub fn measure_flops() -> f64 {
                 })
                 .sum();
 
-            let duration = start.elapsed().as_secs_f64();
-            total_flops as f64 / duration
+            total_flops as f64 / start.elapsed().as_secs_f64()
         })
         .sum::<f64>()
-        / NUM_REPEATS as f64; // Усреднение результатов
+        / NUM_REPEATS as f64; // Average the FLOPS over all repeats
 
-    avg_flops
-}
-
-fn main() {
-    let flops = measure_flops();
-    println!("CPU FLOPS: {:.3} GFLOP/s", flops / 1e9);
+     avg_flops / 1e9 // Convert to GFLOP/s
 }
