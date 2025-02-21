@@ -3,18 +3,10 @@ use chrono::Datelike;
 use chrono::Timelike;
 use reqwest::header::ACCEPT;
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{
     env,
     time::{SystemTime, UNIX_EPOCH},
 };
-
-fn generate_client_id(node_id: &str) -> String {
-    // Create a hash of the prover_id to get a consistent 32-digit hex
-    let mut hasher = Sha256::new();
-    hasher.update(node_id.as_bytes());
-    format!("{:x}", hasher.finalize())[..32].to_string()
-}
 
 pub fn track(
     event_name: String,
@@ -22,6 +14,7 @@ pub fn track(
     event_properties: Value,
     print_description: bool,
     environment: &Environment,
+    client_id: String,
 ) {
     if print_description {
         println!("{}", description);
@@ -80,8 +73,6 @@ pub fn track(
         }
         None => eprintln!("Warning: event_properties is not a valid JSON object"),
     }
-
-    let client_id = generate_client_id(event_properties["node_id"].as_str().unwrap_or("unknown"));
 
     // Format for events
     let body = json!({

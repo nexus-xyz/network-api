@@ -111,6 +111,7 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
+            let client_id = format!("{:x}", md5::compute(b"anonymous"));
             // Run the proof generation loop with anonymous proving
             let mut proof_count = 1;
             loop {
@@ -134,6 +135,7 @@ pub async fn start_prover(
                     }),
                     false,
                     environment,
+                    client_id.clone(),
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
@@ -165,6 +167,7 @@ pub async fn start_prover(
                 environment.to_string().bright_cyan()
             );
 
+            let client_id = format!("{:x}", md5::compute(node_id.as_bytes()));
             let mut proof_count = 1;
             loop {
                 println!("\n================================================");
@@ -193,6 +196,7 @@ pub async fn start_prover(
                     }),
                     false,
                     environment,
+                    client_id.clone(),
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
