@@ -133,7 +133,7 @@ pub async fn start_prover(
                         "proof_count": proof_count,
                     }),
                     false,
-                    &environment,
+                    environment,
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
@@ -192,7 +192,7 @@ pub async fn start_prover(
                         "proof_count": proof_count,
                     }),
                     false,
-                    &environment,
+                    environment,
                 );
                 tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
