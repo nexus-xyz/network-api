@@ -65,7 +65,7 @@ This combination of bash and Rust is a bit brittle in CI environments. Consider 
    git clone https://github.com/nexus-xyz/network-api
    cd network-api/clients/cli
    cargo build --release
-   ./target/release/nexus-network --start --beta
+   ./target/release/nexus-network start
    ```
 2. **Download the script locally** (and optionally set `NONINTERACTIVE=1` if you need it to run without prompts):
    ```bash
