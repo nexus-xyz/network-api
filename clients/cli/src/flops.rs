@@ -6,7 +6,7 @@ const NTESTS: u64 = 1_000_000;
 const OPERATIONS_PER_ITERATION: u64 = 4; // sin, add, multiply, divide
 const NUM_REPEATS: usize = 5; // Number of repeats to average the results
 
-pub fn measure_flops() -> f64 {
+pub fn measure_flops() -> f32 {
     let num_cores = num_cpus::get() as u64;
     println!("Using {} logical cores for FLOPS measurement", num_cores);
     
@@ -30,5 +30,5 @@ pub fn measure_flops() -> f64 {
         .sum::<f64>()
         / NUM_REPEATS as f64; // Average the FLOPS over all repeats
 
-     avg_flops / 1e9 // Convert to GFLOP/s
+     (avg_flops / 1e9) as f32 // Convert to GFLOP/s and cast to f32
 }
