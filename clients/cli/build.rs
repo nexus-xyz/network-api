@@ -11,6 +11,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut config = Config::new();
 
+    // Bật experimental_allow_proto3_optional
+    config.protoc_arg("--experimental_allow_proto3_optional");
+
     // Print current directory
     println!("Current dir: {:?}", env::current_dir()?);
 
@@ -28,7 +31,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let out_dir = "src/proto";
     config.out_dir(out_dir);
-    // .file_descriptor_set_path("src/proto/orchestrator.rs");
 
     // Check if protoc is installed and accessible
     let output = Command::new("which")
@@ -48,19 +50,20 @@ fn main() -> Result<(), Box<dyn Error>> {
         println!("Output directory {} exists.", out_dir);
     } else {
         println!("Error: Output directory {} does not exist.", out_dir);
-        // Attempt to create the directory if it doesn't exist
         fs::create_dir_all(out_dir)?;
         println!("Created output directory {}.", out_dir);
     }
 
-    // Attempt to compile the .proto file
-    match config.compile_protos(&["proto/orchestrator.proto"], &["proto"]) {
+    // Attempt to compile the .proto file with proto3 optional enabled
+    match config
+        .protoc_arg("--experimental_allow_proto3_optional")
+        .compile_protos(&["proto/orchestrator.proto"], &["proto"])
+    {
         Ok(_) => {
             println!("Successfully compiled protobuf files.");
         }
         Err(e) => {
             println!("Error compiling protobuf files: {}", e);
-            // Log more details about the error
             match e.kind() {
                 std::io::ErrorKind::NotFound => {
                     println!("Error: Could not find a necessary file or directory.");
