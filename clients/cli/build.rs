@@ -11,6 +11,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut config = Config::new();
 
+    // Add the experimental flag for proto3 optional fields
+    config.protoc_arg("--experimental_allow_proto3_optional");
+
     // Print current directory
     println!("Current dir: {:?}", env::current_dir()?);
 
