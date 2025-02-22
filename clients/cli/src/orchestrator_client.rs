@@ -5,7 +5,8 @@ use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
 };
 use prost::Message;
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
+use std::time::Duration;
 
 pub struct OrchestratorClient {
     client: Client,
@@ -16,7 +17,10 @@ pub struct OrchestratorClient {
 impl OrchestratorClient {
     pub fn new(environment: config::Environment) -> Self {
         Self {
-            client: Client::new(),
+            client: ClientBuilder::new()
+                .timeout(Duration::from_millis(500))
+                .build()
+                .expect("Failed to create HTTP client"),
             base_url: environment.orchestrator_url(),
             // environment,
         }

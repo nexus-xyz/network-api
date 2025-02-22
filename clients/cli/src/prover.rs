@@ -137,7 +137,6 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
         setup::SetupResult::Connected(node_id) => {
@@ -198,7 +197,6 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
         setup::SetupResult::Invalid => Err("Invalid setup option selected".into()),
