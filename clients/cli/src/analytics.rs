@@ -60,6 +60,7 @@ pub fn track(
         "timezone": timezone,
         "local_hour": local_now.hour(),
         "day_of_week": local_now.weekday().number_from_monday(),
+        "event_id": system_time,
     });
 
     // Add event properties to the properties JSON

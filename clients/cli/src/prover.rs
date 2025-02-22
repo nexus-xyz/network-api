@@ -17,20 +17,29 @@ async fn authenticated_proving(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
-    println!("1. Fetching a task to prove from Nexus Orchestrator...");
-    let proof_task = client.get_proof_task(node_id).await?;
-    println!("2. Received a task to prove from Nexus Orchestrator...");
+    println!("Fetching a task to prove from Nexus Orchestrator...");
+    let proof_task = match client.get_proof_task(node_id).await {
+        Ok(task) => {
+            println!("Success.");
+            task
+        },
+        Err(_) => {
+            println!("Using local inputs.");
+            return anonymous_proving();
+        },
+    };
+    println!("Received a task to prove from Nexus Orchestrator...");
 
     let public_input: u32 = proof_task.public_inputs[0] as u32;
 
-    println!("3. Compiling guest program...");
+    println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
     let prover =
         Stwo::<Local>::new_from_file(&elf_file_path).expect("failed to load guest program");
 
-    println!("4. Creating ZK proof with inputs");
+    println!("Creating ZK proof with inputs");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .expect("Failed to run prover");
@@ -41,11 +50,11 @@ async fn authenticated_proving(
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     println!("\tProof size: {} bytes", proof_bytes.len());
-    println!("5. Submitting ZK proof to Nexus Orchestrator...");
+    println!("Submitting ZK proof to Nexus Orchestrator...");
     client
         .submit_proof(node_id, &proof_hash, proof_bytes)
         .await?;
-    println!("{}", "6. ZK proof successfully submitted".green());
+    println!("{}", "ZK proof successfully submitted".green());
 
     Ok(())
 }
@@ -127,7 +136,7 @@ pub async fn start_prover(
                 proof_count += 1;
 
                 analytics::track(
-                    "cli_proof_anon".to_string(),
+                    "cli_proof_anon_v2".to_string(),
                     format!("Completed anon proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": "anonymous",
@@ -137,7 +146,6 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
         setup::SetupResult::Connected(node_id) => {
@@ -188,7 +196,7 @@ pub async fn start_prover(
                 proof_count += 1;
 
                 analytics::track(
-                    "cli_proof_node".to_string(),
+                    "cli_proof_node_v2".to_string(),
                     format!("Completed proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": node_id,
@@ -198,7 +206,6 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
         setup::SetupResult::Invalid => Err("Invalid setup option selected".into()),
