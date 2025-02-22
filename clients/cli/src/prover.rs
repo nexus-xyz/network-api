@@ -136,7 +136,7 @@ pub async fn start_prover(
                 proof_count += 1;
 
                 analytics::track(
-                    "cli_anon_proof".to_string(),
+                    "cli_proof_anon_v2".to_string(),
                     format!("Completed anon proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": "anonymous",
@@ -196,7 +196,7 @@ pub async fn start_prover(
                 proof_count += 1;
 
                 analytics::track(
-                    "cli_node_proof".to_string(),
+                    "cli_proof_node_v2".to_string(),
                     format!("Completed proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": node_id,
