@@ -108,11 +108,14 @@ sudo apt install build-essential pkg-config libssl-dev git-all protobuf-compiler
 For Proto3 syntax compatibility and to avoid common issues with older versions, you must update your Protobuf compiler. Follow these steps:
 ```bash
 sudo apt remove -y protobuf-compiler
-sudo curl -LO https://github.com/protocolbuffers/protobuf/releases/download/v21.12/protoc-21.12-linux-x86_64.zip
+
+# Visit the Protobuf GitHub releases page to download the latest version suitable for your system:
+# https://github.com/protocolbuffers/protobuf/releases
+# After downloading, unzip the package and install:
 sudo apt install unzip
-sudo unzip protoc-21.12-linux-x86_64.zip -d /usr/local
+sudo unzip protoc-*-linux-x86_64.zip -d /usr/local
 sudo chmod +x /usr/local/bin/protoc
-rm protoc-21.12-linux-x86_64.zip
+rm protoc-*-linux-x86_64.zip
 
 ### macOS
 
