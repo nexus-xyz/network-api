@@ -9,8 +9,6 @@ use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
 
-/// Proves a program with a given node ID
-#[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
