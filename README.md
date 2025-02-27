@@ -142,14 +142,13 @@ During the CLI’s startup, you’ll be asked for your node ID (used on Testnet 
 
 - Only the latest CLI version is supported.
 - No prebuilt binaries yet.
-- Proof cycle counting is coming soon.
-- Program submission requires an API key (contact [growth@nexus.xyz](mailto:growth@nexus.xyz)).
+- To submit programs to the network for proving, contact [growth@nexus.xyz](mailto:growth@nexus.xyz).
 
 ---
 
 ## Get Help
 
-- [Network FAQ](https://nexus.xyz/network#network-faqs)  
+- [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)  
 - [Discord Community](https://discord.gg/nexus-xyz)  
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
 
