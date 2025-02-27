@@ -10,10 +10,10 @@ pub enum Environment {
 impl Environment {
     pub fn orchestrator_url(&self) -> String {
         match self {
-            Environment::Local => "http://localhost:8080".to_string(),
-            Environment::Dev => "https://dev.orchestrator.nexus.xyz".to_string(),
-            Environment::Staging => "https://staging.orchestrator.nexus.xyz".to_string(),
-            Environment::Beta => "https://beta.orchestrator.nexus.xyz".to_string(),
+            Environment::Local => "http://localhost:8080/v2/".to_string(),
+            Environment::Dev => "https://dev.orchestrator.nexus.xyz/v2/".to_string(),
+            Environment::Staging => "https://staging.orchestrator.nexus.xyz/v2/".to_string(),
+            Environment::Beta => "https://beta.orchestrator.nexus.xyz/v2/".to_string(),
         }
     }
 
