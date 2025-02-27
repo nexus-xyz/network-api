@@ -8,7 +8,7 @@ use crate::setup;
 use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
-use log::{error, info, warn};
+use log::{error, warn};
 use std::time::Duration;
 
 /// Proves a program with a given node ID
