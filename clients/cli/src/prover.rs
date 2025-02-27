@@ -31,7 +31,7 @@ async fn authenticated_proving(
         },
     };
 
-    let public_input: u32 = proof_task.public_inputs.get(0).cloned().unwrap_or_default() as u32;
+    let public_input: u32 = proof_task.public_inputs.first().cloned().unwrap_or_default() as u32;
 
     println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -79,7 +79,7 @@ async fn authenticated_proving(
         .submit_proof(node_id, &proof_hash, proof_bytes)
         .await{
             error!("Failed to submit proof: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     
     println!("{}", "ZK proof successfully submitted".green());
