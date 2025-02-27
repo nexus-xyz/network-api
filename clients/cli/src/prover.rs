@@ -23,7 +23,6 @@ async fn authenticated_proving(
     let proof_task = match client.get_proof_task(node_id).await {
         Ok(task) => {
             println!("Successfully fetched task from Nexus Orchestrator.");
-            println!("Success.");
             task
         },
         Err(_) => {
