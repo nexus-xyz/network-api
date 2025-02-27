@@ -19,16 +19,17 @@ async fn authenticated_proving(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
-    info!("1. Fetching a task to prove from Nexus Orchestrator...");
+    info!("Fetching a task to prove from Nexus Orchestrator...");
     let proof_task = match client.get_proof_task(node_id).await {
-        Ok(task) =>{
+        Ok(task) => {
             info!("Successfully fetched task from Nexus Orchestrator.");
+            println!("Success.");
             task
-        }
-        Err(e) =>{
-            error!("Failed to fetch proof task: {}", e);
-            return Err(e.into());
-        }
+        },
+        Err(_) => {
+            info!("Using local inputs.");
+            return anonymous_proving();
+        },
     };
 
     let public_input: u32 = proof_task.public_inputs.get(0).cloned().unwrap_or_default() as u32;
@@ -82,7 +83,7 @@ async fn authenticated_proving(
             return Err(e.into());
         }
     
-    info!("{}", "6. ZK proof successfully submitted".green());
+    info!("{}", "ZK proof successfully submitted".green());
     Ok(())
 }
 
@@ -198,7 +199,7 @@ pub async fn start_prover(
 
                 proof_count += 1;
                 analytics::track(
-                    "cli_proof_anon".to_string(),
+                    "cli_proof_anon_v2".to_string(),
                     format!("Completed anon proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": "anonymous",
@@ -289,7 +290,7 @@ pub async fn start_prover(
 
                 proof_count += 1;
                 analytics::track(
-                    "cli_proof_node".to_string(),
+                    "cli_proof_node_v2".to_string(),
                     format!("Completed proof iteration #{}", proof_count),
                     serde_json::json!({
                         "node_id": node_id,
@@ -299,7 +300,6 @@ pub async fn start_prover(
                     environment,
                     client_id.clone(),
                 );
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
             }
         }
 

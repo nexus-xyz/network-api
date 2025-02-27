@@ -5,7 +5,8 @@ use crate::nexus_orchestrator::{
     GetProofTaskRequest, GetProofTaskResponse, NodeType, SubmitProofRequest,
 };
 use prost::Message;
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
+use std::time::Duration;
 
 pub struct OrchestratorClient {
     client: Client,
@@ -16,7 +17,10 @@ pub struct OrchestratorClient {
 impl OrchestratorClient {
     pub fn new(environment: config::Environment) -> Self {
         Self {
-            client: Client::new(),
+            client: ClientBuilder::new()
+                .timeout(Duration::from_millis(1000))
+                .build()
+                .expect("Failed to create HTTP client"),
             base_url: environment.orchestrator_url(),
             // environment,
         }
@@ -33,7 +37,7 @@ impl OrchestratorClient {
         U: Message + Default,
     {
         let request_bytes = request_data.encode_to_vec();
-        let url = format!("{}{}", self.base_url, url);
+        let url = format!("{}/v2{}", self.base_url, url);
 
         let friendly_connection_error =
             "[CONNECTION] Unable to reach server. The service might be temporarily unavailable."
