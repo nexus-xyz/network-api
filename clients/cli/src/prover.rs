@@ -19,22 +19,22 @@ async fn authenticated_proving(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let client = OrchestratorClient::new(environment.clone());
 
-    info!("Fetching a task to prove from Nexus Orchestrator...");
+    println!("Fetching a task to prove from Nexus Orchestrator...");
     let proof_task = match client.get_proof_task(node_id).await {
         Ok(task) => {
-            info!("Successfully fetched task from Nexus Orchestrator.");
+            println!("Successfully fetched task from Nexus Orchestrator.");
             println!("Success.");
             task
         },
         Err(_) => {
-            info!("Using local inputs.");
+            println!("Using local inputs.");
             return anonymous_proving();
         },
     };
 
     let public_input: u32 = proof_task.public_inputs.get(0).cloned().unwrap_or_default() as u32;
 
-    info!("Compiling guest program...");
+    println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
@@ -47,7 +47,7 @@ async fn authenticated_proving(
             }
         };
 
-    info!("Creating ZK proof with inputs...");
+    println!("Creating ZK proof with inputs...");
     let (view, proof) = match prover
         .prove_with_input::<(), u32>(&(), &public_input){
             Ok(result) => result,
@@ -75,7 +75,7 @@ async fn authenticated_proving(
     };
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
-    info!("Submitting ZK proof to Nexus Orchestrator...");
+    println!("Submitting ZK proof to Nexus Orchestrator...");
     if let Err(e) = client
         .submit_proof(node_id, &proof_hash, proof_bytes)
         .await{
@@ -83,7 +83,7 @@ async fn authenticated_proving(
             return Err(e.into());
         }
     
-    info!("{}", "ZK proof successfully submitted".green());
+    println!("{}", "ZK proof successfully submitted".green());
     Ok(())
 }
 
@@ -92,7 +92,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
 
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
-    info!("Compiling guest program...");
+    println!("Compiling guest program...");
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
@@ -104,7 +104,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
         })?;
 
     //3. Run the prover
-    info!("Creating ZK proof (anonymous)...");
+    println!("Creating ZK proof (anonymous)...");
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), &public_input)
         .map_err(|e| {
@@ -119,7 +119,7 @@ fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let proof_bytes = serde_json::to_vec(&proof)?;
-    info!(
+    println!(
         "{}",
         format!(
             "ZK proof created (anonymous) with size: {} bytes",
@@ -172,10 +172,10 @@ pub async fn start_prover(
                 let mut success = false;
 
                 while attempt <= max_attempts {
-                    info!("Attempt #{} for anonymous proving", attempt);
+                    println!("Attempt #{} for anonymous proving", attempt);
                     match anonymous_proving() {
                         Ok(_) => {
-                            info!("Anonymous proving succeeded on attempt #{attempt}!");
+                            println!("Anonymous proving succeeded on attempt #{attempt}!");
                             success = true;
                             break;
                         }
@@ -263,10 +263,10 @@ pub async fn start_prover(
                 let mut success = false;
 
                 while attempt <= max_attempts {
-                    info!("Attempt #{} for authenticated proving (node_id={})", attempt, node_id);
+                    println!("Attempt #{} for authenticated proving (node_id={})", attempt, node_id);
                     match authenticated_proving(&node_id, environment).await {
                         Ok(_) => {
-                            info!("Proving succeeded on attempt #{attempt}!");
+                            println!("Proving succeeded on attempt #{attempt}!");
                             success = true;
                             break;
                         }
