@@ -53,7 +53,7 @@ pub fn print_banner() {
         "{} {} {}\n",
         "Welcome to the".bright_white(),
         "Nexus Network CLI".bright_cyan().bold(),
-        "v0.5.8".bright_white()
+        "v0.6.0".bright_white()
     );
     println!(
         "{}",
