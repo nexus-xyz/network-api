@@ -105,6 +105,22 @@ If you don’t have Rust installed, you will be prompted to install it (unless `
 sudo apt update && sudo apt upgrade
 sudo apt install build-essential pkg-config libssl-dev git-all protobuf-compiler
 ```
+### Update Protobuf Compiler
+
+To ensure compatibility with Proto3 syntax, update your Protobuf compiler by following these steps:
+
+```bash
+# Remove the old protobuf-compiler if installed
+sudo apt remove -y protobuf-compiler
+
+# Visit the Protobuf GitHub releases page to download the latest version suitable for your system:
+# Link: https://github.com/protocolbuffers/protobuf/releases
+# Download the protoc binary suitable for your system and unzip if necessary
+
+sudo apt install unzip
+sudo unzip protoc-*-linux-x86_64.zip -d /usr/local
+sudo chmod +x /usr/local/bin/protoc
+rm protoc-*-linux-x86_64.zip
 
 ### macOS
 
