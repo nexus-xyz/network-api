@@ -37,18 +37,18 @@ fi
 while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/node-id" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     echo ""
-    
+
     case $yn in
-        [Nn]* ) 
+        [Nn]* )
             echo ""
             exit;;
-        [Yy]* ) 
+        [Yy]* )
             echo ""
             break;;
-        "" ) 
+        "" )
             echo ""
             break;;
-        * ) 
+        * )
             echo "Please answer yes or no."
             echo "";;
     esac
@@ -65,7 +65,18 @@ if [ "$GIT_IS_AVAILABLE" != 0 ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 6) Clone or update the network-api repository in $NEXUS_HOME.
+# 6) Check for 'protoc' availability. If not found, prompt the user to install it.
+# -----------------------------------------------------------------------------
+protoc --version 2>&1 >/dev/null
+PROTOC_IS_AVAILABLE=$?
+if [ "$PROTOC_IS_AVAILABLE" != 0 ]; then
+  echo "Unable to find protoc. Please install it and try again."
+  exit 1
+fi
+
+
+# -----------------------------------------------------------------------------
+# 7) Clone or update the network-api repository in $NEXUS_HOME.
 # -----------------------------------------------------------------------------
 REPO_PATH="$NEXUS_HOME/network-api"
 if [ -d "$REPO_PATH" ]; then
@@ -83,7 +94,7 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 7) Check out the latest tagged commit in the repository.
+# 8) Check out the latest tagged commit in the repository.
 # -----------------------------------------------------------------------------
 (
   cd "$REPO_PATH" || exit
@@ -91,7 +102,7 @@ fi
 )
 
 # -----------------------------------------------------------------------------
-# 8) Finally, run the Rust CLI in interactive mode. We explicitly attach
+# 9) Finally, run the Rust CLI in interactive mode. We explicitly attach
 #    /dev/tty to cargo's stdin so it can prompt the user, even if the script
 #    itself was piped in or otherwise redirected.
 # -----------------------------------------------------------------------------
