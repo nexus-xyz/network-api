@@ -1,6 +1,7 @@
 use colored::Colorize;
+use log::{info, error, warn};
 use serde::{Deserialize, Serialize};
-use std::fs;
+use std::{fs, io};
 
 // Update the import path to use the proto module
 use crate::node_id_manager::{
@@ -21,22 +22,30 @@ pub struct UserConfig {
 
 //function that takes a node_id and saves it to the user config
 fn save_node_id(node_id: &str) -> std::io::Result<()> {
+    info!("Preparing is save node_id: {} ",node_id);
     //get the home directory
     let home_path = match get_home_directory() {
-        Ok(path) => path,
+        Ok(path) => {
+            info!("Home directory determined: {}",path.to_string_lossy());
+            path
+        },
         Err(_) => {
+            error!("Failed to determine home directory");
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
-                "Failed to determine home directory",
-            ))
+                "No home dir"))
         }
     };
 
     let nexus_dir = home_path.join(".nexus");
-    let node_id_path = nexus_dir.join("node-id");
+    if nexus_dir.exists(){
+        info!("Creating .nexus directory at {}",nexus_dir.to_string_lossy());
+        create_nexus_directory(&nexus_dir)?;
+    }
 
+    let node_id_path = nexus_dir.join("node-id");
     //print how to find the node-id file
-    println!("Node ID file: {}", node_id_path.to_string_lossy());
+    info!("Will write node ID to file: {}", node_id_path.to_string_lossy());
     //write the node_id to the node-id file
     fs::write(&node_id_path, node_id).unwrap();
 
@@ -66,17 +75,29 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
 
 pub async fn run_initial_setup() -> SetupResult {
     // Get home directory and check for prover-id file
-    let home_path: std::path::PathBuf =
-        home::home_dir().expect("Failed to determine home directory");
+    let home_path: std::path::PathBuf = match home::home_dir(){
+        Some(path) =>{
+            info!("Home directory: {}", path.to_string_lossy());
+            path
+        }
+        None => {
+            error!("Failed to dertermine home directory (None returned)");
+            return SetupResult::Invalid;
+        }
+    };
 
     //If the .nexus directory doesn't exist, we need to create it
     let nexus_dir = home_path.join(".nexus");
     if !nexus_dir.exists() {
-        create_nexus_directory(&nexus_dir).expect("Failed to create .nexus directory");
+        info!("Creating .nexus directory at: {}", nexus_dir.to_string_lossy());
+        if let Err(err) = create_nexus_directory(&nexus_dir){
+            error!("Failed to create .nexus directory: {}", err);
+            return SetupResult::Invalid;
+        }
     }
 
     //Check if the node-id file exists, use it. If not, create a new one.
-    let node_id_path = home_path.join(".nexus").join("node-id");
+    let node_id_path = home_path.join("node-id");
     let node_id = fs::read_to_string(&node_id_path).unwrap_or_default();
 
     if node_id_path.exists() {
@@ -88,22 +109,26 @@ pub async fn run_initial_setup() -> SetupResult {
         //ask the user if they want to use the existing config
         println!("Do you want to use the existing user account? (y/n)");
         let mut use_existing_config = String::new();
-        std::io::stdin()
-            .read_line(&mut use_existing_config)
-            .unwrap();
+        if let Err(e) = std::io::stdin().read_line(&mut use_existing_config){
+            error!("Failed to read user input: {}",e);
+            return SetupResult::Invalid;
+        }
+
         let use_existing_config = use_existing_config.trim();
         if use_existing_config == "y" {
-            match fs::read_to_string(&node_id_path) {
+            return match fs::read_to_string(&node_id_path) {
                 Ok(content) => {
-                    return SetupResult::Connected(content.trim().to_string());
+                    info!("Using existing node-id from file: {}", content.trim());
+                    SetupResult::Connected(content.trim().to_string())
                 }
                 Err(e) => {
-                    println!("{}", format!("Failed to read node-id file: {}", e).red());
+                    error!("Failed to read node-id file: {}", e);
                     return SetupResult::Invalid;
                 }
-            }
+            };
         } else {
             println!("Ignoring existing user account...");
+            info!("User opted to ignore existing node-id. Will prompt for new setup.");
         }
     }
 
@@ -119,6 +144,7 @@ pub async fn run_initial_setup() -> SetupResult {
     match option {
         "1" => {
             println!("You chose option 1\n");
+            info!("User selected anonymous mode (no node-id).");
             SetupResult::Anonymous
         }
         "2" => {
@@ -139,40 +165,47 @@ pub async fn run_initial_setup() -> SetupResult {
             println!("6. Enter the node ID into the terminal below:\n");
 
             let node_id = get_node_id_from_user();
+            info!("User Provided node-id: {}",node_id);
+
             match save_node_id(&node_id) {
-                Ok(_) => SetupResult::Connected(node_id),
+                Ok(_) => {
+                    info!("Node ID saved successfully. Setup complete");
+                    SetupResult::Connected(node_id)
+                },
                 Err(e) => {
-                    println!("{}", format!("Failed to save node ID: {}", e).red());
+                    error!("Failed to save node ID: {}", e);
                     SetupResult::Invalid
                 }
             }
         }
         _ => {
-            println!("Invalid option");
+            warn!("Invalid option selected: {}",option);
             SetupResult::Invalid
         }
     }
 }
 
 pub fn clear_node_id() -> std::io::Result<()> {
-    let home_path: std::path::PathBuf =
-        home::home_dir().expect("Failed to determine home directory");
+    let home_path: std::path::PathBuf = home::home_dir().ok_or_else(||{
+        io::Error::new(io::ErrorKind::Other, "Failed to determined home directory")
+    })?;
 
     //If the .nexus directory doesn't exist, nothing to clear
     let nexus_dir = home_path.join(".nexus");
     if !nexus_dir.exists() {
-        // nothing to clear
+        info!("No .nexus directory found; nothing to clear.");
         return Ok(());
     }
 
     // if the nexus directory exists, check if the node-id file exists
     let node_id_path = home_path.join(".nexus").join("node-id");
     if !node_id_path.exists() {
-        // nothing to clear
+        info!("No node-id file found; nothing to clear.");
         return Ok(());
     }
 
     //if the node-id file exists, clear it
+    info!("Removing node-id file at {}", node_id_path.to_string_lossy());
     match fs::remove_file(&node_id_path) {
         Ok(_) => {
             println!(
@@ -182,10 +215,7 @@ pub fn clear_node_id() -> std::io::Result<()> {
             Ok(())
         }
         Err(e) => {
-            eprintln!(
-                "{}",
-                format!("Failed to clear node ID configuration: {}", e).red()
-            );
+            error!("Failed to remove node-id file: {}", e);
             Err(e)
         }
     }
@@ -194,8 +224,10 @@ pub fn clear_node_id() -> std::io::Result<()> {
 fn get_node_id_from_user() -> String {
     println!("{}", "Please enter your node ID:".green());
     let mut node_id = String::new();
-    std::io::stdin()
-        .read_line(&mut node_id)
-        .expect("Failed to read node ID");
+    if let Err(e) = std::io::stdin().read_line(&mut node_id){
+        error!("Failed to read node ID from stdin: {}", e);
+        // fallback to empty
+        return "".to_string();
+    }
     node_id.trim().to_string()
 }
