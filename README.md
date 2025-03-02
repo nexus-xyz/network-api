@@ -43,7 +43,7 @@ Alternatively, if you’ve already downloaded `install.sh`:
 
 ### CI
 
-The `install.sh` script is designed to do few things:
+The `install.sh` script is designed to do several things:
 
 
 1. Install Rust if it's not already installed... and do it non-interactively if possible, so it does not bother the user.
