@@ -73,6 +73,7 @@ if [ -d "$REPO_PATH" ]; then
   (
     cd "$REPO_PATH" || exit
     git stash
+    git pull --rebase
     git fetch --tags
   )
 else
