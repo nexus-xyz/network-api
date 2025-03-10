@@ -1,3 +1,7 @@
+
+[![License](https://img.shields.io/github/license/nexus-xyz/network-api)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-APACHE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-MIT)
+
 # Nexus Network CLI
 
 A high-performance command-line interface for contributing proofs to the Nexus network.
