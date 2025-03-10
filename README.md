@@ -19,7 +19,7 @@ The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prov
 There have been two testnets so far:
 - Testnet 0: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
 - Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
-- Testnet II: February 18 – 22, 2025
+- Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
 
 ---
 
