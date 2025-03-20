@@ -97,6 +97,22 @@ If you don’t have Rust installed, you will be prompted to install it (unless `
 
 ---
 
+## Quick Start (Docker)
+
+Make sure docker and docker compose have been installed on you machine. check documentation here :
+- [Install Docker](https://docs.docker.com/engine/install/)
+- [Install Docker Compose](https://docs.docker.com/compose/install/)
+
+Update your `PROVER_ID` at `docker-compose.yml`. then run command below to start proving.
+```bash
+docker compose up -d
+```
+
+For see the logs you can run this commands
+```bash
+docker compose logs -f
+```
+
 ## Prerequisites
 
 ### Linux
