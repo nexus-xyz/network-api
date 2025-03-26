@@ -182,7 +182,9 @@ pub async fn start_prover(
 
                 match authenticated_proving(&node_id, environment).await {
                     Ok(_) => (),
-                    Err(_e) => (),
+                    Err(e) => {
+                        println!("Error in authenticated proving: {}", e);
+                    },
                 }
 
                 proof_count += 1;
