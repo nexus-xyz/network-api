@@ -65,13 +65,14 @@ async fn authenticated_proving(
     
     assert_eq!(code, 0, "Unexpected exit code!");
 
-    let proof_bytes = match serde_json::to_vec(&proof) {
+    let proof_bytes: Vec<u8> = match postcard::to_allocvec(&proof) {
         Ok(bytes) => bytes,
         Err(e) => {
             error!("Failed to serialize proof: {}", e);
             return Err(e.into());
         }
     };
+
     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     println!("Submitting ZK proof to Nexus Orchestrator...");

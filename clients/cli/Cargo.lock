@@ -173,6 +173,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "atomic-polyfill"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8cf2bce30dfe09ef0bfaef228b9d414faaf7e563035494d7fe092dba54b300f4"
+dependencies = [
+ "critical-section",
+]
+
+[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -285,6 +294,12 @@ dependencies = [
  "quote",
  "syn 2.0.96",
 ]
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -446,6 +461,12 @@ name = "crc-catalog"
 version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19d374276b40fb8bbdee95aef7c7fa6b5316ec764510eb64b8dd0e2ed0d7e7f5"
+
+[[package]]
+name = "critical-section"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "790eea4361631c5e7d22598ecd5723ff611904e3344ce8720784c93e3d83d40b"
 
 [[package]]
 name = "crossbeam-deque"
@@ -782,10 +803,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c35f58762feb77d74ebe43bdbc3210f09be9fe6742234d573bacc26ed92b67"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf151400ff0baff5465007dd2f3e717f3fe502074ca563069ce3a6629d07b289"
+
+[[package]]
+name = "heapless"
+version = "0.7.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cdc6457c0eb62c71aac4bc17216026d8410337c4126773b9c5daba343f17964f"
+dependencies = [
+ "atomic-polyfill",
+ "hash32",
+ "rustc_version",
+ "serde",
+ "spin",
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "heck"
@@ -1168,8 +1212,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-common"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "rrs-lib",
  "serde",
@@ -1179,8 +1223,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-core"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "nexus-vm",
  "nexus-vm-prover",
@@ -1199,6 +1243,7 @@ dependencies = [
  "md5",
  "nexus-sdk",
  "num_cpus",
+ "postcard",
  "prost 0.13.1",
  "prost-build 0.13.1",
  "rayon",
@@ -1213,7 +1258,7 @@ dependencies = [
 [[package]]
 name = "nexus-precompile-macros"
 version = "0.1.0"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "nexus-common",
  "proc-macro-crate 3.2.0",
@@ -1226,8 +1271,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-precompiles"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "nexus-common",
  "nexus-precompile-macros",
@@ -1235,8 +1280,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-profiler"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "pprof",
 ]
@@ -1264,11 +1309,12 @@ dependencies = [
 
 [[package]]
 name = "nexus-sdk"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "crypto",
  "crypto-common",
+ "nexus-common",
  "nexus-core",
  "nexus-sdk-macros",
  "postcard",
@@ -1279,8 +1325,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-sdk-macros"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "nexus-profiler",
  "proc-macro-crate 3.2.0",
@@ -1291,8 +1337,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-vm"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "elf",
  "nexus-common",
@@ -1313,8 +1359,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-vm-prover"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "impl-trait-for-tuples",
  "itertools 0.13.0",
@@ -1329,8 +1375,8 @@ dependencies = [
 
 [[package]]
 name = "nexus-vm-prover-macros"
-version = "0.2.3"
-source = "git+https://github.com/nexus-xyz/nexus-zkvm?branch=neo#ae4e272521d279aaa16280b9c6f5e60334ea4305"
+version = "0.3.1"
+source = "git+https://github.com/nexus-xyz/nexus-zkvm?tag=0.3.1#56ab8e5b953de45903ae9dfde498e8413a9c611b"
 dependencies = [
  "convert_case",
  "proc-macro2",
@@ -1596,6 +1642,7 @@ dependencies = [
  "crc",
  "embedded-io 0.4.0",
  "embedded-io 0.6.1",
+ "heapless",
  "paste",
  "serde",
 ]
@@ -2207,6 +2254,9 @@ name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+dependencies = [
+ "lock_api",
+]
 
 [[package]]
 name = "stable_deref_trait"

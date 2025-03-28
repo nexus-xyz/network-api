@@ -60,6 +60,7 @@ impl OrchestratorClient {
             },
             _ => return Err("[METHOD] Unsupported HTTP method".into()),
         };
+        println!("Response: {:?}", friendly_messages);
 
         if !friendly_messages.status().is_success() {
             let status = friendly_messages.status();
