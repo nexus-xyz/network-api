@@ -23,7 +23,7 @@ pub fn print_banner() {
         }
         println!("{}", colored_line);
     }
-    
+
     let version = match option_env!("CARGO_PKG_VERSION") {
         Some(v) => format!("v{}", v),
         None => "(unknown version)".into(),

@@ -6,8 +6,8 @@ use crate::nexus_orchestrator::{
 };
 use prost::Message;
 use reqwest::{Client, ClientBuilder};
-use std::time::Duration;
 use std::error::Error as StdError;
+use std::time::Duration;
 
 type Error = Box<dyn StdError + Send + Sync>;
 
@@ -115,10 +115,7 @@ impl OrchestratorClient {
         }
     }
 
-    pub async fn get_proof_task(
-        &self,
-        node_id: &str,
-    ) -> Result<GetProofTaskResponse, Error> {
+    pub async fn get_proof_task(&self, node_id: &str) -> Result<GetProofTaskResponse, Error> {
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
