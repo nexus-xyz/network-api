@@ -7,11 +7,24 @@ use crate::nexus_orchestrator::{
 use prost::Message;
 use reqwest::{Client, ClientBuilder};
 use std::time::Duration;
+use std::error::Error as StdError;
+
+type Error = Box<dyn StdError + Send + Sync>;
 
 pub struct OrchestratorClient {
     client: Client,
     base_url: String,
     // environment: config::Environment,
+}
+
+impl Clone for OrchestratorClient {
+    fn clone(&self) -> Self {
+        Self {
+            client: self.client.clone(),
+            base_url: self.base_url.clone(),
+            // environment: self.environment,
+        }
+    }
 }
 
 impl OrchestratorClient {
@@ -31,7 +44,7 @@ impl OrchestratorClient {
         url: &str,
         method: &str,
         request_data: &T,
-    ) -> Result<Option<U>, Box<dyn std::error::Error>>
+    ) -> Result<Option<U>, Error>
     where
         T: Message,
         U: Message + Default,
@@ -105,7 +118,7 @@ impl OrchestratorClient {
     pub async fn get_proof_task(
         &self,
         node_id: &str,
-    ) -> Result<GetProofTaskResponse, Box<dyn std::error::Error>> {
+    ) -> Result<GetProofTaskResponse, Error> {
         let request = GetProofTaskRequest {
             node_id: node_id.to_string(),
             node_type: NodeType::CliProver as i32,
@@ -119,12 +132,14 @@ impl OrchestratorClient {
         Ok(response)
     }
 
+    #[allow(dead_code)]
     pub async fn submit_proof(
         &self,
         node_id: &str,
         proof_hash: &str,
         proof: Vec<u8>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+        task_id: u64,
+    ) -> Result<(), Error> {
         let (program_memory, total_memory) = get_memory_info();
         let flops = measure_flops();
 
@@ -139,6 +154,7 @@ impl OrchestratorClient {
                 memory_capacity: Some(total_memory),
                 location: Some("US".to_string()),
             }),
+            task_id,
         };
 
         self.make_request::<SubmitProofRequest, ()>("/tasks/submit", "POST", &request)

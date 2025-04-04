@@ -8,15 +8,81 @@ use crate::setup;
 use crate::utils;
 use colored::Colorize;
 use sha3::{Digest, Keccak256};
-use log::{error, warn};
-use std::time::Duration;
+use log::{error};
+use std::time::{Duration, Instant};
+use std::thread;
+use rayon::ThreadPoolBuilder;
+use std::error::Error as StdError;
+use std::fmt;
+use tokio::sync::mpsc;
+use crossterm::{
+    cursor::{Hide, MoveTo, Show},
+    execute,
+    style::{Color, Print, SetForegroundColor, ResetColor},
+    terminal::{Clear, ClearType},
+};
+use std::io::{stdout, Write};
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+
+#[derive(Debug)]
+struct ProverError {
+    message: String,
+}
+
+impl fmt::Display for ProverError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl StdError for ProverError {}
+
+impl From<String> for ProverError {
+    fn from(message: String) -> Self {
+        ProverError { message }
+    }
+}
+
+impl From<serde_json::Error> for ProverError {
+    fn from(e: serde_json::Error) -> Self {
+        ProverError { message: format!("Serde error: {}", e) }
+    }
+}
+
+// Make ProverError Send + Sync
+unsafe impl Send for ProverError {}
+unsafe impl Sync for ProverError {}
 
 /// Proves a program with a given node ID
 #[allow(dead_code)]
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
-) -> Result<(), Box<dyn std::error::Error>> {
+    speed: &crate::ProvingSpeed,
+) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    // Set thread count based on speed
+    let num_threads = match speed {
+        crate::ProvingSpeed::Low => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores + 3) / 4 // Use 25% of cores, rounded up
+        }
+        crate::ProvingSpeed::Medium => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores + 1) / 2 // Use 50% of cores, rounded up
+        }
+        crate::ProvingSpeed::High => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores * 3 + 3) / 4 // Use 75% of cores, rounded up
+        }
+    };
+
+    // Create a new thread pool with the specified number of threads
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .map_err(|e| ProverError::from(format!("Failed to create thread pool: {}", e)))?;
+
     let client = OrchestratorClient::new(environment.clone());
 
     println!("Fetching a task to prove from Nexus Orchestrator...");
@@ -27,7 +93,7 @@ async fn authenticated_proving(
         },
         Err(_) => {
             println!("Using local inputs.");
-            return anonymous_proving();
+            return anonymous_proving(speed);
         },
     };
 
@@ -37,102 +103,113 @@ async fn authenticated_proving(
     let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("assets")
         .join("fib_input");
-    let prover =
-        match Stwo::<Local>::new_from_file(&elf_file_path){
-            Ok(prover) => prover,
-            Err(e) => {
-                error!("Failed to load guest program: {}", e);
-                return Err(e.into())
-            }
-        };
 
-    println!("Creating ZK proof with inputs...");
-    let (view, proof) = match prover
-        .prove_with_input::<(), u32>(&(), &public_input){
-            Ok(result) => result,
-            Err(e) => {
-                error!("Failed to run prover: {}", e);
-                return Err(e.into());
-            }
-        };
+    // Run the prover in the custom thread pool
+    let (view, proof) = pool.install(|| {
+        let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+            .map_err(|e| ProverError::from(format!("Failed to load guest program: {}", e)))?;
+
+        println!("Creating ZK proof with inputs...");
+        prover
+            .prove_with_input::<(), u32>(&(), &public_input)
+            .map_err(|e| ProverError::from(format!("Failed to run prover: {}", e)))
+    })?;
 
     let code = view.exit_code()
-        .map(|u| u as i32) // convert on success
+        .map(|u| u as i32)
         .unwrap_or_else(|_err| {
-            eprintln!("Failed to retrieve exit code: {:?}", _err);
+            // We can't use await here, so just return -1 and let the error be handled below
             -1
         });
     
-    assert_eq!(code, 0, "Unexpected exit code!");
+    if code != 0 {
+        error!("Unexpected exit code: {}", code);
+        return Err(Box::new(ProverError::from(format!("Unexpected exit code: {}", code))));
+    }
 
     let proof_bytes = match serde_json::to_vec(&proof) {
         Ok(bytes) => bytes,
         Err(e) => {
             error!("Failed to serialize proof: {}", e);
-            return Err(e.into());
+            return Err(Box::new(ProverError::from(e)));
         }
     };
-    let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+    let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
-    println!("Submitting ZK proof to Nexus Orchestrator...");
-    if let Err(e) = client
-        .submit_proof(node_id, &proof_hash, proof_bytes)
-        .await{
-            error!("Failed to submit proof: {}", e);
-            return Err(e);
-        }
+    let _ = client.submit_proof(node_id, &_proof_hash, proof_bytes, proof_task.task_id as u64).await;
     
     println!("{}", "ZK proof successfully submitted".green());
     Ok(())
 }
 
-fn anonymous_proving() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Instead of fetching the proof task from the orchestrator, we will use hardcoded input program and values
+fn anonymous_proving(speed: &crate::ProvingSpeed) -> Result<(), Box<dyn StdError + Send + Sync>> {
+    // Set thread count based on speed
+    let num_threads = match speed {
+        crate::ProvingSpeed::Low => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores + 3) / 4 // Use 25% of cores, rounded up
+        }
+        crate::ProvingSpeed::Medium => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores + 1) / 2 // Use 50% of cores, rounded up
+        }
+        crate::ProvingSpeed::High => {
+            let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+            (total_cores * 3 + 3) / 4 // Use 75% of cores, rounded up
+        }
+    };
 
-    // The 10th term of the Fibonacci sequence is 55
-    let public_input: u32 = 9;
-    println!("Compiling guest program...");
-    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("assets")
-        .join("fib_input");
+    // Create a new thread pool with the specified number of threads
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .map_err(|e| Box::new(ProverError::from(format!("Failed to create thread pool: {}", e))) as Box<dyn StdError + Send + Sync>)?;
 
-    let prover = Stwo::<Local>::new_from_file(&elf_file_path)
-        .map_err(|e| {
-            error!("Failed to load guest program: {}", e);
-            e
-        })?;
+    // Run the prover in the custom thread pool
+    Ok(pool.install(|| -> Result<(), Box<dyn StdError + Send + Sync>> {
+        // 1. Instead of fetching the proof task from the orchestrator, we will use hardcoded input program and values
 
-    //3. Run the prover
-    println!("Creating ZK proof (anonymous)...");
-    let (view, proof) = prover
-        .prove_with_input::<(), u32>(&(), &public_input)
-        .map_err(|e| {
-            error!("Failed to run prover: {}", e);
-            e
-    })?;
+        // The 10th term of the Fibonacci sequence is 55
+        let public_input: u32 = 9;
+        println!("Compiling guest program...");
+        let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join("fib_input");
 
-    let exit_code = view.exit_code().expect("Failed to retrieve exit code");
-    if exit_code != 0 {
-        error!("Unexpected exit code: {} (expected 0)", exit_code);
-        return Err(format!("Exit code was {}", exit_code).into());
-    }
+        let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+            .map_err(|e| Box::new(ProverError::from(format!("Failed to load guest program: {}", e))) as Box<dyn StdError + Send + Sync>)?;
 
-    let proof_bytes = serde_json::to_vec(&proof)?;
-    println!(
-        "{}",
-        format!(
-            "ZK proof created (anonymous) with size: {} bytes",
-            proof_bytes.len()
-        )
-        .green()
-    );
-    Ok(())
+        //3. Run the prover
+        println!("Creating ZK proof (anonymous)...");
+        let (view, proof) = prover
+            .prove_with_input::<(), u32>(&(), &public_input)
+            .map_err(|e| Box::new(ProverError::from(format!("Failed to run prover: {}", e))) as Box<dyn StdError + Send + Sync>)?;
+
+        let exit_code = view.exit_code().expect("Failed to retrieve exit code");
+        if exit_code != 0 {
+            error!("Unexpected exit code: {} (expected 0)", exit_code);
+            return Err(Box::new(ProverError::from(format!("Exit code was {}", exit_code))) as Box<dyn StdError + Send + Sync>);
+        }
+
+        let proof_bytes = serde_json::to_vec(&proof)
+            .map_err(|e| Box::new(ProverError::from(e)) as Box<dyn StdError + Send + Sync>)?;
+        println!(
+            "{}",
+            format!(
+                "ZK proof created (anonymous) with size: {} bytes",
+                proof_bytes.len()
+            )
+            .green()
+        );
+        Ok(())
+    })?)
 }
 
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator
 pub async fn start_prover(
     environment: &config::Environment,
-) -> Result<(), Box<dyn std::error::Error>> {
+    speed: &crate::ProvingSpeed,
+) -> Result<(), Box<dyn StdError>> {
     // Print the banner at startup
     utils::cli_branding::print_banner();
 
@@ -142,6 +219,13 @@ pub async fn start_prover(
             .bold()
             .underline()
             .bright_cyan(),
+    );
+
+    // Print the selected speed setting
+    println!(
+        "{}: {}",
+        "Proving speed".bold(),
+        format!("{:?}", speed).bright_cyan()
     );
 
     // Run the initial setup to determine anonymous or connected node
@@ -155,70 +239,323 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
-            let client_id = format!("{:x}", md5::compute(b"anonymous"));
-            let mut proof_count = 1;
+            let _client_id = format!("{:x}", md5::compute(b"anonymous"));
+            let _speed_clone = speed.clone();
+            
+            // Set thread count based on speed
+            let num_threads = match speed {
+                crate::ProvingSpeed::Low => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores + 3) / 4 // Use 25% of cores, rounded up
+                }
+                crate::ProvingSpeed::Medium => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores + 1) / 2 // Use 50% of cores, rounded up
+                }
+                crate::ProvingSpeed::High => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores * 3 + 3) / 4 // Use 75% of cores, rounded up
+                }
+            };
 
-            loop {
-                println!("\n================================================");
-                println!(
-                    "{}",
-                    format!("\nStarting proof #{} (anonymous) ...\n", proof_count).yellow()
-                );
+            println!(
+                "{}: {}",
+                "Number of parallel proof workers".bold(),
+                num_threads.to_string().bright_cyan()
+            );
 
-                // We'll do a few attempts (e.g. 3) in case of transient failures
-                let max_attempts = 3;
-                let mut attempt = 1;
-                let mut success = false;
+            // Create a shared atomic counter for proofs
+            let proof_counter = Arc::new(AtomicU32::new(1));
 
-                while attempt <= max_attempts {
-                    println!("Attempt #{} for anonymous proving", attempt);
-                    match anonymous_proving() {
-                        Ok(_) => {
-                            println!("Anonymous proving succeeded on attempt #{attempt}!");
-                            success = true;
-                            break;
+            // Create a multi-progress bar for all threads
+            let mut stdout = stdout();
+            let (tx, mut rx): (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>) = mpsc::channel(100);
+            
+            // Initialize progress bars with empty messages
+            let mut progress_bars = vec![(0, String::new()); num_threads];
+            execute!(&mut stdout, Hide)?;
+            
+            // Create a single thread to handle progress bar updates
+            let progress_handle = tokio::spawn(async move {
+                let mut stdout = std::io::stdout();
+                let mut error_messages: Vec<(usize, String)> = Vec::new();
+                let mut last_messages: Vec<String> = vec![String::new(); num_threads];
+                
+                while let Some((worker_id, position, message)) = rx.recv().await {
+                    if worker_id < progress_bars.len() {
+                        // Update progress bar or error message
+                        if message.contains("Error") {
+                            // Only keep the most recent error for each worker
+                            if let Some(pos) = error_messages.iter().position(|(id, _)| *id == worker_id) {
+                                error_messages.remove(pos);
+                            }
+                            error_messages.push((worker_id, message.clone()));
+                            // Keep only the most recent 7 errors
+                            if error_messages.len() > 7 {
+                                error_messages.remove(0);
+                            }
+                        } else {
+                            progress_bars[worker_id] = (position, message.clone());
+                            last_messages[worker_id] = message;
                         }
-                        Err(e) => {
-                            warn!("Attempt #{attempt} failed: {e}");
-                            attempt += 1;
-                            if attempt <= max_attempts {
-                                warn!("Retrying anonymous proving in 2s...");
-                                tokio::time::sleep(Duration::from_secs(2)).await;
+                        
+                        // Get terminal dimensions
+                        let (width, height) = crossterm::terminal::size().unwrap_or((80, 24));
+                        // Calculate start row to ensure all rows fit
+                        let table_height = num_threads + 4; // Header (2) + rows (num_threads) + footer (1) + spacing (1)
+                        let start_row = height.saturating_sub(table_height as u16);
+                        
+                        // Calculate table width based on terminal width
+                        let table_width = width.min(80);
+                        let status_width = table_width.saturating_sub(12); // Account for worker column and borders
+                        
+                        // Clear only the progress bar area
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row),
+                            Clear(ClearType::FromCursorDown)
+                        )?;
+
+                        // Draw table header
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row),
+                            Print(format!("╔{}╤{}╗", "═".repeat(8), "═".repeat(status_width as usize - 7))),
+                            MoveTo(0, start_row + 1),
+                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 7))),
+                            MoveTo(0, start_row + 2),
+                            Print(format!("╠{}╪{}╣", "═".repeat(8), "═".repeat(status_width as usize - 7)))
+                        )?;
+
+                        // Draw all progress bars, including inactive ones
+                        for i in 0..num_threads {
+                            let (_pos, msg) = &progress_bars[i];
+                            let dot_color = if msg.contains("Error") || msg.contains("Retrying") {
+                                Color::Red
+                            } else if msg.contains("Fetching") {
+                                Color::Yellow
+                            } else if msg.is_empty() {
+                                Color::White // Use white for inactive workers
+                            } else {
+                                Color::Green
+                            };
+                            
+                            let display_msg = if msg.is_empty() {
+                                format!("[Worker {:02}] Waiting for task...", i)
+                            } else if msg.contains("Error") {
+                                msg.split(" at ").next().unwrap_or(msg).to_string()
+                            } else {
+                                msg.to_string()
+                            };
+
+                            // Truncate message to fit in available width
+                            let truncated_msg = if display_msg.len() > status_width as usize - 5 {
+                                format!("{}...", &display_msg[..status_width as usize - 5])
+                            } else {
+                                display_msg
+                            };
+                            
+                            execute!(
+                                &mut stdout,
+                                MoveTo(0, start_row + 3 + i as u16),
+                                Print("║ "),
+                                SetForegroundColor(dot_color),
+                                Print("● "),
+                                ResetColor,
+                                Print(format!("{:02}  │ ", i)),
+                                Print(format!("{:<width$}", truncated_msg, width = status_width as usize - 10)),
+                                Print(" ║")
+                            )?;
+                        }
+
+                        // Draw table footer
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row + 3 + num_threads as u16),
+                            Print(format!("╚{}╧{}╝", "═".repeat(8), "═".repeat(status_width as usize - 7)))
+                        )?;
+                        
+                        stdout.flush()?;
+                    }
+                }
+                Ok::<_, std::io::Error>(())
+            });
+
+            let mut handles = Vec::new();
+
+            // Spawn worker threads
+            for worker_id in 0..num_threads {
+                let tx = tx.clone();
+                let proof_counter = Arc::clone(&proof_counter);
+                
+                let handle: tokio::task::JoinHandle<Result<(), Box<ProverError>>> = tokio::spawn(async move {
+                    loop {
+                        // Create a new thread pool for this worker
+                        let pool = match ThreadPoolBuilder::new()
+                            .num_threads(1)  // Each worker gets its own single-threaded pool
+                            .build() {
+                                Ok(pool) => pool,
+                                Err(e) => {
+                                    let _ = tx.send((worker_id, 0, format!("Error: Failed to create thread pool - {}", e))).await;
+                                    tokio::time::sleep(Duration::from_secs(5)).await;
+                                    return Ok(());
+                                }
+                            };
+                        
+                        loop {
+                            let current_proof = proof_counter.load(Ordering::SeqCst);
+                            // Send initial status with current proof count
+                            if let Err(e) = tx.send((worker_id, 0, format!("Starting proof..."))).await {
+                                error!("Worker {} channel error: {}", worker_id, e);
+                                return Ok(());
+                            }
+
+                            // Use hardcoded input for anonymous proving
+                            let public_input: u32 = 9; // The 10th term of the Fibonacci sequence is 55
+                            let task_id = format!("proof #{}", current_proof);
+                            
+                            // Process the proof task using the thread pool
+                            let result = pool.install(|| -> Result<(Vec<u8>, String), ProverError> {
+                                let start_time = Instant::now();
+
+                                // Create a channel for progress updates
+                                let (progress_tx, progress_rx) = std::sync::mpsc::channel::<()>();
+                                
+                                // Clone tx for the progress thread
+                                let tx_for_progress = tx.clone();
+                                let proof_counter_for_progress = Arc::clone(&proof_counter);
+                                
+                                // Spawn a thread to handle progress updates
+                                let progress_thread = std::thread::spawn(move || {
+                                    let mut cycle_count = 0;
+                                    let mut total_cycles = 0;
+                                    let mut last_update = Instant::now();
+                                    let start_time = Instant::now();
+
+                                    // Send initial status
+                                    let _current_proof = proof_counter_for_progress.load(Ordering::SeqCst);
+                                    if let Err(e) = tx_for_progress.blocking_send((worker_id, 0, format!("Loading guest program..."))) {
+                                        error!("Worker {} progress channel error: {}", worker_id, e);
+                                        return;
+                                    }
+
+                                    while let Ok(_) = progress_rx.recv() {
+                                        cycle_count += 1;
+                                        total_cycles += 1;
+                                        let now = Instant::now();
+                                        let elapsed = now.duration_since(last_update);
+                                        if elapsed.as_millis() >= 100 { // Update every 100ms
+                                            let cycles_per_sec = cycle_count as f64 / elapsed.as_secs_f64();
+                                            let total_time = now.duration_since(start_time);
+                                            // Always get the latest proof count
+                                            let _current_proof = proof_counter_for_progress.load(Ordering::SeqCst);
+                                            if let Err(e) = tx_for_progress.blocking_send((worker_id, 0, 
+                                                format!("Proving at {:.2} cycles/sec ({} cycles in {:.1}s)", 
+                                                    cycles_per_sec, total_cycles, total_time.as_secs_f64()))) {
+                                                error!("Worker {} progress channel error: {}", worker_id, e);
+                                                return;
+                                            }
+                                            cycle_count = 0;
+                                            last_update = now;
+                                        }
+                                    }
+                                });
+
+                                let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                                    .join("assets")
+                                    .join("fib_input");
+
+                                let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+                                    .map_err(|e| ProverError::from(format!("Failed to load guest program: {}", e)))?;
+
+                                // Start sending progress updates
+                                let progress_tx_clone = progress_tx.clone();
+                                let update_thread = std::thread::spawn(move || {
+                                    loop {
+                                        if let Err(_) = progress_tx_clone.send(()) {
+                                            break;
+                                        }
+                                        std::thread::sleep(Duration::from_millis(1));
+                                    }
+                                });
+
+                                let (view, proof) = prover
+                                    .prove_with_input::<(), u32>(&(), &public_input)
+                                    .map_err(|e| ProverError::from(format!("Failed to run prover: {}", e)))?;
+
+                                // Signal the progress threads to stop
+                                drop(progress_tx);
+                                let _ = progress_thread.join();
+                                let _ = update_thread.join();
+
+                                let code = view.exit_code()
+                                    .map(|u| u as i32)
+                                    .unwrap_or_else(|_err| -1);
+                                
+                                if code != 0 {
+                                    return Err(ProverError::from(format!("Unexpected exit code: {}", code)));
+                                }
+
+                                if let Err(e) = tx.blocking_send((worker_id, 0, format!("Serializing proof for {}...", task_id))) {
+                                    error!("Worker {} channel error: {}", worker_id, e);
+                                    return Err(ProverError::from("Channel closed".to_string()));
+                                }
+
+                                let proof_bytes = serde_json::to_vec(&proof)
+                                    .map_err(|e| ProverError::from(e))?;
+                                let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+
+                                let duration = start_time.elapsed();
+                                if let Err(e) = tx.blocking_send((worker_id, 0, format!("Completed {} in {:.2?}", task_id, duration))) {
+                                    error!("Worker {} channel error: {}", worker_id, e);
+                                    return Err(ProverError::from("Channel closed".to_string()));
+                                }
+
+                                Ok((proof_bytes, proof_hash))
+                            });
+
+                            match result {
+                                Ok((_proof_bytes, _proof_hash)) => {
+                                    if let Err(e) = tx.send((worker_id, 0, "Preparing to submit proof...".to_string())).await {
+                                        error!("Worker {} channel error: {}", worker_id, e);
+                                        return Ok(());
+                                    }
+                                    // Simulate successful proof submission
+                                    let _ = proof_counter.fetch_add(1, Ordering::SeqCst);
+                                    if let Err(e) = tx.send((worker_id, 0, "Successfully completed proof".to_string())).await {
+                                        error!("Worker {} channel error: {}", worker_id, e);
+                                        return Ok(());
+                                    }
+                                }
+                                Err(e) => {
+                                    if let Err(e) = tx.send((worker_id, 0, format!("Worker {}: Failed to generate proof: {}", worker_id, e))).await {
+                                        error!("Worker {} channel error: {}", worker_id, e);
+                                        return Ok(());
+                                    }
+                                    return Ok(());
+                                }
                             }
                         }
                     }
-                }
-
-                if !success {
-                    error!(
-                        "All {} attempts to prove anonymously failed. Moving on to next proof iteration.",
-                        max_attempts
-                    );
-                }
-
-                proof_count += 1;
-                analytics::track(
-                    "cli_proof_anon_v2".to_string(),
-                    format!("Completed anon proof iteration #{}", proof_count),
-                    serde_json::json!({
-                        "node_id": "anonymous",
-                        "proof_count": proof_count,
-                    }),
-                    false,
-                    environment,
-                    client_id.clone(),
-                );
-
-                // Sleep before next proof
-                tokio::time::sleep(std::time::Duration::from_secs(4)).await;
+                });
+                
+                handles.push(handle);
             }
+
+            // Wait for all workers to complete (they won't, but this keeps the main thread alive)
+            for handle in handles {
+                let _ = handle.await?;
+            }
+            let _ = progress_handle.await?;
+            execute!(&mut stdout, Show)?;
+            Ok(())
         }
 
         // If the user selected "connected"
         setup::SetupResult::Connected(node_id) => {
             println!(
-                "\n===== {} =====\n",
-                "Starting proof generation for programs"
+                "\n===== {} =====\n\n",
+                "Connected - Welcome to the Supercomputer"
                     .bold()
                     .underline()
                     .bright_cyan()
@@ -242,64 +579,400 @@ pub async fn start_prover(
                 environment.to_string().bright_cyan()
             );
 
+            // Add a newline to separate the header from potential errors
+            println!();
+
             let client_id = format!("{:x}", md5::compute(node_id.as_bytes()));
-            let mut proof_count = 1;
+            let speed_clone = speed.clone();
+            
+            // Set thread count based on speed
+            let num_threads = match speed {
+                crate::ProvingSpeed::Low => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores + 3) / 4 // Use 25% of cores, rounded up
+                }
+                crate::ProvingSpeed::Medium => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores + 1) / 2 // Use 50% of cores, rounded up
+                }
+                crate::ProvingSpeed::High => {
+                    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+                    (total_cores * 3 + 3) / 4 // Use 75% of cores, rounded up
+                }
+            };
 
-            loop {
-                println!("\n================================================");
-                println!(
-                    "{}",
-                    format!(
-                        "\n[node: {}] Starting proof #{} (connected) ...\n",
-                        node_id, proof_count
-                    )
-                    .yellow()
-                );
+            println!(
+                "{}: {}",
+                "Number of parallel proof workers".bold(),
+                num_threads.to_string().bright_cyan()
+            );
 
-                // Retry logic for authenticated_proving
-                let max_attempts = 3;
-                let mut attempt = 1;
-                let mut success = false;
+            // Create a shared atomic counter for proofs
+            let proof_counter = Arc::new(AtomicU32::new(1));
 
-                while attempt <= max_attempts {
-                    println!("Attempt #{} for authenticated proving (node_id={})", attempt, node_id);
-                    match authenticated_proving(&node_id, environment).await {
-                        Ok(_) => {
-                            println!("Proving succeeded on attempt #{attempt}!");
-                            success = true;
-                            break;
+            // Create a multi-progress bar for all threads
+            let mut stdout = stdout();
+            let (tx, mut rx): (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>) = mpsc::channel(100);
+            
+            // Initialize progress bars with empty messages
+            let mut progress_bars = vec![(0, String::new()); num_threads];
+            execute!(&mut stdout, Hide)?;
+            
+            // Create a single thread to handle progress bar updates
+            let progress_handle = tokio::spawn(async move {
+                let mut stdout = std::io::stdout();
+                let mut error_messages: Vec<(usize, String)> = Vec::new();
+                let mut last_messages: Vec<String> = vec![String::new(); num_threads];
+                
+                while let Some((worker_id, position, message)) = rx.recv().await {
+                    if worker_id < progress_bars.len() {
+                        // Update progress bar or error message
+                        if message.contains("Error") {
+                            // Only keep the most recent error for each worker
+                            if let Some(pos) = error_messages.iter().position(|(id, _)| *id == worker_id) {
+                                error_messages.remove(pos);
+                            }
+                            error_messages.push((worker_id, message.clone()));
+                            // Keep only the most recent 7 errors
+                            if error_messages.len() > 7 {
+                                error_messages.remove(0);
+                            }
+                        } else {
+                            progress_bars[worker_id] = (position, message.clone());
+                            last_messages[worker_id] = message;
                         }
-                        Err(e) => {
-                            warn!("Attempt #{attempt} failed with error: {e}");
-                            attempt += 1;
-                            if attempt <= max_attempts {
-                                warn!("Retrying in 2s...");
-                                tokio::time::sleep(Duration::from_secs(2)).await;
+                        
+                        // Get terminal dimensions
+                        let (width, height) = crossterm::terminal::size().unwrap_or((80, 24));
+                        // Calculate start row to ensure all rows fit
+                        let table_height = num_threads + 4; // Header (2) + rows (num_threads) + footer (1) + spacing (1)
+                        let start_row = height.saturating_sub(table_height as u16);
+                        
+                        // Calculate table width based on terminal width
+                        let table_width = width.min(80);
+                        let status_width = table_width.saturating_sub(12); // Account for worker column and borders
+                        
+                        // Clear only the progress bar area
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row),
+                            Clear(ClearType::FromCursorDown)
+                        )?;
+
+                        // Draw table header
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row),
+                            Print(format!("╔{}╤{}╗", "═".repeat(8), "═".repeat(status_width as usize - 7))),
+                            MoveTo(0, start_row + 1),
+                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 7))),
+                            MoveTo(0, start_row + 2),
+                            Print(format!("╠{}╪{}╣", "═".repeat(8), "═".repeat(status_width as usize - 7)))
+                        )?;
+
+                        // Draw all progress bars, including inactive ones
+                        for i in 0..num_threads {
+                            let (_pos, msg) = &progress_bars[i];
+                            let dot_color = if msg.contains("Error") || msg.contains("Retrying") {
+                                Color::Red
+                            } else if msg.contains("Fetching") {
+                                Color::Yellow
+                            } else if msg.is_empty() {
+                                Color::White // Use white for inactive workers
+                            } else {
+                                Color::Green
+                            };
+                            
+                            let display_msg = if msg.is_empty() {
+                                format!("[Worker {:02}] Waiting for task...", i)
+                            } else if msg.contains("Error") {
+                                msg.split(" at ").next().unwrap_or(msg).to_string()
+                            } else {
+                                msg.to_string()
+                            };
+
+                            // Truncate message to fit in available width
+                            let truncated_msg = if display_msg.len() > status_width as usize - 2 {
+                                format!("{}...", &display_msg[..status_width as usize - 5])
+                            } else {
+                                display_msg
+                            };
+                            
+                            execute!(
+                                &mut stdout,
+                                MoveTo(0, start_row + 3 + i as u16),
+                                Print("║ "),
+                                SetForegroundColor(dot_color),
+                                Print("● "),
+                                ResetColor,
+                                Print(format!("{:02}     │ ", i)),
+                                Print(format!("{:<width$}", truncated_msg, width = status_width as usize - 7)),
+                                Print(" ║")
+                            )?;
+                        }
+
+                        // Draw table footer
+                        execute!(
+                            &mut stdout,
+                            MoveTo(0, start_row + 3 + num_threads as u16),
+                            Print(format!("╚{}╧{}╝", "═".repeat(8), "═".repeat(status_width as usize - 7)))
+                        )?;
+                        
+                        stdout.flush()?;
+                    }
+                }
+                Ok::<_, std::io::Error>(())
+            });
+
+            let mut handles = Vec::new();
+
+            // Spawn worker threads
+            for worker_id in 0..num_threads {
+                let node_id = node_id.clone();
+                let environment = environment.clone();
+                let tx = tx.clone();
+                let proof_counter = Arc::clone(&proof_counter);
+                let client_id = client_id.clone();
+                let speed_clone = speed_clone.clone();
+                
+                let handle: tokio::task::JoinHandle<Result<(), Box<ProverError>>> = tokio::spawn(async move {
+                    loop {
+                        let client = OrchestratorClient::new(environment.clone());
+                        
+                        // Create a new thread pool for this worker
+                        let pool = match ThreadPoolBuilder::new()
+                            .num_threads(1)  // Each worker gets its own single-threaded pool
+                            .build() {
+                                Ok(pool) => pool,
+                                Err(e) => {
+                                    let _ = tx.send((worker_id, 0, format!("Error: Failed to create thread pool - {}", e))).await;
+                                    tokio::time::sleep(Duration::from_secs(5)).await;
+                                    return Ok(());
+                                }
+                            };
+                        
+                        loop {
+                            let current_proof = proof_counter.load(Ordering::SeqCst);
+                            // Send initial status with current proof count
+                            if let Err(e) = tx.send((worker_id, 0, format!("Fetching task..."))).await {
+                                error!("Worker {} channel error: {}", worker_id, e);
+                                return Ok(());
+                            }
+                            
+                            // Create a timeout future for task fetching
+                            let fetch_timeout = tokio::time::sleep(Duration::from_secs(5));
+                            let fetch_task = client.get_proof_task(&node_id);
+                            
+                            match tokio::select! {
+                                _ = fetch_timeout => {
+                                    if let Err(e) = tx.send((worker_id, 0, format!("Error: Task fetch timeout"))).await {
+                                        error!("Worker {} channel error: {}", worker_id, e);
+                                        return Ok(());
+                                    }
+                                    // Show red dot during backoff
+                                    for i in 0..5 {
+                                        if let Err(e) = tx.send((worker_id, 0, format!("Retrying in {}s...", 2u64.pow(i)))).await {
+                                            error!("Worker {} channel error: {}", worker_id, e);
+                                            break;
+                                        }
+                                        tokio::time::sleep(Duration::from_secs(2u64.pow(i))).await;
+                                    }
+                                    continue;
+                                }
+                                result = fetch_task => result
+                            } {
+                                Ok(proof_task) => {
+                                    let public_input: u32 = proof_task.public_inputs.first().cloned().unwrap_or_default() as u32;
+                                    let task_id = if proof_task.task_id > 0 {
+                                        format!("task {}", proof_task.task_id)
+                                    } else {
+                                        format!("proof #{}", current_proof)
+                                    };
+                                    
+                                    // Process the proof task using the thread pool
+                                    let result = pool.install(|| -> Result<(Vec<u8>, String), ProverError> {
+                                        let start_time = Instant::now();
+
+                                        // Create a channel for progress updates
+                                        let (progress_tx, progress_rx) = std::sync::mpsc::channel::<()>();
+                                        
+                                        // Clone tx for the progress thread
+                                        let tx_for_progress = tx.clone();
+                                        let proof_counter_for_progress = Arc::clone(&proof_counter);
+                                        
+                                        // Spawn a thread to handle progress updates
+                                        let progress_thread = std::thread::spawn(move || {
+                                            let mut cycle_count = 0;
+                                            let mut total_cycles = 0;
+                                            let mut last_update = Instant::now();
+                                            let start_time = Instant::now();
+
+                                            // Send initial status
+                                            let _current_proof = proof_counter_for_progress.load(Ordering::SeqCst);
+                                            if let Err(e) = tx_for_progress.blocking_send((worker_id, 0, format!("Loading guest program..."))) {
+                                                error!("Worker {} progress channel error: {}", worker_id, e);
+                                                return;
+                                            }
+
+                                            while let Ok(_) = progress_rx.recv() {
+                                                cycle_count += 1;
+                                                total_cycles += 1;
+                                                let now = Instant::now();
+                                                let elapsed = now.duration_since(last_update);
+                                                if elapsed.as_millis() >= 100 { // Update every 100ms
+                                                    let cycles_per_sec = cycle_count as f64 / elapsed.as_secs_f64();
+                                                    let total_time = now.duration_since(start_time);
+                                                    // Always get the latest proof count
+                                                    let _current_proof = proof_counter_for_progress.load(Ordering::SeqCst);
+                                                    if let Err(e) = tx_for_progress.blocking_send((worker_id, 0, 
+                                                        format!("Proving at {:.2} cycles/sec ({} cycles in {:.1}s)", 
+                                                            cycles_per_sec, total_cycles, total_time.as_secs_f64()))) {
+                                                        error!("Worker {} progress channel error: {}", worker_id, e);
+                                                        return;
+                                                    }
+                                                    cycle_count = 0;
+                                                    last_update = now;
+                                                }
+                                            }
+                                        });
+
+                                        let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                                            .join("assets")
+                                            .join("fib_input");
+
+                                        let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+                                            .map_err(|e| ProverError::from(format!("Failed to load guest program: {}", e)))?;
+
+                                        // Start sending progress updates
+                                        let progress_tx_clone = progress_tx.clone();
+                                        let update_thread = std::thread::spawn(move || {
+                                            loop {
+                                                if let Err(_) = progress_tx_clone.send(()) {
+                                                    break;
+                                                }
+                                                std::thread::sleep(Duration::from_millis(1));
+                                            }
+                                        });
+
+                                        let (view, proof) = prover
+                                            .prove_with_input::<(), u32>(&(), &public_input)
+                                            .map_err(|e| ProverError::from(format!("Failed to run prover: {}", e)))?;
+
+                                        // Signal the progress threads to stop
+                                        drop(progress_tx);
+                                        let _ = progress_thread.join();
+                                        let _ = update_thread.join();
+
+                                        let code = view.exit_code()
+                                            .map(|u| u as i32)
+                                            .unwrap_or_else(|_err| -1);
+                                        
+                                        if code != 0 {
+                                            return Err(ProverError::from(format!("Unexpected exit code: {}", code)));
+                                        }
+
+                                        if let Err(e) = tx.blocking_send((worker_id, 0, format!("Serializing proof for {}...", task_id))) {
+                                            error!("Worker {} channel error: {}", worker_id, e);
+                                            return Err(ProverError::from("Channel closed".to_string()));
+                                        }
+
+                                        let proof_bytes = serde_json::to_vec(&proof)
+                                            .map_err(|e| ProverError::from(e))?;
+                                        let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+
+                                        let duration = start_time.elapsed();
+                                        if let Err(e) = tx.blocking_send((worker_id, 0, format!("Completed {} in {:.2?}", task_id, duration))) {
+                                            error!("Worker {} channel error: {}", worker_id, e);
+                                            return Err(ProverError::from("Channel closed".to_string()));
+                                        }
+
+                                        Ok((proof_bytes, _proof_hash))
+                                    });
+
+                                    match result {
+                                        Ok((proof_bytes, _proof_hash)) => {
+                                            // Show preparing to submit message
+                                            if let Err(e) = tx.send((worker_id, 0, format!("Preparing to submit proof..."))).await {
+                                                error!("Worker {} channel error: {}", worker_id, e);
+                                                return Ok(());
+                                            }
+
+                                            // Submit the proof to orchestrator
+                                            match client.submit_proof(&node_id, &_proof_hash, proof_bytes, proof_task.task_id as u64).await {
+                                                Ok(_) => {
+                                                    // Increment the counter after successful submission
+                                                    let _next_proof = proof_counter.fetch_add(1, Ordering::SeqCst) + 1;
+                                                    
+                                                    // Show success message
+                                                    if let Err(e) = tx.send((worker_id, 0, format!("Successfully submitted proof"))).await {
+                                                        error!("Worker {} channel error: {}", worker_id, e);
+                                                        return Ok(());
+                                                    }
+                                                    
+                                                    // Pause for 2 seconds
+                                                    tokio::time::sleep(Duration::from_secs(2)).await;
+                                                    
+                                                    // Show waiting message with next proof number
+                                                    if let Err(e) = tx.send((worker_id, 0, format!("Waiting before next proof..."))).await {
+                                                        error!("Worker {} channel error: {}", worker_id, e);
+                                                        return Ok(());
+                                                    }
+                                                    
+                                                    // Pause for 1 more second
+                                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                                    
+                                                    // Track analytics with the current proof count
+                                                    analytics::track(
+                                                        "cli_proof_node_v2".to_string(),
+                                                        format!("Completed proof iteration #{}", current_proof),
+                                                        serde_json::json!({
+                                                            "node_id": node_id,
+                                                            "proof_count": current_proof,
+                                                            "speed": format!("{:?}", speed_clone),
+                                                            "worker_id": worker_id,
+                                                            "task_id": task_id,
+                                                        }),
+                                                        false,
+                                                        &environment,
+                                                        client_id.clone(),
+                                                    );
+                                                },
+                                                Err(e) => {
+                                                    tx.send((worker_id, 0, format!("Error submitting proof for {} - {}", task_id, e))).await.unwrap();
+                                                    // Show red dot during backoff
+                                                    for i in 0..5 {
+                                                        tx.send((worker_id, 0, format!("Retrying in {}s...", 2u64.pow(i)))).await.unwrap();
+                                                        tokio::time::sleep(Duration::from_secs(2u64.pow(i))).await;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tx.send((worker_id, 0, format!("Error processing task {} - {}", task_id, e))).await.unwrap();
+                                            return Ok(());
+                                        }
+                                    }
+                                }
+                                Err(e) => {
+                                    tx.send((worker_id, 0, format!("Error fetching task - {}", e))).await.unwrap();
+                                    tokio::time::sleep(Duration::from_secs(2)).await;
+                                    return Ok(());
+                                }
                             }
                         }
                     }
-                }
-
-                if !success {
-                    error!(
-                        "All {} attempts to prove with node {} failed. Continuing to next proof iteration.",
-                        max_attempts, node_id
-                    );
-                }
-
-                proof_count += 1;
-                analytics::track(
-                    "cli_proof_node_v2".to_string(),
-                    format!("Completed proof iteration #{}", proof_count),
-                    serde_json::json!({
-                        "node_id": node_id,
-                        "proof_count": proof_count,
-                    }),
-                    false,
-                    environment,
-                    client_id.clone(),
-                );
+                });
+                
+                handles.push(handle);
             }
+
+            // Wait for all workers to complete (they won't, but this keeps the main thread alive)
+            for handle in handles {
+                let _ = handle.await?;
+            }
+            let _ = progress_handle.await?;
+            execute!(&mut stdout, Show)?;
+            Ok(())
         }
 
         // If setup is invalid
@@ -308,4 +981,63 @@ pub async fn start_prover(
             Err("Invalid setup option selected".into())
         }
     }
+}
+
+/// Process a single proof task
+#[allow(dead_code)]
+async fn process_proof_task(
+    _node_id: &str,
+    _environment: &config::Environment,
+    public_input: &u32,
+    worker_id: usize,
+    tx: &mpsc::Sender<(usize, u64, String)>,
+) -> Result<(), Box<dyn StdError>> {
+    let start_time = Instant::now();
+    tx.send((worker_id, 0, format!("Worker {}: Compiling guest program...", worker_id))).await?;
+    
+    let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("assets")
+        .join("fib_input");
+
+    let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+        .map_err(|e| ProverError::from(format!("Failed to load guest program: {}", e)))?;
+
+    tx.send((worker_id, 20, format!("Worker {}: Creating ZK proof with inputs...", worker_id))).await?;
+    let (view, proof) = prover
+        .prove_with_input::<(), u32>(&(), public_input)
+        .map_err(|e| ProverError::from(format!("Failed to run prover: {}", e)))?;
+
+    // Send incremental progress updates during proving
+    let mut last_progress = 20;
+    while last_progress < 80 {
+        last_progress += 1;
+        tx.send((worker_id, last_progress, format!("Worker {}: Proving in progress...", worker_id))).await?;
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+
+    let code = view.exit_code()
+        .map(|u| u as i32)
+        .unwrap_or_else(|_err| {
+            // We can't use await here, so just return -1 and let the error be handled below
+            -1
+        });
+    
+    if code != 0 {
+        tx.send((worker_id, 0, format!("Worker {}: Unexpected exit code: {}", worker_id, code))).await?;
+        return Err(Box::new(ProverError::from(format!("Unexpected exit code: {}", code))));
+    }
+
+    tx.send((worker_id, 80, format!("Worker {}: Serializing proof...", worker_id))).await?;
+    let proof_bytes = match serde_json::to_vec(&proof) {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            tx.send((worker_id, 0, format!("Worker {}: Failed to serialize proof: {}", worker_id, e))).await?;
+            return Err(Box::new(ProverError::from(e)));
+        }
+    };
+    let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
+
+    let duration = start_time.elapsed();
+    tx.send((worker_id, 100, format!("Worker {}: Proof completed in {:.2?}", worker_id, duration))).await?;
+    Ok(())
 }

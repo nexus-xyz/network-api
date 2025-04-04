@@ -55,6 +55,7 @@ num_cpus = "1.16"
 sha3 = "0.10.8"
 log = "0.4.26"
 indicatif = "0.17.7"
+crossterm = "0.28.1"
 
 [build-dependencies]
 
