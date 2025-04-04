@@ -322,7 +322,7 @@ pub async fn start_prover(
                             MoveTo(0, start_row),
                             Print(format!("╔{}╤{}╗", "═".repeat(8), "═".repeat(status_width as usize - 7))),
                             MoveTo(0, start_row + 1),
-                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 7))),
+                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 14))),
                             MoveTo(0, start_row + 2),
                             Print(format!("╠{}╪{}╣", "═".repeat(8), "═".repeat(status_width as usize - 7)))
                         )?;
@@ -362,9 +362,9 @@ pub async fn start_prover(
                                 SetForegroundColor(dot_color),
                                 Print("● "),
                                 ResetColor,
-                                Print(format!("{:02}  │ ", i)),
+                                Print(format!("{:02}   │ ", i)),
                                 Print(format!("{:<width$}", truncated_msg, width = status_width as usize - 10)),
-                                Print(" ║")
+                                Print("║")
                             )?;
                         }
 
@@ -665,7 +665,7 @@ pub async fn start_prover(
                             MoveTo(0, start_row),
                             Print(format!("╔{}╤{}╗", "═".repeat(8), "═".repeat(status_width as usize - 7))),
                             MoveTo(0, start_row + 1),
-                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 7))),
+                            Print(format!("║ Worker │ Status{}║", " ".repeat(status_width as usize - 14))),
                             MoveTo(0, start_row + 2),
                             Print(format!("╠{}╪{}╣", "═".repeat(8), "═".repeat(status_width as usize - 7)))
                         )?;
@@ -705,9 +705,9 @@ pub async fn start_prover(
                                 SetForegroundColor(dot_color),
                                 Print("● "),
                                 ResetColor,
-                                Print(format!("{:02}     │ ", i)),
-                                Print(format!("{:<width$}", truncated_msg, width = status_width as usize - 7)),
-                                Print(" ║")
+                                Print(format!("{:02}   │ ", i)),
+                                Print(format!("{:<width$}", truncated_msg, width = status_width as usize - 8)),
+                                Print("║")
                             )?;
                         }
 
