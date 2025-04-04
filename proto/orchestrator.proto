@@ -1,4 +1,4 @@
-// Copyright (c) 2024 Nexus. All rights reserved.
+// Copyright (c) 2025 Nexus. All rights reserved.
 //
 // If you use this protocol to communicate with Nexus's servers,
 // you must agree to the Terms of Use: https://nexus.xyz/terms-of-use
@@ -7,249 +7,61 @@ syntax = "proto3";
 
 package nexus.orchestrator;
 
-message ClientProgramProofRequest {
-  // The number of steps in the trace.
-  int32 steps_in_trace = 1;
+enum NodeType {
+  // The node is a web prover.
+  WEB_PROVER = 0;
 
-  // The number of steps in the proof.
-  // 
-  // Clients may batch up several proofs and report
-  // progress this way.
-  int32 steps_proven = 2;
-
-  // The step where the proof started.
-  int32 step_to_start = 3;
-
-  // A unique string identifier for the 
-  // program being proved.
-  string program_id = 4;
-
-  // Authentication token for client id.
-  optional string client_id_token = 5;
-
-  // Duration of the proof in milliseconds.
-  int32 proof_duration_millis = 6;
-
-  // Number of cycles per step.
-  int32 k = 7;
-
-  // Prover ID for CLI provers
-  optional string cli_prover_id = 8;
+  // The node is a CLI prover.
+  CLI_PROVER = 1;
 }
 
-message ClientProgramProofResponse {
+// Request a prover task.
+message GetProofTaskRequest {
+  // This node's ID.
+  string node_id = 1;
+
+  // The type of this node.
+  NodeType node_type = 2;
 }
 
-enum Network {
-  // Experimental new network types should leave the network unspecified.
-  NETWORK_UNSPECIFIED = 0;
+// A Prover task.
+message GetProofTaskResponse {
+  // Program id. (Assuming client-side default programs)
+  string program_id = 1;
 
-  // An open "playground" for those looking to experience the Nexus protocol
-  // as a proof requestor, prover, app developer, or validator.
-  NETWORK_DEVNET = 1;
-
-  // Environment where recent releases undergo intermittent stress tests
-  // that focus on network performance, stability, and the behavior of
-  // network provers.
-  NETWORK_TESTNET = 2;
-
-  // Reserved for future use.
-  NETWORK_MAINNET = 3;
+  // Public inputs to the program.
+  bytes public_inputs = 2;
 }
 
-message ProofRequest {
-  CompiledProgram program = 1;
+// Submit the result of a prover task.
+message SubmitProofRequest {
+  // The prover node's ID.
+  string node_id = 1;
 
-  VMProgramInput input = 2;
+  // The type of this node.
+  NodeType node_type = 2;
 
-  // Step of the trace to start the proof, inclusive.
-  //
-  // If missing, proving starts at the beginning of the trace.
-  optional int32 step_to_start = 3;
+  // Hash of the proof.
+  string proof_hash = 3;
 
-  // Number of steps for this proof request.
-  //
-  // If zero, proving is skipped. If missing, all steps are proved.
-  optional int32 steps_to_prove = 4;
+  // Telemetry data about the node
+  NodeTelemetry node_telemetry = 4;
+
+  // ZK proof of the proof activity
+  bytes proof = 5;
 }
 
-message ProofResponse {
-  Proof proof = 1;
-}
+// Performance stats of a node.
+message NodeTelemetry {
+  // Flops per second
+  optional int32 flops_per_sec = 1;
 
-// Send a request to the orchestrator backend to request the current leaderboard.
-message LeaderboardRequest {
-  int32 offset = 1; // The offset of the leaderboard to request.
-  int32 limit = 2; // The number of entries to request.
-}
+  // Memory used in bytes for the proof activity
+  optional int32 memory_used = 2;
 
-// The response to a leaderboard request.
-message LeaderboardResponse {
-  repeated LeaderboardResponseEntry leaderboard = 1;
-}
+  // Memory capacity in bytes of the node
+  optional int32 memory_capacity = 3;
 
-// An entry in the leaderboard.
-message LeaderboardResponseEntry {
-  string client_id = 1;
-  int64 prover_id = 2;
-  int64 total_cycles = 3;
-  double cycles_per_sec = 4;
-  int64 rank = 5;
-}
-
-// Request for the proof speed of the network.
-message NetworkSpeedRequest {
-  // empty because network speed is a global state, no request body
-}
-
-// Response to a network speed request.
-message NetworkSpeedResponse {
-  // The proof speed of the network in cycles per second.
-  double network_cycles_per_sec = 1;
-}
-
-// Request for the total number of cycles proved by the network.
-message TotalCyclesRequest {
-  // empty because total cycles is a global state, no request body
-}
-
-// Response to a total cycles request.
-message TotalCyclesResponse {
-  // The total number of cycles proved by the network.
-  int64 total_cycles_proved = 1;
-}
-
-// Message from client to request the number of cycles proved by a user
-message UserCyclesProvedRequest {
-  // List of all firebase IDs associated with a given email.
-  // This is authenticated through Firebase Admin SDK on the client side
-  // and then passed to the orchestrator backend
-  repeated string client_ids = 1;
-}
-
-// Response to a user cycles proved request.
-message UserCyclesProvedResponse {
-  // The total number of cycles proved by the requesting user.
-  int64 cycles_proved = 1;
-}
-
-// Message from client to request data
-message ClientDataRequest {
-  oneof message {
-    // Request for the proof speed of the network.
-    NetworkSpeedRequest network_speed = 1;
-    // Request for the leaderboard.
-    LeaderboardRequest leaderboard = 2;
-    // Request for the total number of cycles proved by the network.
-    TotalCyclesRequest total_cycles = 3;
-    // Request for the total number of cycles proved by a user.
-    UserCyclesProvedRequest user_cycles_proved = 4;
-  }
-}
-
-// Message returned to client with requested data
-message ClientDataResponse {
-  oneof message {
-    // Response for the proof speed of the network.
-    NetworkSpeedResponse network_speed = 1;
-    // Response for the leaderboard.
-    LeaderboardResponse leaderboard = 2;
-    // Response for the total number of cycles proved by the network.
-    TotalCyclesResponse total_cycles = 3;
-    // Response for the total number of cycles proved by a user.
-    UserCyclesProvedResponse user_cycles_proved = 4;
-  }
-}
-
-// A message that always represents a program runnable on the Nexus VM.
-message CompiledProgram {
-  oneof program {
-    // ELF binary containing a program to be proved, expressed in the RV32I ISA.
-    bytes rv32i_elf_bytes = 1;
-  }
-}
-
-message VMProgramInput {
-  oneof input {
-    // Input expressed as raw bytes to be read as-is off of the input tape.
-    bytes raw_bytes = 1;
-  }
-}
-
-message Proof {
-  oneof proof {
-    bytes nova_bytes = 1;
-  }
-}
-
-message Progress {
-  // Completion status expressed as a number between zero and one,
-  // inclusive.
-  float completed_fraction = 1;
-
-  // The total size of the execution trace in steps.
-  int32 steps_in_trace = 2;
-
-  // The number of steps of the execution trace to be proven.
-  int32 steps_to_prove = 3;
-
-  // The number of steps proven so far.
-  int32 steps_proven = 4;
-}
-
-// Streamed messages sent to the orchestrator to keep it updated with the
-// prover's status.
-message ProverRequest {
-  oneof contents {
-    // Details about this supply node for use by the orchestrator.
-    ProverRequestRegistration registration = 1;
-
-    // A completed proof.
-    Proof proof = 2;
-
-    // Periodic progress update for the current proof.
-    Progress progress = 3;
-
-    // Periodic liveness indicator when no proof is being computed.
-    Heartbeat heartbeat = 4;
-  }
-}
-
-enum ProverType {
-  // Experimental new prover types should leave the prover type unspecified.
-  PROVER_TYPE_UNSPECIFIED = 0;
-
-  // The default prover type, used for volunteered compute resources.
-  PROVER_TYPE_VOLUNTEER = 1;
-
-  // Provers running on public continuous integration.
-  // May restrict the types of programs that can be assigned.
-  PROVER_TYPE_CI = 2;
-}
-
-// Metadata that helps the orchestrator schedule work to the requesting compute
-// supplier.
-message ProverRequestRegistration {
-  // What type of prover this is.
-  ProverType prover_type = 1;
-
-  // A unique identifier for this prover, generated by the prover.
-  //
-  // Distinct provers must not share an identifier; do not use a constant value.
-  string prover_id = 2;
-
-  // The number of proof cycles that this prover expects to compute
-  // over the course of one second. Proof cycles are proof steps times k.
-  optional double estimated_proof_cycles_hertz = 3;
-
-  // The network to prove on.
-  Network network = 4;
-}
-
-message ProverResponse {
-  // Forward the literal request for now
-  ProofRequest to_prove = 1;
-}
-
-message Heartbeat {
+  // Geo location of the node
+  optional string location = 4;
 }

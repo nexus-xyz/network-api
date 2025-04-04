@@ -1,11 +1,11 @@
 use crate::analytics::track;
 use colored::Colorize;
+use native_tls::TlsConnector;
 use serde_json::json;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{connect_async_tls_with_config, Connector}; // 确保使用 Connector
-use native_tls::TlsConnector;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub async fn connect_to_orchestrator(
     ws_addr: &str,
@@ -26,12 +26,8 @@ pub async fn connect_to_orchestrator(
     let (client, _) = connect_async_tls_with_config(request, None, true, Some(connector))
         .await
         .map_err(|e| {
-            let error_message = format!(
-                "Failed to connect to orchestrator at {}: {}",
-                ws_addr,
-                e
-            )
-            .red();
+            let error_message =
+                format!("Failed to connect to orchestrator at {}: {}", ws_addr, e).red();
             eprintln!("{}", error_message);
             // Log failure to analytics
             track(
@@ -39,7 +35,7 @@ pub async fn connect_to_orchestrator(
                 error_message.to_string(), // Convert ColoredString to String
                 ws_addr,                   // WebSocket address
                 json!({ "error": e.to_string() }), // Event properties
-                true                        // Print description
+                true,                      // Print description
             );
             e
         })?;
@@ -48,9 +44,9 @@ pub async fn connect_to_orchestrator(
     track(
         "orchestrator_connection_success".to_string(),
         "Successfully connected to orchestrator.".to_string(), // Description of the success
-        ws_addr, // WebSocket address
-        json!({}), // No additional properties
-        true       // Print description
+        ws_addr,                                               // WebSocket address
+        json!({}),                                             // No additional properties
+        true,                                                  // Print description
     );
 
     Ok(client)

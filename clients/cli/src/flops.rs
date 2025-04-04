@@ -9,7 +9,7 @@ const NUM_REPEATS: usize = 5; // Number of repeats to average the results
 pub fn measure_flops() -> f32 {
     let num_cores = num_cpus::get() as u64;
     println!("Using {} logical cores for FLOPS measurement", num_cores);
-    
+
     let avg_flops: f64 = (0..NUM_REPEATS)
         .map(|_| {
             let start = Instant::now();
@@ -30,5 +30,5 @@ pub fn measure_flops() -> f32 {
         .sum::<f64>()
         / NUM_REPEATS as f64; // Average the FLOPS over all repeats
 
-     (avg_flops / 1e9) as f32 // Convert to GFLOP/s and cast to f32
+    (avg_flops / 1e9) as f32 // Convert to GFLOP/s and cast to f32
 }
