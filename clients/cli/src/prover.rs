@@ -25,6 +25,9 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
+// Add constant at the top of the file
+const CLIENT_NAME: &str = "cli_proof_node_v3";
+
 #[derive(Debug)]
 struct ProverError {
     message: String,
@@ -225,6 +228,21 @@ fn anonymous_proving(speed: &crate::ProvingSpeed) -> Result<(), Box<dyn StdError
             )
             .green()
         );
+
+        // Track analytics for anonymous proving
+        analytics::track(
+            CLIENT_NAME.to_string(),
+            "Completed anonymous proof".to_string(),
+            serde_json::json!({
+                "node_id": "anonymous",
+                "speed": format!("{:?}", speed),
+                "proof_size": proof_bytes.len(),
+            }),
+            false,
+            &config::Environment::Local,
+            format!("{:x}", md5::compute(b"anonymous")),
+        );
+
         Ok(())
     })
 }
@@ -590,7 +608,7 @@ pub async fn start_prover(
                                     }
 
                                     let proof_bytes = serde_json::to_vec(&proof)
-                                        .map_err(|e| ProverError::from(e))?;
+                                        .map_err(ProverError::from)?;
                                     let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
                                     let duration = start_time.elapsed();
@@ -674,7 +692,7 @@ pub async fn start_prover(
 
                                                     // Track analytics with the current proof count
                                                     analytics::track(
-                                                        "cli_proof_node_v2".to_string(),
+                                                        CLIENT_NAME.to_string(),
                                                         format!(
                                                             "Completed proof iteration #{}",
                                                             current_proof
@@ -1114,7 +1132,7 @@ pub async fn start_prover(
                                     }
 
                                     let proof_bytes = serde_json::to_vec(&proof)
-                                        .map_err(|e| ProverError::from(e))?;
+                                        .map_err(ProverError::from)?;
                                     let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
                                     let duration = start_time.elapsed();
@@ -1198,7 +1216,7 @@ pub async fn start_prover(
 
                                                     // Track analytics with the current proof count
                                                     analytics::track(
-                                                        "cli_proof_node_v2".to_string(),
+                                                        CLIENT_NAME.to_string(),
                                                         format!(
                                                             "Completed proof iteration #{}",
                                                             current_proof
