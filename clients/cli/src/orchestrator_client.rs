@@ -11,6 +11,7 @@ use std::time::Duration;
 
 type Error = Box<dyn StdError + Send + Sync>;
 
+#[derive(Clone)]
 pub struct OrchestratorClient {
     client: Client,
     base_url: String,
