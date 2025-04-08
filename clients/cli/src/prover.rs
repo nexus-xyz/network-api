@@ -60,10 +60,7 @@ unsafe impl Sync for ProverError {}
 type MessageChannel = (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>);
 
 // Add this new function after the ProverError implementation
-fn calculate_thread_count(
-    speed: &crate::ProvingSpeed,
-    dedicated_cores: Option<usize>,
-) -> usize {
+fn calculate_thread_count(dedicated_cores: Option<usize>) -> usize {
     let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
     
     // If dedicated_cores is specified, cap it at total_cores
@@ -71,24 +68,19 @@ fn calculate_thread_count(
         return cores.min(total_cores);
     }
 
-    // Otherwise, use the speed setting to determine percentage of available cores
-    match speed {
-        crate::ProvingSpeed::Low => (total_cores + 3) / 4, // Use 25% of cores, rounded up
-        crate::ProvingSpeed::Medium => (total_cores + 1) / 2, // Use 50% of cores, rounded up
-        crate::ProvingSpeed::High => (total_cores * 3 + 3) / 4, // Use 75% of cores, rounded up
-    }
+    // Default to 50% of available cores if not specified
+    (total_cores + 1) / 2
 }
 
 fn run_prover(
     node_id: &str,
     environment: &config::Environment,
-    speed: &crate::ProvingSpeed,
     dedicated_cores: Option<usize>,
     public_input: u32,
     is_anonymous: bool,
 ) -> Result<(Vec<u8>, String), Box<dyn StdError + Send + Sync>> {
-    // Set thread count based on speed and dedicated cores
-    let num_threads = calculate_thread_count(speed, dedicated_cores);
+    // Set thread count based on dedicated cores
+    let num_threads = calculate_thread_count(dedicated_cores);
 
     // Create a new thread pool with the specified number of threads
     let pool = ThreadPoolBuilder::new()
@@ -154,7 +146,6 @@ fn run_prover(
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
-    speed: &crate::ProvingSpeed,
     dedicated_cores: Option<usize>,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
     let client = OrchestratorClient::new(environment.clone());
@@ -167,7 +158,7 @@ async fn authenticated_proving(
         }
         Err(_) => {
             println!("Using local inputs.");
-            return anonymous_proving(speed, dedicated_cores);
+            return anonymous_proving(dedicated_cores);
         }
     };
 
@@ -177,7 +168,7 @@ async fn authenticated_proving(
         .cloned()
         .unwrap_or_default() as u32;
 
-    let (proof_bytes, proof_hash) = run_prover(node_id, environment, speed, dedicated_cores, public_input, false)?;
+    let (proof_bytes, proof_hash) = run_prover(node_id, environment, dedicated_cores, public_input, false)?;
 
     let _ = client
         .submit_proof(
@@ -193,7 +184,6 @@ async fn authenticated_proving(
 }
 
 fn anonymous_proving(
-    speed: &crate::ProvingSpeed,
     dedicated_cores: Option<usize>,
 ) -> Result<(), Box<dyn StdError + Send + Sync>> {
     // The 10th term of the Fibonacci sequence is 55
@@ -201,7 +191,7 @@ fn anonymous_proving(
     let environment = config::Environment::Local;
     let node_id = "anonymous";
 
-    let (proof_bytes, _) = run_prover(node_id, &environment, speed, dedicated_cores, public_input, true)?;
+    let (proof_bytes, _) = run_prover(node_id, &environment, dedicated_cores, public_input, true)?;
 
     // Track analytics for anonymous proving
     analytics::track(
@@ -209,7 +199,6 @@ fn anonymous_proving(
         "Completed anonymous proof".to_string(),
         serde_json::json!({
             "node_id": "anonymous",
-            "speed": format!("{:?}", speed),
             "dedicated_cores": dedicated_cores,
             "proof_size": proof_bytes.len(),
         }),
@@ -224,7 +213,6 @@ fn anonymous_proving(
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator
 pub async fn start_prover(
     environment: &config::Environment,
-    speed: &crate::ProvingSpeed,
     dedicated_cores: Option<usize>,
 ) -> Result<(), Box<dyn StdError>> {
     // Print the banner at startup
@@ -240,13 +228,8 @@ pub async fn start_prover(
             .bright_cyan(),
     );
 
-    // Print the selected speed setting and core count
-    let num_threads = calculate_thread_count(speed, dedicated_cores);
-    println!(
-        "{}: {}",
-        "Proving speed".bold(),
-        format!("{:?}", speed).bright_cyan()
-    );
+    // Print the core count
+    let num_threads = calculate_thread_count(dedicated_cores);
     println!(
         "{}: {}",
         "Number of dedicated cores".bold(),
@@ -264,7 +247,7 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
-            anonymous_proving(speed, dedicated_cores)
+            anonymous_proving(dedicated_cores)
         }
 
         // If the user selected "connected"
@@ -298,7 +281,7 @@ pub async fn start_prover(
             // Add a newline to separate the header from potential errors
             println!();
 
-            authenticated_proving(&node_id, environment, speed, dedicated_cores).await
+            authenticated_proving(&node_id, environment, dedicated_cores).await
         }
 
         // If setup is invalid

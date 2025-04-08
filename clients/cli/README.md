@@ -67,16 +67,16 @@ To run an optimized build using Nexus servers, run the following command in clie
 # Run the CLI with prover enabled on the beta network
 cargo run -r -- start --env beta
 
-# Run with different proving speeds
-cargo run -r -- start --env beta --speed low    # Uses 1 core
-cargo run -r -- start --env beta --speed medium # Uses ~50% of available cores (default)
-cargo run -r -- start --env beta --speed high   # Uses all available cores
+# Run with different core counts
+cargo run -r -- start --env beta --cores 1    # Uses 1 core
+cargo run -r -- start --env beta --cores 4    # Uses 4 cores
+cargo run -r -- start --env beta --cores 8    # Uses 8 cores
 ```
 
-The proving speed setting controls how many CPU cores are used for proving:
-- `low`: Uses 1 core, suitable for low-power devices
-- `medium`: Uses approximately 50% of available cores (default)
-- `high`: Uses all available cores, maximizing proof generation speed and points earned
+The `--cores` option controls how many CPU cores are used for proving:
+- If not specified, defaults to 50% of available cores
+- If specified, uses the given number of cores (capped at available cores)
+- Higher core counts will generally result in faster proof generation and more points earned
 
 ### Clear credentials
 
