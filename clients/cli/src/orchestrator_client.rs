@@ -18,16 +18,6 @@ pub struct OrchestratorClient {
     // environment: config::Environment,
 }
 
-impl Clone for OrchestratorClient {
-    fn clone(&self) -> Self {
-        Self {
-            client: self.client.clone(),
-            base_url: self.base_url.clone(),
-            // environment: self.environment,
-        }
-    }
-}
-
 impl OrchestratorClient {
     pub fn new(environment: config::Environment) -> Self {
         Self {
