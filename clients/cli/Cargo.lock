@@ -1418,6 +1418,7 @@ dependencies = [
 name = "nexus-network"
 version = "0.6.1"
 dependencies = [
+ "anyhow",
  "chrono",
  "clap",
  "colored",

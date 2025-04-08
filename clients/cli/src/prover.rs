@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 
 use crate::analytics;
@@ -16,7 +17,6 @@ use crossterm::{
 use log::error;
 use rayon::ThreadPoolBuilder;
 use sha3::{Digest, Keccak256};
-use std::error::Error as StdError;
 use std::fmt;
 use std::io::{stdout, Write};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -33,22 +33,6 @@ struct ProverError {
 impl fmt::Display for ProverError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.message)
-    }
-}
-
-impl StdError for ProverError {}
-
-impl From<String> for ProverError {
-    fn from(message: String) -> Self {
-        ProverError { message }
-    }
-}
-
-impl From<serde_json::Error> for ProverError {
-    fn from(e: serde_json::Error) -> Self {
-        ProverError {
-            message: format!("Serde error: {}", e),
-        }
     }
 }
 
@@ -78,7 +62,7 @@ fn run_prover(
     dedicated_cores: Option<usize>,
     public_input: u32,
     is_anonymous: bool,
-) -> Result<(Vec<u8>, String), Box<dyn StdError + Send + Sync>> {
+) -> Result<(Vec<u8>, String)> {
     // Set thread count based on dedicated cores
     let num_threads = calculate_thread_count(dedicated_cores);
 
@@ -86,46 +70,31 @@ fn run_prover(
     let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
-        .map_err(|e| {
-            Box::new(ProverError::from(format!(
-                "Failed to create thread pool: {}",
-                e
-            ))) as Box<dyn StdError + Send + Sync>
-        })?;
+        .context("Failed to create thread pool")?;
 
     // Run the prover in the custom thread pool
-    pool.install(|| -> Result<(Vec<u8>, String), Box<dyn StdError + Send + Sync>> {
+    pool.install(|| -> Result<(Vec<u8>, String)> {
         println!("Compiling guest program...");
         let elf_file_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("assets")
             .join("fib_input");
 
-        let prover = Stwo::<Local>::new_from_file(&elf_file_path).map_err(|e| {
-            Box::new(ProverError::from(format!(
-                "Failed to load guest program: {}",
-                e
-            ))) as Box<dyn StdError + Send + Sync>
-        })?;
+        let prover = Stwo::<Local>::new_from_file(&elf_file_path)
+            .context("Failed to load guest program")?;
 
         println!("Creating ZK proof{}...", if is_anonymous { " (anonymous)" } else { "" });
         let (view, proof) = prover
             .prove_with_input::<(), u32>(&(), &public_input)
-            .map_err(|e| {
-                Box::new(ProverError::from(format!("Failed to run prover: {}", e)))
-                    as Box<dyn StdError + Send + Sync>
-            })?;
+            .context("Failed to run prover")?;
 
         let exit_code = view.exit_code().expect("Failed to retrieve exit code");
         if exit_code != 0 {
             error!("Unexpected exit code: {} (expected 0)", exit_code);
-            return Err(
-                Box::new(ProverError::from(format!("Exit code was {}", exit_code)))
-                    as Box<dyn StdError + Send + Sync>,
-            );
+            return Err(anyhow::anyhow!("Exit code was {}", exit_code));
         }
 
         let proof_bytes = serde_json::to_vec(&proof)
-            .map_err(ProverError::from)?;
+            .context("Failed to serialize proof")?;
         let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
         println!(
@@ -147,7 +116,7 @@ async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
     dedicated_cores: Option<usize>,
-) -> Result<(), Box<dyn StdError + Send + Sync>> {
+) -> Result<()> {
     let client = OrchestratorClient::new(environment.clone());
 
     println!("Fetching a task to prove from Nexus Orchestrator...");
@@ -185,7 +154,7 @@ async fn authenticated_proving(
 
 fn anonymous_proving(
     dedicated_cores: Option<usize>,
-) -> Result<(), Box<dyn StdError + Send + Sync>> {
+) -> Result<()> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
     let environment = config::Environment::Local;
@@ -214,7 +183,7 @@ fn anonymous_proving(
 pub async fn start_prover(
     environment: &config::Environment,
     dedicated_cores: Option<usize>,
-) -> Result<(), Box<dyn StdError>> {
+) -> Result<()> {
     // Print the banner at startup
     utils::cli_branding::print_banner();
 
@@ -287,7 +256,7 @@ pub async fn start_prover(
         // If setup is invalid
         setup::SetupResult::Invalid => {
             error!("Invalid setup option selected.");
-            Err("Invalid setup option selected".into())
+            Err(anyhow::anyhow!("Invalid setup option selected"))
         }
     }
 }
@@ -300,7 +269,7 @@ async fn process_proof_task(
     public_input: &u32,
     worker_id: usize,
     tx: &mpsc::Sender<(usize, u64, String)>,
-) -> Result<(), Box<dyn StdError>> {
+) -> Result<()> {
     let start_time = Instant::now();
     tx.send((
         worker_id,
@@ -314,7 +283,7 @@ async fn process_proof_task(
         .join("fib_input");
 
     let prover = Stwo::<Local>::new_from_file(&elf_file_path)
-        .map_err(|e| ProverError::from(format!("Failed to load guest program: {}", e)))?;
+        .context("Failed to load guest program")?;
 
     tx.send((
         worker_id,
@@ -324,7 +293,7 @@ async fn process_proof_task(
     .await?;
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), public_input)
-        .map_err(|e| ProverError::from(format!("Failed to run prover: {}", e)))?;
+        .context("Failed to run prover")?;
 
     // Send incremental progress updates during proving
     let mut last_progress = 20;
@@ -339,10 +308,7 @@ async fn process_proof_task(
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
-    let code = view.exit_code().map(|u| u as i32).unwrap_or_else(|_err| {
-        // We can't use await here, so just return -1 and let the error be handled below
-        -1
-    });
+    let code = view.exit_code().map(|u| u as i32).unwrap_or_else(|_err| -1);
 
     if code != 0 {
         tx.send((
@@ -351,10 +317,7 @@ async fn process_proof_task(
             format!("Worker {}: Unexpected exit code: {}", worker_id, code),
         ))
         .await?;
-        return Err(Box::new(ProverError::from(format!(
-            "Unexpected exit code: {}",
-            code
-        ))));
+        return Err(anyhow::anyhow!("Unexpected exit code: {}", code));
     }
 
     tx.send((
@@ -364,7 +327,7 @@ async fn process_proof_task(
     ))
     .await?;
     let proof_bytes = serde_json::to_vec(&proof)
-        .map_err(ProverError::from)?;
+        .context("Failed to serialize proof")?;
     let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     let duration = start_time.elapsed();
