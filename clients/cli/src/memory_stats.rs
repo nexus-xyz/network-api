@@ -2,7 +2,6 @@ use std::process;
 use sysinfo::System;
 
 // We encode the memory usage to i32 type at client
-#[allow(dead_code)]
 pub fn bytes_to_mb_i32(bytes: u64) -> i32 {
     // Convert to MB with 3 decimal places of precision
     // Multiply by 1000 to preserve 3 decimal places
