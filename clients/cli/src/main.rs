@@ -24,13 +24,6 @@ enum Environment {
     Beta,
 }
 
-#[derive(clap::ValueEnum, Clone, Debug)]
-enum ProvingSpeed {
-    Low,
-    Medium,
-    High,
-}
-
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -47,9 +40,9 @@ enum Command {
         #[arg(long, value_enum)]
         env: Option<Environment>,
 
-        /// Proving speed setting
-        #[arg(long, value_enum, default_value = "medium")]
-        speed: ProvingSpeed,
+        /// Number of threads to use for proving
+        #[arg(long)]
+        threads: Option<usize>,
     },
     /// Logout from the current session
     Logout,
@@ -75,8 +68,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //each arm of the match is a command
     match cli.command {
-        Command::Start { env, speed } => {
-            match prover::start_prover(&config::Environment::from_args(env.as_ref()), &speed).await
+        Command::Start { env, threads } => {
+            match prover::start_prover(&config::Environment::from_args(env.as_ref()), threads).await
             {
                 Ok(_) => println!("Prover started successfully"),
                 Err(e) => eprintln!("Failed to start prover: {}", e),

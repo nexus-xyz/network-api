@@ -46,27 +46,27 @@ enum ProverError {
 type MessageChannel = (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>);
 
 // Add this new function after the ProverError implementation
-fn calculate_thread_count(dedicated_cores: Option<usize>) -> usize {
-    let total_cores = thread::available_parallelism().map_or(1, |n| n.get());
+fn calculate_thread_count(dedicated_threads: Option<usize>) -> usize {
+    let total_threads = thread::available_parallelism().map_or(1, |n| n.get());
     
-    // If dedicated_cores is specified, cap it at total_cores
-    if let Some(cores) = dedicated_cores {
-        return cores.min(total_cores);
+    // If dedicated_threads is specified, cap it at total_threads
+    if let Some(threads) = dedicated_threads {
+        return threads.min(total_threads);
     }
 
-    // Default to 50% of available cores if not specified
-    (total_cores + 1) / 2
+    // Default to 50% of available threads if not specified
+    (total_threads + 1) / 2
 }
 
 fn run_prover(
-    node_id: &str,
-    environment: &config::Environment,
-    dedicated_cores: Option<usize>,
+    _node_id: &str,
+    _environment: &config::Environment,
+    dedicated_threads: Option<usize>,
     public_input: u32,
     is_anonymous: bool,
 ) -> Result<(Vec<u8>, String)> {
-    // Set thread count based on dedicated cores
-    let num_threads = calculate_thread_count(dedicated_cores);
+    // Set thread count based on dedicated threads
+    let num_threads = calculate_thread_count(dedicated_threads);
 
     // Create a new thread pool with the specified number of threads
     let pool = ThreadPoolBuilder::new()
@@ -115,7 +115,7 @@ fn run_prover(
 async fn authenticated_proving(
     node_id: &str,
     environment: &config::Environment,
-    dedicated_cores: Option<usize>,
+    dedicated_threads: Option<usize>,
 ) -> Result<()> {
     let client = OrchestratorClient::new(environment.clone());
 
@@ -127,7 +127,7 @@ async fn authenticated_proving(
         }
         Err(_) => {
             println!("Using local inputs.");
-            return anonymous_proving(dedicated_cores);
+            return anonymous_proving(dedicated_threads);
         }
     };
 
@@ -137,7 +137,7 @@ async fn authenticated_proving(
         .cloned()
         .unwrap_or_default() as u32;
 
-    let (proof_bytes, proof_hash) = run_prover(node_id, environment, dedicated_cores, public_input, false)?;
+    let (proof_bytes, proof_hash) = run_prover(node_id, environment, dedicated_threads, public_input, false)?;
 
     let _ = client
         .submit_proof(
@@ -153,14 +153,14 @@ async fn authenticated_proving(
 }
 
 fn anonymous_proving(
-    dedicated_cores: Option<usize>,
+    dedicated_threads: Option<usize>,
 ) -> Result<()> {
     // The 10th term of the Fibonacci sequence is 55
     let public_input: u32 = 9;
     let environment = config::Environment::Local;
     let node_id = "anonymous";
 
-    let (proof_bytes, _) = run_prover(node_id, &environment, dedicated_cores, public_input, true)?;
+    let (proof_bytes, _) = run_prover(node_id, &environment, dedicated_threads, public_input, true)?;
 
     // Track analytics for anonymous proving
     analytics::track(
@@ -168,7 +168,7 @@ fn anonymous_proving(
         "Completed anonymous proof".to_string(),
         serde_json::json!({
             "node_id": "anonymous",
-            "dedicated_cores": dedicated_cores,
+            "dedicated_threads": dedicated_threads,
             "proof_size": proof_bytes.len(),
         }),
         false,
@@ -182,7 +182,7 @@ fn anonymous_proving(
 /// Starts the prover, which can be anonymous or connected to the Nexus Orchestrator
 pub async fn start_prover(
     environment: &config::Environment,
-    dedicated_cores: Option<usize>,
+    dedicated_threads: Option<usize>,
 ) -> Result<()> {
     // Print the banner at startup
     utils::cli_branding::print_banner();
@@ -197,11 +197,11 @@ pub async fn start_prover(
             .bright_cyan(),
     );
 
-    // Print the core count
-    let num_threads = calculate_thread_count(dedicated_cores);
+    // Print the thread count
+    let num_threads = calculate_thread_count(dedicated_threads);
     println!(
         "{}: {}",
-        "Number of dedicated cores".bold(),
+        "Number of dedicated threads".bold(),
         format!("{}", num_threads).bright_cyan()
     );
 
@@ -216,7 +216,7 @@ pub async fn start_prover(
                     .underline()
                     .bright_cyan()
             );
-            anonymous_proving(dedicated_cores)
+            anonymous_proving(dedicated_threads)
         }
 
         // If the user selected "connected"
@@ -250,7 +250,7 @@ pub async fn start_prover(
             // Add a newline to separate the header from potential errors
             println!();
 
-            authenticated_proving(&node_id, environment, dedicated_cores).await
+            authenticated_proving(&node_id, environment, dedicated_threads).await
         }
 
         // If setup is invalid
