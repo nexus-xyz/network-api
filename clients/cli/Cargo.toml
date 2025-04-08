@@ -57,6 +57,7 @@ log = "0.4.26"
 indicatif = "0.17.7"
 crossterm = "0.28.1"
 anyhow = "1.0"
+thiserror = "1.0"
 
 [build-dependencies]
 

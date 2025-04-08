@@ -1,5 +1,6 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
+use thiserror::Error;
 
 use crate::analytics;
 use crate::config;
@@ -25,20 +26,21 @@ use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
-#[derive(Debug)]
-struct ProverError {
-    message: String,
+#[derive(Error, Debug)]
+enum ProverError {
+    #[error("Failed to create thread pool: {0}")]
+    ThreadPoolCreation(String),
+    #[error("Failed to load guest program: {0}")]
+    GuestProgramLoad(String),
+    #[error("Failed to run prover: {0}")]
+    ProverExecution(String),
+    #[error("Unexpected exit code: {0}")]
+    UnexpectedExitCode(u32),
+    #[error("Failed to serialize proof: {0}")]
+    ProofSerialization(#[from] serde_json::Error),
+    #[error("Invalid setup option selected")]
+    InvalidSetup,
 }
-
-impl fmt::Display for ProverError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-// Make ProverError Send + Sync
-unsafe impl Send for ProverError {}
-unsafe impl Sync for ProverError {}
 
 // At the start of the file, add type definition for message channel
 type MessageChannel = (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>);
@@ -70,7 +72,7 @@ fn run_prover(
     let pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
-        .context("Failed to create thread pool")?;
+        .map_err(|e| ProverError::ThreadPoolCreation(e.to_string()))?;
 
     // Run the prover in the custom thread pool
     pool.install(|| -> Result<(Vec<u8>, String)> {
@@ -80,21 +82,19 @@ fn run_prover(
             .join("fib_input");
 
         let prover = Stwo::<Local>::new_from_file(&elf_file_path)
-            .context("Failed to load guest program")?;
+            .map_err(|e| ProverError::GuestProgramLoad(e.to_string()))?;
 
         println!("Creating ZK proof{}...", if is_anonymous { " (anonymous)" } else { "" });
         let (view, proof) = prover
             .prove_with_input::<(), u32>(&(), &public_input)
-            .context("Failed to run prover")?;
+            .map_err(|e| ProverError::ProverExecution(e.to_string()))?;
 
         let exit_code = view.exit_code().expect("Failed to retrieve exit code");
         if exit_code != 0 {
-            error!("Unexpected exit code: {} (expected 0)", exit_code);
-            return Err(anyhow::anyhow!("Exit code was {}", exit_code));
+            return Err(ProverError::UnexpectedExitCode(exit_code).into());
         }
 
-        let proof_bytes = serde_json::to_vec(&proof)
-            .context("Failed to serialize proof")?;
+        let proof_bytes = serde_json::to_vec(&proof)?;
         let proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
         println!(
@@ -255,8 +255,7 @@ pub async fn start_prover(
 
         // If setup is invalid
         setup::SetupResult::Invalid => {
-            error!("Invalid setup option selected.");
-            Err(anyhow::anyhow!("Invalid setup option selected"))
+            Err(ProverError::InvalidSetup.into())
         }
     }
 }
@@ -283,7 +282,7 @@ async fn process_proof_task(
         .join("fib_input");
 
     let prover = Stwo::<Local>::new_from_file(&elf_file_path)
-        .context("Failed to load guest program")?;
+        .map_err(|e| ProverError::GuestProgramLoad(e.to_string()))?;
 
     tx.send((
         worker_id,
@@ -293,7 +292,7 @@ async fn process_proof_task(
     .await?;
     let (view, proof) = prover
         .prove_with_input::<(), u32>(&(), public_input)
-        .context("Failed to run prover")?;
+        .map_err(|e| ProverError::ProverExecution(e.to_string()))?;
 
     // Send incremental progress updates during proving
     let mut last_progress = 20;
@@ -317,7 +316,7 @@ async fn process_proof_task(
             format!("Worker {}: Unexpected exit code: {}", worker_id, code),
         ))
         .await?;
-        return Err(anyhow::anyhow!("Unexpected exit code: {}", code));
+        return Err(ProverError::UnexpectedExitCode(code as u32).into());
     }
 
     tx.send((
@@ -326,8 +325,7 @@ async fn process_proof_task(
         format!("Worker {}: Serializing proof...", worker_id),
     ))
     .await?;
-    let proof_bytes = serde_json::to_vec(&proof)
-        .context("Failed to serialize proof")?;
+    let proof_bytes = serde_json::to_vec(&proof)?;
     let _proof_hash = format!("{:x}", Keccak256::digest(&proof_bytes));
 
     let duration = start_time.elapsed();

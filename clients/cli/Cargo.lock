@@ -1438,6 +1438,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "sysinfo",
+ "thiserror 1.0.69",
  "tokio",
 ]
 
