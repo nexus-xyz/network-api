@@ -14,9 +14,8 @@ pub enum SetupResult {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct UserConfig {
+pub struct NodeConfig {
     pub node_id: String,
-    pub user_id: Option<String>,
 }
 
 //function that takes a node_id and saves it to the user config
@@ -33,21 +32,29 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
     };
 
     let nexus_dir = home_path.join(".nexus");
-    let node_id_path = nexus_dir.join("node-id");
+    let config_path = nexus_dir.join("config.json");
 
     //print how to find the node-id file
-    println!("Node ID file: {}", node_id_path.to_string_lossy());
-    //write the node_id to the node-id file
-    fs::write(&node_id_path, node_id).unwrap();
+    println!("Config file: {}", config_path.to_string_lossy());
+    
+    // Create the config object
+    let config = NodeConfig {
+        node_id: node_id.to_string(),
+    };
+    
+    // Write the config to file
+    let json = serde_json::to_string_pretty(&config)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+    fs::write(&config_path, json)?;
 
     // 2. If the .nexus directory exists, we need to read the node-id file
-    match read_existing_node_id(&node_id_path) {
+    match read_existing_node_id(&config_path) {
         // 2.1 Happy path - we successfully read the node-id file
         Ok(id) => {
             println!(
                 "Successfully read existing node-id '{}' from file: {}",
                 id,
-                node_id_path.to_string_lossy()
+                config_path.to_string_lossy()
             );
             Ok(())
         }
@@ -58,7 +65,7 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
                 "Warning: Could not read node-id file".to_string().yellow(),
                 e
             );
-            handle_read_error(e, &node_id_path, node_id);
+            handle_read_error(e, &config_path, node_id);
             Ok(())
         }
     }
@@ -76,10 +83,18 @@ pub async fn run_initial_setup() -> SetupResult {
     }
 
     //Check if the node-id file exists, use it. If not, create a new one.
-    let node_id_path = home_path.join(".nexus").join("node-id");
-    let node_id = fs::read_to_string(&node_id_path).unwrap_or_default();
+    let node_id_path = home_path.join(".nexus").join("config.json");
+    let node_id = match fs::read_to_string(&node_id_path) {
+        Ok(content) => {
+            match serde_json::from_str::<UserConfig>(&content) {
+                Ok(config) => config.node_id,
+                Err(_) => String::new(),
+            }
+        }
+        Err(_) => String::new(),
+    };
 
-    if node_id_path.exists() {
+    if node_id_path.exists() && !node_id.is_empty() {
         println!(
             "\nThis node is already connected to an account using node id: {}",
             node_id
@@ -93,15 +108,7 @@ pub async fn run_initial_setup() -> SetupResult {
             .unwrap();
         let use_existing_config = use_existing_config.trim();
         if use_existing_config != "n" {
-            match fs::read_to_string(&node_id_path) {
-                Ok(content) => {
-                    return SetupResult::Connected(content.trim().to_string());
-                }
-                Err(e) => {
-                    println!("{}", format!("Failed to read node-id file: {}", e).red());
-                    return SetupResult::Invalid;
-                }
-            }
+            return SetupResult::Connected(node_id);
         } else {
             println!("Ignoring existing user account...");
         }
@@ -166,7 +173,7 @@ pub fn clear_node_id() -> std::io::Result<()> {
     }
 
     // if the nexus directory exists, check if the node-id file exists
-    let node_id_path = home_path.join(".nexus").join("node-id");
+    let node_id_path = home_path.join(".nexus").join("config.json");
     if !node_id_path.exists() {
         // nothing to clear
         return Ok(());

@@ -37,7 +37,8 @@ impl OrchestratorClient {
         U: Message + Default,
     {
         let request_bytes = request_data.encode_to_vec();
-        let url = format!("{}/v2{}", self.base_url, url);
+        let api_version = "v3";
+        let url = format!("{}/{}{}", self.base_url, api_version, url);
 
         let friendly_connection_error =
             "[CONNECTION] Unable to reach server. The service might be temporarily unavailable."
