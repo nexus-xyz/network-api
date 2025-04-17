@@ -110,7 +110,7 @@ pub async fn run_initial_setup() -> SetupResult {
         if use_existing_config != "n" {
             return SetupResult::Connected(node_id);
         } else {
-            println!("Ignoring existing user account...");
+            println!("Ignoring existing node id...");
         }
     }
 
