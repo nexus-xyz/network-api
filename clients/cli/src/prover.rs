@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use nexus_sdk::{stwo::seq::Stwo, Local, Prover, Viewable};
 use thiserror::Error;
 
@@ -10,18 +10,14 @@ use crate::setup;
 use crate::utils;
 use colored::Colorize;
 use crossterm::{
-    cursor::{Hide, MoveTo, Show},
+    cursor::MoveTo,
     execute,
-    style::{Color, Print, ResetColor, SetForegroundColor},
     terminal::{Clear, ClearType},
 };
 use log::error;
 use rayon::ThreadPoolBuilder;
 use sha3::{Digest, Keccak256};
-use std::fmt;
-use std::io::{stdout, Write};
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
+use std::io::stdout;
 use std::thread;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
@@ -41,9 +37,6 @@ enum ProverError {
     #[error("Invalid setup option selected")]
     InvalidSetup,
 }
-
-// At the start of the file, add type definition for message channel
-type MessageChannel = (mpsc::Sender<(usize, u64, String)>, mpsc::Receiver<(usize, u64, String)>);
 
 // Add this new function after the ProverError implementation
 fn calculate_thread_count(dedicated_threads: Option<usize>) -> usize {
@@ -69,7 +62,7 @@ async fn run_prover(
     let num_threads = calculate_thread_count(dedicated_threads);
 
     // Create a new thread pool with the specified number of threads
-    let pool = ThreadPoolBuilder::new()
+    let _pool = ThreadPoolBuilder::new()
         .num_threads(num_threads)
         .build()
         .map_err(|e| ProverError::ThreadPoolCreation(e.to_string()))?;
@@ -167,7 +160,7 @@ async fn authenticated_proving(
         }
         Err(_) => {
             println!("Using local inputs.");
-            return anonymous_proving(dedicated_threads);
+            return anonymous_proving(dedicated_threads).await;
         }
     };
 
@@ -188,23 +181,32 @@ async fn authenticated_proving(
         )
         .await;
 
-    println!("{}", "ZK proof successfully submitted".green());
+    println!("{}", "ZK proof successfully submitted".green().on_black());
 
-    // Track analytics for authenticated proving
-    analytics::track(
-        "cli_proof_node_v3".to_string(),
-        "Completed authenticated proof".to_string(),
-        serde_json::json!({
-            "node_id": node_id,
-            "dedicated_threads": dedicated_threads,
-            "proof_size": proof_bytes.len(),
-            "task_id": proof_task.task_id,
-            "environment": environment.to_string(),
-        }),
-        false,
-        environment,
-        format!("{:x}", md5::compute(node_id.as_bytes())),
-    );
+    // Track analytics for authenticated proving in a separate task
+    let analytics_data = serde_json::json!({
+        "node_id": node_id,
+        "dedicated_threads": dedicated_threads,
+        "proof_size": proof_bytes.len(),
+        "task_id": proof_task.task_id,
+        "environment": environment.to_string(),
+    });
+    
+    let environment_clone = environment.clone();
+    let node_id_clone = node_id.to_string();
+    tokio::spawn(async move {
+        let _ = if let Err(e) = analytics::track(
+            "cli_proof_node_v3".to_string(),
+            "Completed authenticated proof".to_string(),
+            analytics_data,
+            false,
+            &environment_clone,
+            format!("{:x}", md5::compute(node_id_clone.as_bytes())),
+        ) {
+            let _ = error!("Failed to send analytics: {}", e);
+        };
+        ();
+    });
 
     Ok(())
 }
@@ -219,19 +221,27 @@ async fn anonymous_proving(
 
     let (proof_bytes, _) = run_prover(node_id, &environment, dedicated_threads, public_input, true).await?;
 
-    // Track analytics for anonymous proving
-    analytics::track(
-        "cli_proof_node_anon".to_string(),
-        "Completed anonymous proof".to_string(),
-        serde_json::json!({
-            "node_id": "anonymous",
-            "dedicated_threads": dedicated_threads,
-            "proof_size": proof_bytes.len(),
-        }),
-        false,
-        &config::Environment::Local,
-        format!("{:x}", md5::compute(b"anonymous")),
-    );
+    // Track analytics for anonymous proving in a separate task
+    let analytics_data = serde_json::json!({
+        "node_id": "anonymous",
+        "dedicated_threads": dedicated_threads,
+        "proof_size": proof_bytes.len(),
+    });
+    
+    let environment_clone = environment.clone();
+    tokio::spawn(async move {
+        let _ = if let Err(e) = analytics::track(
+            "cli_proof_node_anon".to_string(),
+            "Completed anonymous proof".to_string(),
+            analytics_data,
+            false,
+            &environment_clone,
+            format!("{:x}", md5::compute(b"anonymous")),
+        ) {
+            let _ = error!("Failed to send analytics: {}", e);
+        };
+        ();
+    });
 
     Ok(())
 }
@@ -248,16 +258,16 @@ pub async fn start_prover(
         "\n===== {} =====\n",
         "Setting up CLI configuration"
             .bold()
-            .underline()
-            .bright_cyan(),
+            .white()
+            .on_blue(),
     );
 
     // Print the thread count
     let num_threads = calculate_thread_count(dedicated_threads);
     println!(
         "{}: {}",
-        "Number of dedicated threads".bold(),
-        format!("{}", num_threads).bright_cyan()
+        "Number of dedicated threads".bold().white(),
+        format!("{}", num_threads).yellow()
     );
 
     // Run the initial setup to determine anonymous or connected node
@@ -268,8 +278,8 @@ pub async fn start_prover(
                 "\n===== {} =====\n",
                 "Starting Anonymous proof generation for programs"
                     .bold()
-                    .underline()
-                    .bright_cyan()
+                    .white()
+                    .on_blue()
             );
             anonymous_proving(dedicated_threads).await
         }
@@ -280,26 +290,26 @@ pub async fn start_prover(
                 "\n===== {} =====\n\n",
                 "Connected - Welcome to the Supercomputer"
                     .bold()
-                    .underline()
-                    .bright_cyan()
+                    .white()
+                    .on_blue()
             );
             let flops = flops::measure_flops();
             let flops_formatted = format!("{:.2}", flops);
             let flops_str = format!("{} FLOPS", flops_formatted);
             println!(
                 "{}: {}",
-                "Computational capacity of this node".bold(),
-                flops_str.bright_cyan()
+                "Computational capacity of this node".bold().white(),
+                flops_str.yellow()
             );
             println!(
                 "{}: {}",
-                "You are proving with node ID".bold(),
-                node_id.bright_cyan()
+                "You are proving with node ID".bold().white(),
+                node_id.yellow()
             );
             println!(
                 "{}: {}",
-                "Environment".bold(),
-                environment.to_string().bright_cyan()
+                "Environment".bold().white(),
+                environment.to_string().yellow()
             );
 
             // Add a newline to separate the header from potential errors
