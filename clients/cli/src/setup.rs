@@ -34,8 +34,8 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
     let nexus_dir = home_path.join(".nexus");
     let config_path = nexus_dir.join("config.json");
 
-    //print how to find the node-id file
-    println!("Config file: {}", config_path.to_string_lossy());
+    // Print how to find the config file
+    println!("Loading configuration: {}", config_path.to_string_lossy());
     
     // Create the config object
     let config = NodeConfig {
@@ -47,9 +47,9 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     fs::write(&config_path, json)?;
 
-    // 2. If the .nexus directory exists, we need to read the node-id file
+    // 2. If the .nexus directory exists, we need to read the config file
     match read_existing_node_id(&config_path) {
-        // 2.1 Happy path - we successfully read the node-id file
+        // 2.1 Happy path - we successfully read the config file
         Ok(id) => {
             println!(
                 "Successfully read existing node-id '{}' from file: {}",
@@ -58,7 +58,7 @@ fn save_node_id(node_id: &str) -> std::io::Result<()> {
             );
             Ok(())
         }
-        // 2.2 We couldn't read the node-id file, so we may need to create a new one
+        // 2.2 We couldn't read the config file, so we may need to create a new one
         Err(e) => {
             eprintln!(
                 "{}: {}",
@@ -86,7 +86,7 @@ pub async fn run_initial_setup() -> SetupResult {
     let node_id_path = home_path.join(".nexus").join("config.json");
     let node_id = match fs::read_to_string(&node_id_path) {
         Ok(content) => {
-            match serde_json::from_str::<UserConfig>(&content) {
+            match serde_json::from_str::<NodeConfig>(&content) {
                 Ok(config) => config.node_id,
                 Err(_) => String::new(),
             }
