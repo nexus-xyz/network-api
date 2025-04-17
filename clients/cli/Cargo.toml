@@ -49,11 +49,15 @@ md5 = "0.7.0"
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = { version = "1.0.138" }
 sysinfo = "0.33.1"
-nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", branch = "neo", package = "nexus-sdk" }
+nexus-sdk = { git = "https://github.com/nexus-xyz/nexus-zkvm", rev = "56ab8e5b953de45903ae9dfde498e8413a9c611b", package = "nexus-sdk" }
 rayon = "1.10"
 num_cpus = "1.16"
 sha3 = "0.10.8"
 log = "0.4.26"
+indicatif = "0.17.7"
+crossterm = "0.28.1"
+anyhow = "1.0"
+thiserror = "1.0"
 
 [build-dependencies]
 

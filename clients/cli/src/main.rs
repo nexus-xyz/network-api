@@ -39,6 +39,10 @@ enum Command {
         /// Environment to run in
         #[arg(long, value_enum)]
         env: Option<Environment>,
+
+        /// Number of threads to use for proving
+        #[arg(long)]
+        threads: Option<usize>,
     },
     /// Logout from the current session
     Logout,
@@ -64,8 +68,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //each arm of the match is a command
     match cli.command {
-        Command::Start { env } => {
-            match prover::start_prover(&config::Environment::from_args(env.as_ref())).await {
+        Command::Start { env, threads } => {
+            match prover::start_prover(&config::Environment::from_args(env.as_ref()), threads).await
+            {
                 Ok(_) => println!("Prover started successfully"),
                 Err(e) => eprintln!("Failed to start prover: {}", e),
             }
