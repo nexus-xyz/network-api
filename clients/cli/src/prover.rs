@@ -76,7 +76,7 @@ async fn authenticated_proving(
 
     println!("Submitting ZK proof to Nexus Orchestrator...");
     if let Err(e) = client
-        .submit_proof(node_id, &proof_hash, proof_bytes)
+        .submit_proof(&proof_task.task_id, &proof_hash, proof_bytes)
         .await{
             error!("Failed to submit proof: {}", e);
             return Err(e);

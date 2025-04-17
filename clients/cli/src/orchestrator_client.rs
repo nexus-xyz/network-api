@@ -122,7 +122,7 @@ impl OrchestratorClient {
 
     pub async fn submit_proof(
         &self,
-        node_id: &str,
+        task_id: &str,
         proof_hash: &str,
         proof: Vec<u8>,
     ) -> Result<(), Box<dyn std::error::Error>> {
@@ -130,7 +130,7 @@ impl OrchestratorClient {
         let flops = measure_flops();
 
         let request = SubmitProofRequest {
-            node_id: node_id.to_string(),
+            task_id: task_id.to_string(),
             node_type: NodeType::CliProver as i32,
             proof_hash: proof_hash.to_string(),
             proof,
