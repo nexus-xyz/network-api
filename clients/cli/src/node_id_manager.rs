@@ -54,7 +54,7 @@ fn save_node_id(path: &Path, id: &str) {
     let config = NodeConfig {
         node_id: id.to_string(),
     };
-    
+
     match serde_json::to_string_pretty(&config) {
         Ok(json) => {
             if let Err(e) = fs::write(path, json) {
