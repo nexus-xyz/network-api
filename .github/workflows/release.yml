@@ -6,10 +6,11 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      version:
-        description: 'Version to release (e.g., v0.7.0)'
+      create_release:
+        description: 'Create a GitHub release from the latest tag'
         required: true
-        type: string
+        type: boolean
+        default: false
 
 jobs:
   build:
@@ -52,6 +53,7 @@ jobs:
   release:
     name: Create Release
     needs: build
+    if: github.event.inputs.create_release == 'true' || github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,9 +71,8 @@ jobs:
             artifacts/nexus-network-linux
             artifacts/nexus-network-macos
             artifacts/nexus-network-windows.exe
-          draft: true
-          prerelease: true
+          draft: false
+          prerelease: false
           generate_release_notes: true
-          tag_name: ${{ github.event.inputs.version || github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
