@@ -24,7 +24,7 @@ NC='\033[0m'  # No Color
 # -----------------------------------------------------------------------------
 if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
     echo ""
-    echo "${ORANGE}The Nexus network is currently in Testnet II. You can now earn Nexus Points.${NC}"
+    echo "${ORANGE}Testnet II is over. The Nexus network is currently in Devnet.${NC}"
     echo ""
 fi
 

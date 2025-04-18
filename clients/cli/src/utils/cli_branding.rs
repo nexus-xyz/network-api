@@ -49,11 +49,15 @@ pub const LOGO_NAME: &str = r#"
 
 pub fn print_banner() {
     println!("{}", LOGO_NAME.bright_cyan());
+    let version = match option_env!("CARGO_PKG_VERSION") {
+        Some(v) => format!("v{}", v),
+        None => "(unknown version)".into(),
+    };
     println!(
         "{} {} {}\n",
         "Welcome to the".bright_white(),
         "Nexus Network CLI".bright_cyan().bold(),
-        "v0.5.5".bright_white()
+        version.bright_white()
     );
     println!(
         "{}",

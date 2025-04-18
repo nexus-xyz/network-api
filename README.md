@@ -17,8 +17,9 @@ A high-performance command-line interface for contributing proofs to the Nexus n
 The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
 
 There have been two testnets so far:
-- First testnet: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
-- Second testnet: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
+- Testnet 0: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
+- Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
+- Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
 
 ---
 
@@ -141,14 +142,13 @@ During the CLI’s startup, you’ll be asked for your node ID (used on Testnet 
 
 - Only the latest CLI version is supported.
 - No prebuilt binaries yet.
-- Proof cycle counting is coming soon.
-- Program submission requires an API key (contact [growth@nexus.xyz](mailto:growth@nexus.xyz)).
+- To submit programs to the network for proving, contact [growth@nexus.xyz](mailto:growth@nexus.xyz).
 
 ---
 
 ## Get Help
 
-- [Network FAQ](https://nexus.xyz/network#network-faqs)  
+- [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)  
 - [Discord Community](https://discord.gg/nexus-xyz)  
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
 

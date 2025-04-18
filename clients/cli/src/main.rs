@@ -1,6 +1,6 @@
 // Copyright (c) 2024 Nexus. All rights reserved.
 
-// mod analytics;
+mod analytics;
 mod config;
 // mod prover;
 mod flops;
