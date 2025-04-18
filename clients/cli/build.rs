@@ -5,9 +5,9 @@ use std::process::Command;
 use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Skip proto compilation if BUILD_PROTO is not set to 1
-    if env::var("BUILD_PROTO").unwrap_or_default() != "1" {
-        println!("Skipping proto compilation (set BUILD_PROTO=1 to enable)");
+    // Skip proto compilation unless build_proto flag is enabled
+    if !cfg!(flag = "build_proto") {
+        println!("Skipping proto compilation (enable with --build_proto)");
         return Ok(());
     }
 
