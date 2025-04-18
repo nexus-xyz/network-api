@@ -13,9 +13,29 @@ The [Discord][discord] is always available for any concerns you may have that ar
 
 ### Prerequisites
 
-- Rust and Cargo (latest stable version)
-- Git
-- Protobuf compiler (if working with proto files)
+- **Rust and Cargo**: Latest stable version
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+  Verify installation:
+  ```bash
+  rustc --version
+  cargo --version
+  ```
+
+- **Git**: For version control
+  ```bash
+  git --version
+  ```
+
+- **Protobuf Compiler**: Required if working with proto files
+  - macOS: `brew install protobuf`
+  - Ubuntu/Debian: `apt-get install protobuf-compiler`
+  - Windows: Download from [protobuf releases](https://github.com/protocolbuffers/protobuf/releases)
+  Verify installation:
+  ```bash
+  protoc --version
+  ```
 
 ### Building from Source
 
@@ -30,15 +50,31 @@ The [Discord][discord] is always available for any concerns you may have that ar
    cargo build
    ```
 
-3. Run tests:
-   ```bash
-   cargo test
-   ```
-
-4. Run the CLI:
+3. Run the CLI:
    ```bash
    cargo run
    ```
+
+### Code Quality Checks
+
+Before submitting changes, please run the following checks locally:
+
+```bash
+# Format code
+cargo fmt --check
+
+# Run clippy lints
+cargo clippy -- -D warnings
+
+# Check for unused dependencies
+cargo udeps
+
+# Check for security vulnerabilities
+cargo audit
+```
+
+These checks are the same ones that run in our CI pipeline. If they pass locally, your 
+changes are likely to pass CI as well.
 
 ### Proto Compilation
 
