@@ -5,9 +5,9 @@ use std::process::Command;
 use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
-    // Skip proto compilation unless build_proto flag is enabled
-    if !cfg!(flag = "build_proto") {
-        println!("Skipping proto compilation (enable with --build_proto)");
+    // Skip proto compilation unless build_proto feature is enabled
+    if !cfg!(feature = "build_proto") {
+        println!("Skipping proto compilation (enable with --features build_proto)");
         return Ok(());
     }
 

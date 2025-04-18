@@ -85,10 +85,10 @@ tag in the commits.
 
 #### Proto Compilation
 
-By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` flag:
+By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` feature:
 
 ```bash
-cargo build --build_proto
+cargo build --features build_proto
 ```
 
 <sub><sup>_Adapted from the [Reth contributing guide][reth-contributing]_.</sub></sup>
