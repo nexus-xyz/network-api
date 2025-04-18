@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v0.7.0)'
+        required: true
+        type: string
 
 jobs:
   build:
@@ -63,8 +69,9 @@ jobs:
             artifacts/nexus-network-linux
             artifacts/nexus-network-macos
             artifacts/nexus-network-windows.exe
-          draft: false
-          prerelease: false
+          draft: true
+          prerelease: true
           generate_release_notes: true
+          tag_name: ${{ github.event.inputs.version || github.ref_name }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
