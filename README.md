@@ -141,7 +141,9 @@ During the CLI’s startup, you’ll be asked for your node ID (used on Testnet 
 - To skip prompts in a non-interactive environment, manually place your set `~/config.json`
 
 ```json
-{'node_id': '<YOUR NODE ID>'}
+{
+   'node_id': '<YOUR NODE ID>'
+}
 ```
 
 ---
