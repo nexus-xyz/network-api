@@ -1,11 +1,52 @@
 # Contributing to the Nexus network
 
+> **Note:** This guide is for contributors who want to modify or improve the CLI itself. If you're just looking to use the CLI, please see the [main README](../README.md) for installation and usage instructions.
+
 The Nexus network is contributor-friendly. 
 We welcome all contributions, no matter your experience with Rust or cryptography.
 
 This document will help you get started. But first, **thank you for your interest in contributing!** We immensely appreciate quality contributions. This guide is intended to help you navigate the process.
 
 The [Discord][discord] is always available for any concerns you may have that are not covered in this guide, or for any other questions or discussions you want to raise with the Nexus team or broader Nexus community.
+
+## Development Setup
+
+### Prerequisites
+
+- Rust and Cargo (latest stable version)
+- Git
+- Protobuf compiler (if working with proto files)
+
+### Building from Source
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/nexus-xyz/network-api.git
+   cd network-api/clients/cli
+   ```
+
+2. Build the CLI:
+   ```bash
+   cargo build
+   ```
+
+3. Run tests:
+   ```bash
+   cargo test
+   ```
+
+4. Run the CLI:
+   ```bash
+   cargo run
+   ```
+
+### Proto Compilation
+
+By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` feature:
+
+```bash
+cargo build --features build_proto
+```
 
 ### Code of Conduct
 
@@ -82,16 +123,6 @@ intend to continue the work before checking if they would mind if you took it ov
 remaining). When doing so, it is courteous to give the original contributor credit for the work they started, either by
 preserving their name and e-mail address in the commit log, or by using the `Author: ` or `Co-authored-by: ` metadata
 tag in the commits.
-
-#### Proto Compilation
-
-By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` feature:
-
-```bash
-cargo build --features build_proto
-```
-
-<sub><sup>_Adapted from the [Reth contributing guide][reth-contributing]_.</sub></sup>
 
 [rust-coc]: https://github.com/rust-lang/rust/blob/master/CODE_OF_CONDUCT.md
 
