@@ -39,6 +39,9 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
+      - name: Change to CLI directory
+        run: cd clients/cli
+
       - name: Build
         run: cargo build --release
         env:
@@ -48,7 +51,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: clients/cli/target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
     name: Create Release
