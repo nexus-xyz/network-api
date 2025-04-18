@@ -5,19 +5,24 @@ use std::process::Command;
 use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Skip proto compilation if BUILD_PROTO is not set to 1
+    if env::var("BUILD_PROTO").unwrap_or_default() != "1" {
+        println!("Skipping proto compilation (set BUILD_PROTO=1 to enable)");
+        return Ok(());
+    }
+
     // Tell cargo to recompile if any of these files change
-    println!("cargo:rerun-if-changed=proto/orchestrator.proto");
+    println!("cargo:rerun-if-changed=../../proto/orchestrator.proto");
     println!("cargo:rerun-if-changed=build.rs");
 
     let mut config = Config::new();
     config.protoc_arg("--experimental_allow_proto3_optional");
 
-
     // Print current directory
     println!("Current dir: {:?}", env::current_dir()?);
 
     // Check if proto file exists
-    let proto_path = Path::new("proto/orchestrator.proto");
+    let proto_path = Path::new("../../proto/orchestrator.proto");
     println!(
         "Looking for proto file at: {:?}",
         proto_path.canonicalize()?
@@ -30,7 +35,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let out_dir = "src/proto";
     config.out_dir(out_dir);
-    // .file_descriptor_set_path("src/proto/orchestrator.rs");
 
     // **Pass required flag for proto3 optional fields**
     config.protoc_arg("--experimental_allow_proto3_optional");
@@ -44,8 +48,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if output.status.success() {
         println!("protoc is installed and accessible.");
     } else {
-        println!("protoc is not installed - using precompiled proto.");
-        return Ok(());
+        println!("Error: protoc is not installed or not in PATH.");
+        return Err("protoc not found".into());
     }
 
     // Check if the output directory exists and is writable
@@ -59,7 +63,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Attempt to compile the .proto file
-    match config.compile_protos(&["proto/orchestrator.proto"], &["proto"]) {
+    match config.compile_protos(&["../../proto/orchestrator.proto"], &["proto"]) {
         Ok(_) => {
             println!("Successfully compiled protobuf files.");
         }
