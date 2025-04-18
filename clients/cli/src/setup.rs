@@ -83,8 +83,8 @@ pub async fn run_initial_setup() -> SetupResult {
     }
 
     //Check if the node-id file exists, use it. If not, create a new one.
-    let node_id_path = home_path.join(".nexus").join("config.json");
-    let node_id = match fs::read_to_string(&node_id_path) {
+    let node_config_path = home_path.join(".nexus").join("config.json");
+    let node_id = match fs::read_to_string(&node_config_path) {
         Ok(content) => {
             match serde_json::from_str::<NodeConfig>(&content) {
                 Ok(config) => config.node_id,
@@ -94,7 +94,7 @@ pub async fn run_initial_setup() -> SetupResult {
         Err(_) => String::new(),
     };
 
-    if node_id_path.exists() && !node_id.is_empty() {
+    if node_config_path.exists() && !node_id.is_empty() {
         println!(
             "\nThis node is already connected to an account using node id: {}",
             node_id
