@@ -173,18 +173,18 @@ pub fn clear_node_id() -> std::io::Result<()> {
     }
 
     // if the nexus directory exists, check if the node-id file exists
-    let node_id_path = home_path.join(".nexus").join("config.json");
-    if !node_id_path.exists() {
+    let node_config_path = home_path.join(".nexus").join("config.json");
+    if !node_config_path.exists() {
         // nothing to clear
         return Ok(());
     }
 
     //if the node-id file exists, clear it
-    match fs::remove_file(&node_id_path) {
+    match fs::remove_file(&config_id_path) {
         Ok(_) => {
             println!(
                 "Successfully cleared node ID configuration with file: {}",
-                node_id_path.to_string_lossy()
+                node_config_path.to_string_lossy()
             );
             Ok(())
         }
