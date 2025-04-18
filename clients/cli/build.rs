@@ -6,18 +6,17 @@ use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Tell cargo to recompile if any of these files change
-    println!("cargo:rerun-if-changed=proto/orchestrator.proto");
+    println!("cargo:rerun-if-changed=../../proto/orchestrator.proto");
     println!("cargo:rerun-if-changed=build.rs");
 
     let mut config = Config::new();
     config.protoc_arg("--experimental_allow_proto3_optional");
 
-
     // Print current directory
     println!("Current dir: {:?}", env::current_dir()?);
 
     // Check if proto file exists
-    let proto_path = Path::new("proto/orchestrator.proto");
+    let proto_path = Path::new("../../proto/orchestrator.proto");
     println!(
         "Looking for proto file at: {:?}",
         proto_path.canonicalize()?
@@ -30,10 +29,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let out_dir = "src/proto";
     config.out_dir(out_dir);
-    // .file_descriptor_set_path("src/proto/orchestrator.rs");
 
     // **Pass required flag for proto3 optional fields**
     config.protoc_arg("--experimental_allow_proto3_optional");
+    // Add proto path
+    config.protoc_arg("-I../../proto");
 
     // Check if protoc is installed and accessible
     let output = Command::new("which")
@@ -59,7 +59,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     // Attempt to compile the .proto file
-    match config.compile_protos(&["proto/orchestrator.proto"], &["proto"]) {
+    match config.compile_protos(&["../../proto/orchestrator.proto"], &["proto"]) {
         Ok(_) => {
             println!("Successfully compiled protobuf files.");
         }
