@@ -137,8 +137,9 @@ or set `NONINTERACTIVE=1` before invoking the script.
 
 ## Node ID
 
-During the CLI’s startup, you’ll be asked for your node ID (used on Testnet or Devnet).  
-- To skip prompts in a non-interactive environment, manually place your set `~/config.json`
+During the CLI’s startup, you’ll be asked for your node ID. To skip prompts in a
+non-interactive environment, manually create a `~/.nexus/config.json` in the
+following format:
 
 ```json
 {
