@@ -142,7 +142,7 @@ During the CLI’s startup, you’ll be asked for your node ID (used on Testnet 
 
 ```json
 {
-   'node_id': '<YOUR NODE ID>'
+   "node_id": "<YOUR NODE ID>"
 }
 ```
 
