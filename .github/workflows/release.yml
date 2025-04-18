@@ -39,10 +39,8 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
-      - name: Change to CLI directory
-        run: cd clients/cli
-
       - name: Build
+        working-directory: clients/cli
         run: cargo build --release
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
