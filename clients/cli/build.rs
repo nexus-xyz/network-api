@@ -5,6 +5,12 @@ use std::process::Command;
 use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
+    // Skip proto compilation unless build_proto feature is enabled
+    if !cfg!(feature = "build_proto") {
+        println!("Skipping proto compilation (enable with --features build_proto)");
+        return Ok(());
+    }
+
     // Tell cargo to recompile if any of these files change
     println!("cargo:rerun-if-changed=../../proto/orchestrator.proto");
     println!("cargo:rerun-if-changed=build.rs");
