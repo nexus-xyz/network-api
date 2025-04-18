@@ -6,7 +6,7 @@ use std::{env, path::Path};
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Tell cargo to recompile if any of these files change
-    println!("cargo:rerun-if-changed=proto/orchestrator.proto");
+    println!("cargo:rerun-if-changed=../../proto/orchestrator.proto");
     println!("cargo:rerun-if-changed=build.rs");
 
     let mut config = Config::new();
@@ -16,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("Current dir: {:?}", env::current_dir()?);
 
     // Check if proto file exists
-    let proto_path = Path::new("proto/orchestrator.proto");
+    let proto_path = Path::new("../../proto/orchestrator.proto");
     println!(
         "Looking for proto file at: {:?}",
         proto_path.canonicalize()?
