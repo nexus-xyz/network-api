@@ -34,7 +34,7 @@ fi
 #    We explicitly read from /dev/tty to ensure user input is requested from the
 #    terminal rather than the script's standard input.
 # -----------------------------------------------------------------------------
-while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/node-id" ]; do
+while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/config.json" ]; do
     read -p "Do you agree to the Nexus Beta Terms of Use (https://nexus.xyz/terms-of-use)? (Y/n) " yn </dev/tty
     echo ""
     
