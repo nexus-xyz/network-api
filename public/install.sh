@@ -1,25 +1,20 @@
 #!/bin/sh
 
 # -----------------------------------------------------------------------------
-# 1) Ensure Rust is installed.
-#    - First, check if rustc is available. If not, install Rust non-interactively
-#      using the official rustup script.
-# -----------------------------------------------------------------------------
-rustc --version || curl https://sh.rustup.rs -sSf | sh
-
-# -----------------------------------------------------------------------------
-# 2) Define environment variables and colors for terminal output.
+# 1) Define environment variables and colors for terminal output.
 # -----------------------------------------------------------------------------
 NEXUS_HOME="$HOME/.nexus"
+BIN_DIR="$NEXUS_HOME/bin"
 GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
 NC='\033[0m'  # No Color
 
-# Ensure the $NEXUS_HOME directory exists.
+# Ensure the $NEXUS_HOME and $BIN_DIR directories exist.
 [ -d "$NEXUS_HOME" ] || mkdir -p "$NEXUS_HOME"
+[ -d "$BIN_DIR" ] || mkdir -p "$BIN_DIR"
 
 # -----------------------------------------------------------------------------
-# 3) Display a message if we're interactive (NONINTERACTIVE is not set) and the
+# 2) Display a message if we're interactive (NONINTERACTIVE is not set) and the
 #    $NODE_ID is not a 28-character ID. This is for Testnet II info.
 # -----------------------------------------------------------------------------
 if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
@@ -29,8 +24,8 @@ if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
 fi
 
 # -----------------------------------------------------------------------------
-# 4) Prompt the user to agree to the Nexus Beta Terms of Use if we're in an
-#    interactive mode (i.e., NONINTERACTIVE is not set) and no node-id file exists.
+# 3) Prompt the user to agree to the Nexus Beta Terms of Use if we're in an
+#    interactive mode (i.e., NONINTERACTIVE is not set) and no config.json file exists.
 #    We explicitly read from /dev/tty to ensure user input is requested from the
 #    terminal rather than the script's standard input.
 # -----------------------------------------------------------------------------
@@ -55,55 +50,56 @@ while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/config.json" ]; do
 done
 
 # -----------------------------------------------------------------------------
-# 5) Check for 'git' availability. If not found, prompt the user to install it.
+# 4) Determine the platform and download the appropriate binary
 # -----------------------------------------------------------------------------
-git --version 2>&1 >/dev/null
-GIT_IS_AVAILABLE=$?
-if [ "$GIT_IS_AVAILABLE" != 0 ]; then
-  echo "Unable to find git. Please install it and try again."
-  exit 1
+case "$(uname -s)" in
+    Linux*)
+        PLATFORM="linux"
+        BINARY_NAME="nexus-network-linux"
+        ;;
+    Darwin*)
+        PLATFORM="macos"
+        BINARY_NAME="nexus-network-macos"
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        PLATFORM="windows"
+        BINARY_NAME="nexus-network-windows.exe"
+        ;;
+    *)
+        echo "Unsupported platform"
+        exit 1
+        ;;
+esac
+
+# Get the latest release URL
+LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/network-api/releases/latest | 
+    grep "browser_download_url.*$BINARY_NAME" | 
+    cut -d '"' -f 4)
+
+if [ -z "$LATEST_RELEASE_URL" ]; then
+    echo "Could not find download URL for $BINARY_NAME"
+    exit 1
 fi
 
-# -----------------------------------------------------------------------------
-# 6) Clone or update the network-api repository in $NEXUS_HOME.
-# -----------------------------------------------------------------------------
-REPO_PATH="$NEXUS_HOME/network-api"
-if [ -d "$REPO_PATH" ]; then
-  echo "$REPO_PATH exists. Updating."
-  (
-    cd "$REPO_PATH" || exit
-    git stash
-    git pull --rebase
-    git fetch --tags
-  )
-else
-  (
-    cd "$NEXUS_HOME" || exit
-    git clone https://github.com/nexus-xyz/network-api
-  )
+# Download the binary
+echo "Downloading latest release for $PLATFORM..."
+curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
+
+# Make it executable
+chmod +x "$BIN_DIR/nexus-network"
+
+# Create a symlink in a directory that's likely in the user's PATH
+if [ -d "$HOME/.local/bin" ]; then
+    ln -sf "$BIN_DIR/nexus-network" "$HOME/.local/bin/nexus-network"
+elif [ -d "/usr/local/bin" ] && [ -w "/usr/local/bin" ]; then
+    ln -sf "$BIN_DIR/nexus-network" "/usr/local/bin/nexus-network"
 fi
 
-# -----------------------------------------------------------------------------
-# 7) Check out the latest tagged commit in the repository.
-# -----------------------------------------------------------------------------
-(
-  cd "$REPO_PATH" || exit
-  git -c advice.detachedHead=false checkout "$(git rev-list --tags --max-count=1)"
-)
+echo "${GREEN}Installation complete!${NC}"
+echo "The nexus-network binary has been installed to $BIN_DIR"
+echo "You can run it with: nexus-network start --env beta"
 
 # -----------------------------------------------------------------------------
-# 8) Finally, run the Rust CLI in interactive mode. We explicitly attach
-#    /dev/tty to cargo's stdin so it can prompt the user, even if the script
-#    itself was piped in or otherwise redirected.
+# 5) Run the CLI in interactive mode
 # -----------------------------------------------------------------------------
-(
-  cd "$REPO_PATH/clients/cli" || exit
-  cargo run -r -- start --env beta
-) < /dev/tty
-# -----------------------------------------------------------------------------
-# For local testing (e.g., staging mode), comment out the above cargo run line
-# and uncomment the line below.
-#
-# echo "Current location: $(pwd)"
-# (cd clients/cli &&   cargo run -r -- start --env beta)
-# -----------------------------------------------------------------------------
+"$BIN_DIR/nexus-network" start --env beta < /dev/tty
