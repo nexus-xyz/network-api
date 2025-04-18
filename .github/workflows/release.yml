@@ -33,7 +33,7 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --features build_proto
+        run: cargo build --release
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
 
