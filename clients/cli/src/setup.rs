@@ -180,7 +180,7 @@ pub fn clear_node_id() -> std::io::Result<()> {
     }
 
     //if the node-id file exists, clear it
-    match fs::remove_file(&config_id_path) {
+    match fs::remove_file(&node_config_path) {
         Ok(_) => {
             println!(
                 "Successfully cleared node ID configuration with file: {}",
