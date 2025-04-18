@@ -1,7 +1,6 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-MIT)
 [![Tests](https://github.com/nexus-xyz/network-api/actions/workflows/ci.yml/badge.svg)](https://github.com/nexus-xyz/network-api/actions/workflows/ci.yml)
-[![Crates.io](https://img.shields.io/crates/v/nexus-network)](https://crates.io/crates/nexus-network)
 
 # Nexus Network CLI
 
