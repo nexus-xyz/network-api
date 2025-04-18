@@ -61,15 +61,17 @@ repo somewhere else.
 
 To run an optimized build using Nexus servers, run the following command in clients/cli:
 
-```
-cargo run -r -- --start --beta
-```
-
-To run the CLI with prover enabled, run:
+### Run the CLI with prover enabled
 
 ```sh
-cargo run -r -- --start --beta    # Start the prover on beta network
-cargo run -r -- logout --beta  # Clear credentials
+# Run the CLI with prover enabled on the beta network
+cargo run -r -- start --env beta
+```
+
+### Clear credentials
+
+```sh
+cargo run -r -- logout
 ```
 
 ## Troubleshooting

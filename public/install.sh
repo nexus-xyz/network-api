@@ -24,7 +24,7 @@ NC='\033[0m'  # No Color
 # -----------------------------------------------------------------------------
 if [ -z "$NONINTERACTIVE" ] && [ "${#NODE_ID}" -ne "28" ]; then
     echo ""
-    echo "${ORANGE}The Nexus network is currently in Testnet II. You can now earn Nexus Points.${NC}"
+    echo "${ORANGE}Testnet II is over. The Nexus network is currently in Devnet.${NC}"
     echo ""
 fi
 
@@ -73,6 +73,7 @@ if [ -d "$REPO_PATH" ]; then
   (
     cd "$REPO_PATH" || exit
     git stash
+    git pull --rebase
     git fetch --tags
   )
 else
@@ -97,12 +98,12 @@ fi
 # -----------------------------------------------------------------------------
 (
   cd "$REPO_PATH/clients/cli" || exit
-  cargo run --release -- --start --beta
+  cargo run -r -- start --env beta
 ) < /dev/tty
 # -----------------------------------------------------------------------------
 # For local testing (e.g., staging mode), comment out the above cargo run line
 # and uncomment the line below.
 #
 # echo "Current location: $(pwd)"
-# (cd clients/cli && cargo run --release -- --start --staging)
+# (cd clients/cli &&   cargo run -r -- start --env beta)
 # -----------------------------------------------------------------------------

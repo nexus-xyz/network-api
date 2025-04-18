@@ -17,18 +17,51 @@ impl Environment {
         }
     }
 
-    pub fn from_args(local: bool, dev: bool, staging: bool, beta: bool) -> Self {
-        if local {
-            Environment::Local
-        } else if dev {
-            Environment::Dev
-        } else if beta {
-            Environment::Beta
-        } else if staging {
-            Environment::Staging
-        } else {
-            // Default to staging when no flag is set
-            Environment::Staging
+    pub fn from_args(env: Option<&crate::Environment>) -> Self {
+        match env {
+            Some(crate::Environment::Local) => Environment::Local,
+            Some(crate::Environment::Dev) => Environment::Dev,
+            Some(crate::Environment::Staging) => Environment::Staging,
+            Some(crate::Environment::Beta) => Environment::Beta,
+            None => Environment::Local, // Default
         }
+    }
+}
+
+impl std::fmt::Display for Environment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Environment::Local => write!(f, "Local"),
+            Environment::Dev => write!(f, "Development"),
+            Environment::Staging => write!(f, "Staging"),
+            Environment::Beta => write!(f, "Beta"),
+        }
+    }
+}
+
+mod analytics {
+    pub const DEV_MEASUREMENT_ID: &str = "G-SWNG3LZDFR";
+    pub const STAGING_MEASUREMENT_ID: &str = "G-T0M0Q3V6WN";
+    pub const BETA_MEASUREMENT_ID: &str = "G-GLH0GMEEFH";
+    pub const DEV_API_SECRET: &str = "8ySxiKrtT8a76zClqqO8IQ";
+    pub const STAGING_API_SECRET: &str = "OI7H53soRMSDWfJf1ittHQ";
+    pub const BETA_API_SECRET: &str = "3wxu8FjVSPqOlxSsZEnBOw";
+}
+
+pub fn analytics_id(environment: &Environment) -> String {
+    match environment {
+        Environment::Dev => analytics::DEV_MEASUREMENT_ID.to_string(),
+        Environment::Staging => analytics::STAGING_MEASUREMENT_ID.to_string(),
+        Environment::Beta => analytics::BETA_MEASUREMENT_ID.to_string(),
+        Environment::Local => String::new(),
+    }
+}
+
+pub fn analytics_api_key(environment: &Environment) -> String {
+    match environment {
+        Environment::Dev => analytics::DEV_API_SECRET.to_string(),
+        Environment::Staging => analytics::STAGING_API_SECRET.to_string(),
+        Environment::Beta => analytics::BETA_API_SECRET.to_string(),
+        Environment::Local => String::new(),
     }
 }

@@ -1,3 +1,7 @@
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-APACHE)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-MIT)
+
 # Nexus Network CLI
 
 A high-performance command-line interface for contributing proofs to the Nexus network.
@@ -17,8 +21,9 @@ A high-performance command-line interface for contributing proofs to the Nexus n
 The [Nexus Network](https://docs.nexus.xyz/network) is a global distributed prover network that unites the world's computers to power a new and better Internet: the Verifiable Internet.
 
 There have been two testnets so far:
-- First testnet: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
-- Second testnet: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
+- Testnet 0: [October 08 – 28, 2024](https://blog.nexus.xyz/nexus-launches-worlds-first-open-prover-network/)
+- Testnet I: [December 9 – 13, 2024](https://blog.nexus.xyz/the-new-nexus-testnet-is-live/)
+- Testnet II: [February 18 – 22, 2025](https://blog.nexus.xyz/testnet-ii-is-open/)
 
 ---
 
@@ -42,7 +47,7 @@ Alternatively, if you’ve already downloaded `install.sh`:
 
 ### CI
 
-The `install.sh` script is designed to do few things:
+The `install.sh` script is designed to do several things:
 
 
 1. Install Rust if it's not already installed... and do it non-interactively if possible, so it does not bother the user.
@@ -52,7 +57,7 @@ The `install.sh` script is designed to do few things:
 # this is the part in the install.sh script has the brittle `< /dev/tty` part within CI environments
 (
   cd "$REPO_PATH/clients/cli" || exit
-  cargo run --release -- --start --beta
+  cargo run --release -- start --env beta
 ) < /dev/tty
 ```
 
@@ -65,7 +70,7 @@ This combination of bash and Rust is a bit brittle in CI environments. Consider 
    git clone https://github.com/nexus-xyz/network-api
    cd network-api/clients/cli
    cargo build --release
-   ./target/release/nexus-network --start --beta
+   ./target/release/nexus-network start --env beta
    ```
 2. **Download the script locally** (and optionally set `NONINTERACTIVE=1` if you need it to run without prompts):
    ```bash
@@ -141,14 +146,13 @@ During the CLI’s startup, you’ll be asked for your node ID (used on Testnet 
 
 - Only the latest CLI version is supported.
 - No prebuilt binaries yet.
-- Proof cycle counting is coming soon.
-- Program submission requires an API key (contact [growth@nexus.xyz](mailto:growth@nexus.xyz)).
+- To submit programs to the network for proving, contact [growth@nexus.xyz](mailto:growth@nexus.xyz).
 
 ---
 
 ## Get Help
 
-- [Network FAQ](https://nexus.xyz/network#network-faqs)  
+- [Network FAQ](https://docs.nexus.xyz/layer-1/network-devnet/faq)  
 - [Discord Community](https://discord.gg/nexus-xyz)  
 - Technical issues? [Open an issue](https://github.com/nexus-xyz/network-api/issues)
 

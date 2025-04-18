@@ -1,7 +1,13 @@
 use colored::Colorize;
+use serde::{Deserialize, Serialize};
 // use rand::RngCore;
 // use random_word::Lang;
 use std::{fs, path::Path, path::PathBuf};
+
+#[derive(Serialize, Deserialize)]
+struct NodeConfig {
+    node_id: String,
+}
 
 pub fn get_home_directory() -> Result<PathBuf, &'static str> {
     match home::home_dir() {
@@ -29,28 +35,37 @@ pub fn create_nexus_directory(nexus_dir: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn read_existing_node_id(node_id_path: &Path) -> Result<String, std::io::Error> {
-    let buf = fs::read(node_id_path)?;
-    let id = String::from_utf8(buf)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?
-        .trim()
-        .to_string();
+pub fn read_existing_node_id(config_path: &Path) -> Result<String, std::io::Error> {
+    let buf = fs::read(config_path)?;
+    let config: NodeConfig = serde_json::from_slice(&buf)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-    if id.is_empty() {
+    if config.node_id.is_empty() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
-            "Node ID file is empty",
+            "Node ID is empty",
         ));
     }
 
-    Ok(id)
+    Ok(config.node_id)
 }
 
 fn save_node_id(path: &Path, id: &str) {
-    if let Err(e) = fs::write(path, id) {
-        println!("Failed to save node-id to file: {}", e);
-    } else {
-        println!("Successfully saved new node-id to file: {}", id);
+    let config = NodeConfig {
+        node_id: id.to_string(),
+    };
+
+    match serde_json::to_string_pretty(&config) {
+        Ok(json) => {
+            if let Err(e) = fs::write(path, json) {
+                println!("Failed to save node-id to file: {}", e);
+            } else {
+                println!("Successfully saved new node-id to file: {}", id);
+            }
+        }
+        Err(e) => {
+            println!("Failed to serialize node-id: {}", e);
+        }
     }
 }
 
