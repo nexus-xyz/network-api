@@ -41,7 +41,7 @@ jobs:
 
       - name: Build
         working-directory: clients/cli
-        run: cargo build --release
+        run: cargo build --release --features build_proto
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
 
