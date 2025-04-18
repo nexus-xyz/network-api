@@ -30,7 +30,7 @@ fi
 
 # -----------------------------------------------------------------------------
 # 4) Prompt the user to agree to the Nexus Beta Terms of Use if we're in an
-#    interactive mode (i.e., NONINTERACTIVE is not set) and no node-id file exists.
+#    interactive mode (i.e., NONINTERACTIVE is not set) and no config.json file exists.
 #    We explicitly read from /dev/tty to ensure user input is requested from the
 #    terminal rather than the script's standard input.
 # -----------------------------------------------------------------------------
