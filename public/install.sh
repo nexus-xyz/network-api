@@ -7,6 +7,7 @@ NEXUS_HOME="$HOME/.nexus"
 BIN_DIR="$NEXUS_HOME/bin"
 GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
+RED='\033[1;31m'
 NC='\033[0m'  # No Color
 
 # Ensure the $NEXUS_HOME and $BIN_DIR directories exist.
@@ -50,23 +51,76 @@ while [ -z "$NONINTERACTIVE" ] && [ ! -f "$NEXUS_HOME/config.json" ]; do
 done
 
 # -----------------------------------------------------------------------------
-# 4) Determine the platform and download the appropriate binary
+# 4) Determine the platform and architecture
 # -----------------------------------------------------------------------------
 case "$(uname -s)" in
     Linux*)
         PLATFORM="linux"
-        BINARY_NAME="nexus-network-linux"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-linux-x86_64"
+                ;;
+            aarch64|arm64)
+                ARCH="arm64"
+                BINARY_NAME="nexus-network-linux-arm64"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/network-api.git"
+                echo "  cd network-api/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
         ;;
     Darwin*)
         PLATFORM="macos"
-        BINARY_NAME="nexus-network-macos"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-macos-x86_64"
+                echo "${ORANGE}Note: You are running on an Intel Mac.${NC}"
+                ;;
+            arm64)
+                ARCH="arm64"
+                BINARY_NAME="nexus-network-macos-arm64"
+                echo "${ORANGE}Note: You are running on an Apple Silicon Mac (M1/M2/M3).${NC}"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/network-api.git"
+                echo "  cd network-api/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
         ;;
     MINGW*|MSYS*|CYGWIN*)
         PLATFORM="windows"
-        BINARY_NAME="nexus-network-windows.exe"
+        case "$(uname -m)" in
+            x86_64)
+                ARCH="x86_64"
+                BINARY_NAME="nexus-network-windows-x86_64.exe"
+                ;;
+            *)
+                echo "${RED}Unsupported architecture: $(uname -m)${NC}"
+                echo "Please build from source:"
+                echo "  git clone https://github.com/nexus-xyz/network-api.git"
+                echo "  cd network-api/clients/cli"
+                echo "  cargo build --release"
+                exit 1
+                ;;
+        esac
         ;;
     *)
-        echo "Unsupported platform"
+        echo "${RED}Unsupported platform: $(uname -s)${NC}"
+        echo "Please build from source:"
+        echo "  git clone https://github.com/nexus-xyz/network-api.git"
+        echo "  cd network-api/clients/cli"
+        echo "  cargo build --release"
         exit 1
         ;;
 esac
@@ -77,12 +131,16 @@ LATEST_RELEASE_URL=$(curl -s https://api.github.com/repos/nexus-xyz/network-api/
     cut -d '"' -f 4)
 
 if [ -z "$LATEST_RELEASE_URL" ]; then
-    echo "Could not find download URL for $BINARY_NAME"
+    echo "${RED}Could not find a precompiled binary for $PLATFORM-$ARCH${NC}"
+    echo "Please build from source:"
+    echo "  git clone https://github.com/nexus-xyz/network-api.git"
+    echo "  cd network-api/clients/cli"
+    echo "  cargo build --release"
     exit 1
 fi
 
 # Download the binary
-echo "Downloading latest release for $PLATFORM..."
+echo "Downloading latest release for $PLATFORM-$ARCH..."
 curl -L -o "$BIN_DIR/nexus-network" "$LATEST_RELEASE_URL"
 
 # Make it executable
