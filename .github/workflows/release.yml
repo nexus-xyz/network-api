@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
+    name: Build for ${{ matrix.os }} (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -22,13 +22,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: nexus-network-linux
+            artifact_name: nexus-network-linux-x86_64
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            artifact_name: nexus-network-linux-arm64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: nexus-network-macos
+            artifact_name: nexus-network-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: nexus-network-macos-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: nexus-network-windows.exe
+            artifact_name: nexus-network-windows-x86_64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -38,8 +44,17 @@ jobs:
         with:
           toolchain: stable
           target: ${{ matrix.target }}
+          override: true
+
+      - name: Verify toolchain
+        run: |
+          echo "Rust version: $(rustc --version)"
+          echo "Cargo version: $(cargo --version)"
+          echo "Target: $(rustc --print target)"
+          echo "Host: $(rustc --print host)"
 
       - name: Build
+        working-directory: clients/cli
         run: cargo build --release
         env:
           RUSTFLAGS: "-C target-feature=+crt-static"
@@ -48,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: clients/cli/target/release/nexus-network${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
   release:
     name: Create Release
@@ -68,9 +83,11 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/nexus-network-linux
-            artifacts/nexus-network-macos
-            artifacts/nexus-network-windows.exe
+            artifacts/nexus-network-linux-x86_64
+            artifacts/nexus-network-linux-arm64
+            artifacts/nexus-network-macos-x86_64
+            artifacts/nexus-network-macos-arm64
+            artifacts/nexus-network-windows-x86_64.exe
           draft: false
           prerelease: false
           generate_release_notes: true

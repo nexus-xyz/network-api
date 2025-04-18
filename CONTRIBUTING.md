@@ -1,11 +1,88 @@
 # Contributing to the Nexus network
 
+> **Note:** This guide is for contributors who want to modify or improve the CLI itself. If you're just looking to use the CLI, please see the [main README](../README.md) for installation and usage instructions.
+
 The Nexus network is contributor-friendly. 
 We welcome all contributions, no matter your experience with Rust or cryptography.
 
 This document will help you get started. But first, **thank you for your interest in contributing!** We immensely appreciate quality contributions. This guide is intended to help you navigate the process.
 
 The [Discord][discord] is always available for any concerns you may have that are not covered in this guide, or for any other questions or discussions you want to raise with the Nexus team or broader Nexus community.
+
+## Development Setup
+
+### Prerequisites
+
+- **Rust and Cargo**: Latest stable version
+  ```bash
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  ```
+  Verify installation:
+  ```bash
+  rustc --version
+  cargo --version
+  ```
+
+- **Git**: For version control
+  ```bash
+  git --version
+  ```
+
+- **Protobuf Compiler**: Required if working with proto files
+  - macOS: `brew install protobuf`
+  - Ubuntu/Debian: `apt-get install protobuf-compiler`
+  - Windows: Download from [protobuf releases](https://github.com/protocolbuffers/protobuf/releases)
+  Verify installation:
+  ```bash
+  protoc --version
+  ```
+
+### Building from Source
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/nexus-xyz/network-api.git
+   cd network-api/clients/cli
+   ```
+
+2. Build the CLI:
+   ```bash
+   cargo build
+   ```
+
+3. Run the CLI:
+   ```bash
+   cargo run
+   ```
+
+### Code Quality Checks
+
+Before submitting changes, please run the following checks locally:
+
+```bash
+# Format code
+cargo fmt --check
+
+# Run clippy lints
+cargo clippy -- -D warnings
+
+# Check for unused dependencies
+cargo udeps
+
+# Check for security vulnerabilities
+cargo audit
+```
+
+These checks are the same ones that run in our CI pipeline. If they pass locally, your 
+changes are likely to pass CI as well.
+
+### Proto Compilation
+
+By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` feature:
+
+```bash
+cargo build --features build_proto
+```
 
 ### Code of Conduct
 
@@ -82,16 +159,6 @@ intend to continue the work before checking if they would mind if you took it ov
 remaining). When doing so, it is courteous to give the original contributor credit for the work they started, either by
 preserving their name and e-mail address in the commit log, or by using the `Author: ` or `Co-authored-by: ` metadata
 tag in the commits.
-
-#### Proto Compilation
-
-By default, the build process skips proto compilation to make it easier for contributors to work on the codebase without needing protobuf tooling. If you need to modify or regenerate the proto files, you can enable proto compilation by using the `build_proto` feature:
-
-```bash
-cargo build --features build_proto
-```
-
-<sub><sup>_Adapted from the [Reth contributing guide][reth-contributing]_.</sub></sup>
 
 [rust-coc]: https://github.com/rust-lang/rust/blob/master/CODE_OF_CONDUCT.md
 
