@@ -44,8 +44,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if output.status.success() {
         println!("protoc is installed and accessible.");
     } else {
-        println!("Error: protoc is not installed or not in PATH.");
-        return Err("protoc not found".into());
+        println!("protoc is not installed - using precompiled proto.");
+        return Ok(());
     }
 
     // Check if the output directory exists and is writable
