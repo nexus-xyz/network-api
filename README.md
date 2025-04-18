@@ -1,4 +1,4 @@
-
+[![Release](https://img.shields.io/github/v/release/nexus-xyz/network-api.svg)](https://github.com/nexus-xyz/network-api/releases)
 [![License](https://img.shields.io/badge/License-Apache_2.0-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-APACHE)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/nexus-xyz/network-api/blob/main/LICENSE-MIT)
 
