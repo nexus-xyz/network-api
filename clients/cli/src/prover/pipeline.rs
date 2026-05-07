@@ -99,8 +99,9 @@ impl ProvingPipeline {
                     )
                     .await?;
 
-                    // Step 3: Generate proof hash
-                    let proof_hash = Self::generate_proof_hash(&proof);
+                    // Step 3: Generate proof hash; propagate serialization errors instead of
+                    // panicking, which would crash the worker process and lose the task.
+                    let proof_hash = Self::generate_proof_hash(&proof)?;
 
                     Ok((proof, proof_hash, input_index))
                 })
@@ -169,10 +170,13 @@ impl ProvingPipeline {
         Ok((all_proofs, final_proof_hash, proof_hashes))
     }
 
-    /// Generate hash for a proof
-    fn generate_proof_hash(proof: &Proof) -> String {
-        let proof_bytes = postcard::to_allocvec(proof).expect("Failed to serialize proof");
-        format!("{:x}", Keccak256::digest(&proof_bytes))
+    /// Generate hash for a proof.
+    ///
+    /// Returns an error instead of panicking if the proof cannot be serialized.
+    /// A panic here would crash the worker process and permanently lose the task.
+    fn generate_proof_hash(proof: &Proof) -> Result<String, ProverError> {
+        let proof_bytes = postcard::to_allocvec(proof)?;
+        Ok(format!("{:x}", Keccak256::digest(&proof_bytes)))
     }
 
     /// Combine multiple proof hashes based on task type
