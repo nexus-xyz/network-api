@@ -447,7 +447,7 @@ impl Orchestrator for OrchestratorClient {
             proof: proof_to_send,
             proofs: proofs_to_send,
             node_telemetry: Some(crate::nexus_orchestrator::NodeTelemetry {
-                flops_per_sec: Some(flops as i32),
+                flops_per_sec: Some(flops.clamp(i32::MIN as f64, i32::MAX as f64) as i32),
                 memory_used: Some(program_memory),
                 memory_capacity: Some(total_memory),
                 // Country code for network routing optimization (privacy-preserving)
