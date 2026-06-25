@@ -119,7 +119,7 @@ impl Config {
         if !config_path.exists() {
             print_info(
                 "Welcome to Nexus CLI!",
-                "Please register your wallet address to get started: nexus-cli register-user --wallet-address <your-wallet-address>",
+                "Please register your wallet address to get started: nexus-compute-cli register-user --wallet-address <your-wallet-address>",
             );
             return Err("Configuration file not found. Please register first.".into());
         }
@@ -140,7 +140,7 @@ impl Config {
                 // The config is present but incomplete or invalid
                 print_error(
                     "Your configuration is incomplete or invalid.",
-                    Some("Please register your node. Start with: nexus-cli register-node"),
+                    Some("Please register your node. Start with: nexus-compute-cli register-node"),
                 );
                 return Err(e);
             }
@@ -165,10 +165,10 @@ impl Config {
         if self.node_id.is_empty() {
             print_error(
                 "User registered, but no node found",
-                Some("Please register a node to continue: nexus-cli register-node"),
+                Some("Please register a node to continue: nexus-compute-cli register-node"),
             );
             return Err(
-                "Node registration required. Please run 'nexus-cli register-node' first.".into(),
+                "Node registration required. Please run 'nexus-compute-cli register-node' first.".into(),
             );
         }
 
@@ -177,10 +177,10 @@ impl Config {
             Err(_) => {
                 print_error(
                     "Invalid node ID in config file",
-                    Some("Please register a new node: nexus-cli register-node"),
+                    Some("Please register a new node: nexus-compute-cli register-node"),
                 );
                 Err(
-                    "Invalid node ID in config. Please run 'nexus-cli register-node' to fix this."
+                    "Invalid node ID in config. Please run 'nexus-compute-cli register-node' to fix this."
                         .into(),
                 )
             }

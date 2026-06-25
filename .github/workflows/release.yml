@@ -90,14 +90,14 @@ jobs:
       # Rename the binary to indicate the target OS
       - name: Rename binary
         working-directory: clients/cli/target/x86_64-unknown-linux-gnu/release/
-        run: cp nexus-network nexus-network-linux-x86_64
+        run: cp nexus-network nexus-compute-cli-linux-x86_64
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nexus-network-linux-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-network-linux-x86_64 # Path to file to upload
+          name: nexus-compute-cli-linux-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-unknown-linux-gnu/release/nexus-compute-cli-linux-x86_64 # Path to file to upload
 
 
   build-linux-arm64:
@@ -157,14 +157,14 @@ jobs:
       # Rename the binary to indicate the target OS
       - name: Rename binary
         working-directory: clients/cli/target/aarch64-unknown-linux-gnu/release/
-        run: cp nexus-network nexus-network-linux-arm64
+        run: cp nexus-network nexus-compute-cli-linux-arm64
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nexus-network-linux-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-network-linux-arm64 # Path to file to upload
+          name: nexus-compute-cli-linux-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-compute-cli-linux-arm64 # Path to file to upload
 
   build-macos-x86_64:
     name: Build macOS (x86_64)
@@ -220,15 +220,15 @@ jobs:
       # Rename the binary to indicate the target OS
       - name: Rename binary
         working-directory: clients/cli/target/x86_64-apple-darwin/release/
-        run: cp nexus-network nexus-network-macos-x86_64
+        run: cp nexus-network nexus-compute-cli-macos-x86_64
 
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nexus-network-macos-x86_64 # Name of the artifact
-          path: clients/cli/target/x86_64-apple-darwin/release/nexus-network-macos-x86_64 # Path to file to upload
+          name: nexus-compute-cli-macos-x86_64 # Name of the artifact
+          path: clients/cli/target/x86_64-apple-darwin/release/nexus-compute-cli-macos-x86_64 # Path to file to upload
 
 
   build-macos-arm64:
@@ -277,14 +277,14 @@ jobs:
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
         working-directory: clients/cli/target/aarch64-apple-darwin/release/
-        run: cp nexus-network nexus-network-macos-arm64
+        run: cp nexus-network nexus-compute-cli-macos-arm64
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nexus-network-macos-arm64 # Name of the artifact
-          path: clients/cli/target/aarch64-apple-darwin/release/nexus-network-macos-arm64 # Path to file to upload
+          name: nexus-compute-cli-macos-arm64 # Name of the artifact
+          path: clients/cli/target/aarch64-apple-darwin/release/nexus-compute-cli-macos-arm64 # Path to file to upload
 
 
   build-windows-x86_64:
@@ -330,14 +330,14 @@ jobs:
       # Rename the binary to indicate the target OS and platform
       - name: Rename binary
         working-directory: clients/cli/target/x86_64-pc-windows-msvc/release/
-        run: cp nexus-network.exe nexus-network-windows-x86_64.exe
+        run: cp nexus-network.exe nexus-compute-cli-windows-x86_64.exe
 
       # Upload the binary as an artifact
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: nexus-network-windows-x86_64.exe # Name of the artifact
-          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-network-windows-x86_64.exe # Path to file to upload
+          name: nexus-compute-cli-windows-x86_64.exe # Name of the artifact
+          path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-compute-cli-windows-x86_64.exe # Path to file to upload
 
 
   release:
@@ -372,16 +372,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/nexus-network-macos-arm64
-            artifacts/nexus-network-macos-arm64.sha256
-            artifacts/nexus-network-macos-x86_64
-            artifacts/nexus-network-macos-x86_64.sha256
-            artifacts/nexus-network-linux-arm64
-            artifacts/nexus-network-linux-arm64.sha256
-            artifacts/nexus-network-linux-x86_64
-            artifacts/nexus-network-linux-x86_64.sha256
-            artifacts/nexus-network-windows-x86_64.exe
-            artifacts/nexus-network-windows-x86_64.exe.sha256
+            artifacts/nexus-compute-cli-macos-arm64
+            artifacts/nexus-compute-cli-macos-arm64.sha256
+            artifacts/nexus-compute-cli-macos-x86_64
+            artifacts/nexus-compute-cli-macos-x86_64.sha256
+            artifacts/nexus-compute-cli-linux-arm64
+            artifacts/nexus-compute-cli-linux-arm64.sha256
+            artifacts/nexus-compute-cli-linux-x86_64
+            artifacts/nexus-compute-cli-linux-x86_64.sha256
+            artifacts/nexus-compute-cli-windows-x86_64.exe
+            artifacts/nexus-compute-cli-windows-x86_64.exe.sha256
           draft: false
           prerelease: false
           generate_release_notes: true

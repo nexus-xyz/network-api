@@ -50,7 +50,7 @@ pub async fn register_user(
                 // Guide user to next step
                 print_success(
                     "User registration complete!",
-                    "Next step - register a node: nexus-cli register-node",
+                    "Next step - register a node: nexus-compute-cli register-node",
                 );
                 return Ok(());
             }
@@ -77,7 +77,7 @@ pub async fn register_user(
         // Guide user to next step
         print_success(
             "User registration complete!",
-            "Next step - register a node: nexus-cli register-node",
+            "Next step - register a node: nexus-compute-cli register-node",
         );
 
         return Ok(());
@@ -118,7 +118,7 @@ pub async fn register_user(
     // Guide user to next step
     print_success(
         "User registration complete!",
-        "Next step - register a node: nexus-cli register-node",
+        "Next step - register a node: nexus-compute-cli register-node",
     );
 
     Ok(())
@@ -163,7 +163,7 @@ pub async fn register_node(
         print_success(
             "Node registration complete!",
             &format!(
-                "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
+                "Successfully registered node with ID: {}. Next step - start proving: nexus-compute-cli start",
                 node_id
             ),
         );
@@ -187,7 +187,7 @@ pub async fn register_node(
                 print_success(
                     "Node registration complete!",
                     &format!(
-                        "Successfully registered node with ID: {}. Next step - start proving: nexus-cli start",
+                        "Successfully registered node with ID: {}. Next step - start proving: nexus-compute-cli start",
                         node_id
                     ),
                 );

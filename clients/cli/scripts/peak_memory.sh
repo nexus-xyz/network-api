@@ -1,15 +1,15 @@
 #!/bin/bash
 
-# This script measures the peak memory usage of the nexus-cli binary.
+# This script measures the peak memory usage of the nexus-compute-cli binary.
 # It starts the binary in headless mode and monitors the memory usage for specified seconds.
 # Usage: ./peak_memory.sh [SECONDS] (default: 60)
 
 DURATION=${1:-60}
 
-echo "Starting nexus-cli and monitoring memory for ${DURATION} seconds..."
+echo "Starting nexus-compute-cli and monitoring memory for ${DURATION} seconds..."
 
 # Start the process in background and capture its PID
-nexus-cli start --headless &
+nexus-compute-cli start --headless &
 PID=$!
 
 # Record start time
