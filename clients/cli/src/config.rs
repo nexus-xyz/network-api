@@ -168,7 +168,8 @@ impl Config {
                 Some("Please register a node to continue: nexus-compute-cli register-node"),
             );
             return Err(
-                "Node registration required. Please run 'nexus-compute-cli register-node' first.".into(),
+                "Node registration required. Please run 'nexus-compute-cli register-node' first."
+                    .into(),
             );
         }
 
