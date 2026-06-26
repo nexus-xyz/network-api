@@ -37,11 +37,11 @@ jobs:
           BASE_URL="https://github.com/nexus-xyz/nexus-cli/releases/download/${VERSION}"
 
           # Define the download URLs for each platform
-          LINUX_X86_64_URL="${BASE_URL}/nexus-network-linux-x86_64"
-          LINUX_ARM64_URL="${BASE_URL}/nexus-network-linux-arm64"
-          MACOS_X86_64_URL="${BASE_URL}/nexus-network-macos-x86_64"
-          MACOS_ARM64_URL="${BASE_URL}/nexus-network-macos-arm64"
-          WINDOWS_X86_64_URL="${BASE_URL}/nexus-network-windows-x86_64.exe"
+          LINUX_X86_64_URL="${BASE_URL}/nexus-compute-cli-linux-x86_64"
+          LINUX_ARM64_URL="${BASE_URL}/nexus-compute-cli-linux-arm64"
+          MACOS_X86_64_URL="${BASE_URL}/nexus-compute-cli-macos-x86_64"
+          MACOS_ARM64_URL="${BASE_URL}/nexus-compute-cli-macos-arm64"
+          WINDOWS_X86_64_URL="${BASE_URL}/nexus-compute-cli-windows-x86_64.exe"
 
           # Replace placeholders in the template
           sed -e "s|__LINUX_X86_64_URL__|${LINUX_X86_64_URL}|g" \

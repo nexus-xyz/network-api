@@ -47,6 +47,11 @@ chmod +x install.sh
 NONINTERACTIVE=1 ./install.sh
 ```
 
+> **Note on the command name:** The CLI command is now `nexus-compute-cli`. The
+> previous name, `nexus-cli`, continues to work as an alias during the transition
+> window, so existing scripts won't break — but new setups should use
+> `nexus-compute-cli`.
+
 ### Proving
 
 Proving with the CLI is documented [here](https://docs.nexus.xyz/network/proving-on-the-layer-1/contribute-via-cli).
@@ -54,21 +59,21 @@ Proving with the CLI is documented [here](https://docs.nexus.xyz/network/proving
 To start with an existing node ID, run:
 
 ```bash
-nexus-cli start --node-id <your-node-id>
+nexus-compute-cli start --node-id <your-node-id>
 ```
 
 Alternatively, you can register your wallet address and create a node ID with the CLI, or at [app.nexus.xyz](https://app.nexus.xyz).
 
 ```bash
-nexus-cli register-user --wallet-address <your-wallet-address>
-nexus-cli register-node --node-id <your-cli-node-id>
-nexus-cli start
+nexus-compute-cli register-user --wallet-address <your-wallet-address>
+nexus-compute-cli register-node --node-id <your-cli-node-id>
+nexus-compute-cli start
 ```
 
 To run the CLI noninteractively, you can also opt to start it in headless mode.
 
 ```bash
-nexus-cli start --headless
+nexus-compute-cli start --headless
 ```
 
 #### Quick Reference
@@ -76,13 +81,13 @@ nexus-cli start --headless
 The `register-user` and `register-node` commands will save your credentials to `~/.nexus/config.json`. To clear credentials, run:
 
 ```bash
-nexus-cli logout
+nexus-compute-cli logout
 ```
 
 For troubleshooting or to see available command-line options, run:
 
 ```bash
-nexus-cli --help
+nexus-compute-cli --help
 ```
 
 ### Adaptive Task Difficulty
@@ -111,24 +116,24 @@ The Nexus CLI features an **adaptive difficulty system** that automatically adju
 
 ```bash
 # Lower difficulty for resource-constrained systems
-nexus-cli start --max-difficulty small
-nexus-cli start --max-difficulty small_medium
+nexus-compute-cli start --max-difficulty small
+nexus-compute-cli start --max-difficulty small_medium
 
 # Higher difficulty for powerful hardware
-nexus-cli start --max-difficulty medium
-nexus-cli start --max-difficulty large
-nexus-cli start --max-difficulty extra_large
-nexus-cli start --max-difficulty extra_large_2
-nexus-cli start --max-difficulty extra_large_3
-nexus-cli start --max-difficulty extra_large_4
+nexus-compute-cli start --max-difficulty medium
+nexus-compute-cli start --max-difficulty large
+nexus-compute-cli start --max-difficulty extra_large
+nexus-compute-cli start --max-difficulty extra_large_2
+nexus-compute-cli start --max-difficulty extra_large_3
+nexus-compute-cli start --max-difficulty extra_large_4
 
 # Equivalent to extra_large_4 if no extra_large_5 tasks available
-nexus-cli start --max-difficulty extra_large_5
+nexus-compute-cli start --max-difficulty extra_large_5
 
 # Case-insensitive (all equivalent)
-nexus-cli start --max-difficulty MEDIUM
-nexus-cli start --max-difficulty medium
-nexus-cli start --max-difficulty Medium
+nexus-compute-cli start --max-difficulty MEDIUM
+nexus-compute-cli start --max-difficulty medium
+nexus-compute-cli start --max-difficulty Medium
 ```
 
 #### Difficulty Guidelines
@@ -140,7 +145,7 @@ nexus-cli start --max-difficulty Medium
 | `medium` and `large` | Standard desktop/laptop |
 | `extra_large` and above | High-performance systems, more points |
 
-> **Tip**: Use `nexus-cli start --help` to see the full auto-promotion details in the CLI help text.
+> **Tip**: Use `nexus-compute-cli start --help` to see the full auto-promotion details in the CLI help text.
 
 #### Troubleshooting Difficulty Issues
 
@@ -149,7 +154,7 @@ nexus-cli start --max-difficulty Medium
 Try a lower difficulty.
 
 ```bash
-nexus-cli start --max-difficulty small_medium
+nexus-compute-cli start --max-difficulty small_medium
 ```
 
 **Want more challenging tasks:**
@@ -157,7 +162,7 @@ nexus-cli start --max-difficulty small_medium
 Request a harder difficulty. It will still take time to build up reputation to get the requested difficulty.
 
 ```bash
-nexus-cli start --max-difficulty extra_large_2
+nexus-compute-cli start --max-difficulty extra_large_2
 ```
 
 **Unsure about system capabilities:**

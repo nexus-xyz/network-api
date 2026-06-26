@@ -84,7 +84,7 @@ All errors are displayed with red text and include helpful error messages.
 
 ## Peak Memory Monitor Script
 
-The `peak_memory.sh` script monitors the peak memory usage of the nexus-cli during operation.
+The `peak_memory.sh` script monitors the peak memory usage of the nexus-compute-cli during operation.
 
 ### Usage
 
@@ -111,7 +111,7 @@ The `peak_memory.sh` script monitors the peak memory usage of the nexus-cli duri
 
 ### What it does
 
-1. Starts `nexus-cli start --headless` in the background
+1. Starts `nexus-compute-cli start --headless` in the background
 2. Monitors memory usage every second for the specified duration
 3. Tracks peak memory usage throughout the run
 4. Displays real-time current and peak memory usage
@@ -121,7 +121,7 @@ The `peak_memory.sh` script monitors the peak memory usage of the nexus-cli duri
 
 ```bash
 ❯ ./scripts/peak_memory.sh 20
-Starting nexus-cli and monitoring memory for 20 seconds...
+Starting nexus-compute-cli and monitoring memory for 20 seconds...
 [1/20s] Current: 4 MB, Peak: 4 MB
 [INFO!!!] ✅ Found Node ID from config file      Node ID: 19444429
 Refresh [2025-07-31 08:09:24] Task Fetcher: [Task step 1 of 3] Fetching task...
@@ -145,5 +145,5 @@ Total Runtime: 21 seconds
 ```
 ### Requirements
 
-- `nexus-cli` must be built and available in PATH or current directory
+- `nexus-compute-cli` must be built and available in PATH or current directory
 - Valid nexus configuration (Node ID) for proper operation

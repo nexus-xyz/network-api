@@ -148,7 +148,7 @@ fi
 echo "Downloading latest release for ${GREEN}$PLATFORM-$ARCH${NC}..."
 echo "Downloading from: ${GREEN}$DOWNLOAD_URL${NC}"
 
-if ! curl -L -o "$BIN_DIR/nexus-network" "$DOWNLOAD_URL"; then
+if ! curl -L -o "$BIN_DIR/nexus-compute-cli" "$DOWNLOAD_URL"; then
     echo "${RED}Failed to download binary from $DOWNLOAD_URL${NC}"
     echo "Please try again or build from source:"
     echo "  git clone https://github.com/nexus-xyz/nexus-cli.git"
@@ -157,9 +157,12 @@ if ! curl -L -o "$BIN_DIR/nexus-network" "$DOWNLOAD_URL"; then
     exit 1
 fi
 
-chmod +x "$BIN_DIR/nexus-network"
-ln -s "$BIN_DIR/nexus-network" "$BIN_DIR/nexus-cli"
-chmod +x "$BIN_DIR/nexus-cli"
+chmod +x "$BIN_DIR/nexus-compute-cli"
+
+# The canonical command is now `nexus-compute-cli`. Keep `nexus-cli` as a
+# backward-compatible alias through the transition window so existing prover
+# scripts and the self-updater keep working.
+ln -sf "$BIN_DIR/nexus-compute-cli" "$BIN_DIR/nexus-cli"
 
 # -----------------------------------------------------------------------------
 # 6) Add $BIN_DIR to PATH if not already present
@@ -193,5 +196,5 @@ echo "  source $PROFILE_FILE"
 echo ""
 echo "${ORANGE}To get your node ID, visit: https://app.nexus.xyz/nodes${NC}"
 echo ""
-echo "Register your user to begin linked proving with the Nexus CLI by: nexus-cli register-user --wallet-address <WALLET_ADDRESS>"
+echo "Register your user to begin linked proving with the Nexus CLI by: nexus-compute-cli register-user --wallet-address <WALLET_ADDRESS>"
 echo "Or follow the guide at https://docs.nexus.xyz/network/proving-on-the-layer-1/contribute-via-cli"

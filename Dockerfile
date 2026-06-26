@@ -6,4 +6,4 @@ RUN apk update && \
     chmod +x install.sh && \
     NONINTERACTIVE=1 ./install.sh
 
-ENTRYPOINT ["/root/.nexus/bin/nexus-cli"]
+ENTRYPOINT ["/root/.nexus/bin/nexus-compute-cli"]
