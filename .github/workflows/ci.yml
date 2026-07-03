@@ -14,6 +14,14 @@ jobs:
     name: Build and Test
     runs-on: ubuntu-latest
 
+    # clients/cli/.cargo/config.toml sets `target-cpu=native`, which on GitHub's
+    # shared runner fleet emits instructions the runner faults on -> SIGILL at
+    # clippy/build time. release.yml already overrides this with `target-cpu=generic`
+    # for the shipped binaries; mirror that here (RUSTFLAGS env wins over config.toml)
+    # so CI is stable and checks the same codegen baseline that actually ships.
+    env:
+      RUSTFLAGS: "-C target-cpu=generic"
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
