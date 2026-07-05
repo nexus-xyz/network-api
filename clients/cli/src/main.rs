@@ -83,6 +83,58 @@ fn print_available_difficulties() {
     }
 }
 
+/// Returns the error message shown when the CPU lacks required SIMD instructions.
+///
+/// This is a separate function so tests can verify the message content without
+/// needing to run on hardware that actually lacks the feature.
+#[cfg(any(target_arch = "x86_64", test))]
+fn avx2_missing_message() -> &'static str {
+    concat!(
+        "Error: Your processor does not support AVX2 instructions required by the Nexus prover.\n",
+        "\n",
+        "Your CPU is too old to run the Nexus CLI. Please use a newer machine:\n",
+        "\n",
+        "  Supported processors:\n",
+        "    Intel — 4th generation (Haswell, 2013) or newer\n",
+        "    AMD   — Ryzen / Zen architecture (2017) or newer\n",
+        "\n",
+        "If you believe your processor is supported, make sure you are running\n",
+        "the correct binary for your platform (x86_64 vs. ARM).",
+    )
+}
+
+/// Returns the AVX2 error message when `avx2_supported` is false, or `None`
+/// when the CPU meets requirements.
+///
+/// Accepts the AVX2 detection result as a parameter so callers can inject
+/// `false` in unit tests without needing hardware that lacks AVX2.
+#[cfg(any(target_arch = "x86_64", test))]
+fn cpu_feature_error(avx2_supported: bool) -> Option<&'static str> {
+    if avx2_supported { None } else { Some(avx2_missing_message()) }
+}
+
+/// Probes the running CPU and returns an error message if any required
+/// instruction-set extension is missing, or `None` if all requirements are met.
+///
+/// On x86_64, the Nexus CLI is compiled with `-C target-cpu=native`, which
+/// enables AVX2 code paths in the stwo SIMD prover backend at compile time.
+/// Running the resulting binary on a CPU that lacks AVX2 causes SIGILL (reported
+/// as a floating-point exception) rather than a meaningful error.  Checking here
+/// — before any prover code runs — lets us exit with a clear message instead.
+///
+/// On non-x86_64 targets (aarch64, wasm32, …) the prover uses NEON or scalar
+/// paths and has no AVX2 dependency, so the check is skipped entirely.
+#[cfg(target_arch = "x86_64")]
+fn check_cpu_features() -> Option<&'static str> {
+    cpu_feature_error(is_x86_feature_detected!("avx2"))
+}
+
+/// On non-x86_64 platforms there are no AVX2 requirements; always pass.
+#[cfg(not(target_arch = "x86_64"))]
+fn check_cpu_features() -> Option<&'static str> {
+    None
+}
+
 #[derive(Parser)]
 #[command(author, version = concat!(env!("CARGO_PKG_VERSION"), " (build ", env!("BUILD_TIMESTAMP"), ")"), about, long_about = None)]
 /// Command-line arguments
@@ -148,11 +200,20 @@ enum Command {
         /// Serialized inputs blob
         #[arg(long)]
         inputs: String,
+        /// Number of Rayon threads for this subprocess (0 = use Rayon default)
+        #[arg(long, default_value_t = 0)]
+        num_threads: usize,
     },
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    // Check for required CPU features before anything else runs.
+    if let Some(msg) = check_cpu_features() {
+        eprintln!("{}", msg);
+        std::process::exit(1);
+    }
+
     // Set up panic hook to prevent core dumps
     std::panic::set_hook(Box::new(|panic_info| {
         eprintln!("Panic occurred: {}", panic_info);
@@ -212,9 +273,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let orchestrator = Box::new(OrchestratorClient::new(environment));
             register_node(node_id, &config_path, orchestrator).await
         }
-        Command::ProveFibSubprocess { inputs } => {
+        Command::ProveFibSubprocess { inputs, num_threads } => {
             let inputs: (u32, u32, u32) = serde_json::from_str(&inputs)?;
-            match ProvingEngine::prove_fib_subprocess(&inputs) {
+            match ProvingEngine::prove_fib_subprocess(&inputs, num_threads) {
                 Ok(proof) => {
                     let bytes = to_allocvec(&proof)?;
                     let mut out = std::io::stdout().lock();
@@ -348,5 +409,105 @@ mod tests {
             "EXTRA_LARGE_2" => Some(TaskDifficulty::ExtraLarge2),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod cpu_check_tests {
+    use super::*;
+
+    // --- Message content tests (platform-independent) ---
+
+    #[test]
+    fn avx2_error_message_names_avx2() {
+        assert!(
+            avx2_missing_message().contains("AVX2"),
+            "error message must name the missing feature (AVX2)"
+        );
+    }
+
+    #[test]
+    fn avx2_error_message_names_intel_and_amd() {
+        let msg = avx2_missing_message();
+        assert!(msg.contains("Intel"), "error message must name Intel CPUs");
+        assert!(msg.contains("AMD"), "error message must name AMD CPUs");
+    }
+
+    #[test]
+    fn avx2_error_message_names_specific_cpu_generations() {
+        let msg = avx2_missing_message();
+        // Intel: Haswell or the year 2013
+        assert!(
+            msg.contains("Haswell") || msg.contains("2013"),
+            "error message must identify the minimum Intel generation"
+        );
+        // AMD: Ryzen, Zen, or the year 2017
+        assert!(
+            msg.contains("Ryzen") || msg.contains("Zen") || msg.contains("2017"),
+            "error message must identify the minimum AMD generation"
+        );
+    }
+
+    #[test]
+    fn avx2_error_message_explains_the_cpu_is_too_old() {
+        let msg = avx2_missing_message();
+        assert!(
+            msg.contains("too old") || msg.contains("older"),
+            "error message must explain that the CPU is too old"
+        );
+    }
+
+    // --- Logic tests via cpu_feature_error (injectable, platform-independent) ---
+
+    #[test]
+    fn cpu_feature_error_returns_none_when_avx2_present() {
+        assert!(
+            cpu_feature_error(true).is_none(),
+            "cpu_feature_error should return None when AVX2 is available"
+        );
+    }
+
+    #[test]
+    fn cpu_feature_error_returns_message_when_avx2_absent() {
+        let result = cpu_feature_error(false);
+        assert!(
+            result.is_some(),
+            "cpu_feature_error should return Some(msg) when AVX2 is absent"
+        );
+        // Verify the returned message is the AVX2 error (not empty or a placeholder)
+        let msg = result.unwrap();
+        assert!(
+            msg.contains("AVX2"),
+            "returned error must describe the missing feature"
+        );
+    }
+
+    // --- Platform-specific runtime tests ---
+
+    /// On x86_64, check_cpu_features() must pass on any machine capable of
+    /// running this test binary.  If this fails the developer's CPU genuinely
+    /// lacks AVX2 and the machine is unsupported.
+    #[test]
+    #[cfg(target_arch = "x86_64")]
+    fn cpu_check_passes_on_avx2_capable_x86_64() {
+        if is_x86_feature_detected!("avx2") {
+            assert!(
+                check_cpu_features().is_none(),
+                "check_cpu_features() must return None on an AVX2-capable x86_64 CPU"
+            );
+        }
+        // If the machine truly lacks AVX2, the check returning Some(_) is correct
+        // behaviour; we don't fail the test in that case.
+    }
+
+    /// On non-x86_64 architectures the check is compiled out entirely and must
+    /// always return None regardless of what features the CPU exposes.
+    #[test]
+    #[cfg(not(target_arch = "x86_64"))]
+    fn cpu_check_is_skipped_on_non_x86_64() {
+        assert!(
+            check_cpu_features().is_none(),
+            "check_cpu_features() must return None on non-x86_64 platforms"
+        );
     }
 }

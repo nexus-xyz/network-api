@@ -96,6 +96,7 @@ impl ProvingPipeline {
                         &task_ref,
                         &environment_ref,
                         &client_id_ref,
+                        num_workers,
                     )
                     .await?;
 
