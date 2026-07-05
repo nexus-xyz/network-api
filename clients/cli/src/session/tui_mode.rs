@@ -8,7 +8,7 @@ use crate::orchestrator::Orchestrator;
 use crate::ui::{self, UIConfig};
 use crate::version::checker::check_for_new_version;
 use crossterm::{
-    event::{DisableMouseCapture, EnableMouseCapture},
+    event::DisableMouseCapture,
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
@@ -53,7 +53,7 @@ pub async fn run_tui_mode(
     // Terminal setup
     enable_raw_mode()?;
     let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
+    execute!(stdout, EnterAlternateScreen, DisableMouseCapture)?;
 
     // Initialize the terminal with Crossterm backend
     let backend = CrosstermBackend::new(stdout);
