@@ -31,7 +31,12 @@ impl ProvingEngine {
     }
 
     /// Subprocess entrypoint: generate proof without verification
-    pub fn prove_fib_subprocess(inputs: &(u32, u32, u32)) -> Result<Proof, ProverError> {
+    pub fn prove_fib_subprocess(inputs: &(u32, u32, u32), num_threads: usize) -> Result<Proof, ProverError> {
+        if num_threads > 0 {
+            let _ = rayon::ThreadPoolBuilder::new()
+                .num_threads(num_threads)
+                .build_global();
+        }
         let prover = Self::create_fib_prover()?;
         let (view, proof) = prover
             .prove_with_input::<(), (u32, u32, u32)>(&(), inputs)
@@ -53,6 +58,7 @@ impl ProvingEngine {
         task: &Task,
         environment: &Environment,
         client_id: &str,
+        num_threads: usize,
     ) -> Result<Proof, ProverError> {
         // Spawn a subprocess for proof generation to isolate memory usage
         let exe_path = env::current_exe()?;
@@ -60,6 +66,8 @@ impl ProvingEngine {
         cmd.arg("prove-fib-subprocess")
             .arg("--inputs")
             .arg(serde_json::to_string(inputs)?)
+            .arg("--num-threads")
+            .arg(num_threads.to_string())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
 

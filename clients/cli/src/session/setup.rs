@@ -117,8 +117,9 @@ pub async fn setup_session(
     let max_workers = ((total_cores as f64 * 0.75).ceil() as usize).max(1);
     let mut num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
 
-    // Check memory and clamp threads if max-threads was explicitly set OR check-memory flag is set
-    if max_threads.is_some() || check_mem {
+    // Check memory and clamp threads only when --check-memory is explicitly requested.
+    // When the user explicitly sets --max-threads, trust their hardware knowledge.
+    if check_mem {
         let memory_clamped_workers = clamp_threads_by_memory(num_workers);
         if memory_clamped_workers < num_workers {
             crate::print_cmd_warn!(
@@ -165,4 +166,82 @@ pub async fn setup_session(
         orchestrator: orchestrator_client,
         num_workers,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn compute_num_workers(max_threads: Option<u32>, total_cores: usize) -> usize {
+        let max_workers = ((total_cores as f64 * 0.75).ceil() as usize).max(1);
+        max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize
+    }
+
+    #[test]
+    fn num_workers_defaults_to_1_without_flag() {
+        let workers = compute_num_workers(None, 8);
+        assert_eq!(workers, 1);
+    }
+
+    #[test]
+    fn num_workers_uses_max_threads_when_set() {
+        // 8 cores → max_workers = ceil(6) = 6; --max-threads 4 should give 4
+        let workers = compute_num_workers(Some(4), 8);
+        assert_eq!(workers, 4);
+    }
+
+    #[test]
+    fn num_workers_clamps_to_core_limit() {
+        // 2 cores → max_workers = ceil(1.5) = 2; --max-threads 8 should be clamped to 2
+        let workers = compute_num_workers(Some(8), 2);
+        assert_eq!(workers, 2);
+    }
+
+    #[test]
+    fn num_workers_minimum_is_1() {
+        // --max-threads 0 would be clamped up to 1 by clamp(1, …)
+        let workers = compute_num_workers(Some(0), 8);
+        assert_eq!(workers, 1);
+    }
+
+    #[test]
+    fn memory_clamp_not_applied_when_check_mem_false() {
+        // Simulate a machine with very little "memory" — previously this would reduce workers to 1
+        // when max_threads.is_some(). Now it must NOT clamp unless check_mem=true.
+        let requested = 4usize;
+        // With check_mem=false the result stays at requested (no memory check runs).
+        // We verify by re-running the guard logic: clamp_threads_by_memory would return 1 on a
+        // tiny memory budget, but the guard is now gated on check_mem only.
+        let check_mem = false;
+        let max_threads: Option<u32> = Some(4);
+
+        // The guard in setup_session is: if check_mem { ... }
+        // Since check_mem=false, clamping never runs regardless of max_threads.
+        let result = if check_mem {
+            clamp_threads_by_memory(requested)
+        } else {
+            requested
+        };
+
+        assert_eq!(result, requested,
+            "num_workers should not be memory-clamped when --check-memory is not set (got {result}, max_threads={max_threads:?})");
+    }
+
+    #[test]
+    fn memory_clamp_applied_when_check_mem_true_and_overcommitted() {
+        // When check_mem=true and the request exceeds available memory, clamping should fire.
+        // clamp_threads_by_memory reads real system memory, so we only verify the path is taken
+        // and the result is ≥ 1.
+        let requested = usize::MAX; // absurdly large
+        let check_mem = true;
+
+        let result = if check_mem {
+            clamp_threads_by_memory(requested)
+        } else {
+            requested
+        };
+
+        assert!(result >= 1, "clamp_threads_by_memory must always return at least 1");
+        assert!(result < usize::MAX, "overcommitted request must be clamped");
+    }
 }

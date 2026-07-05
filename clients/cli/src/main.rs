@@ -148,6 +148,9 @@ enum Command {
         /// Serialized inputs blob
         #[arg(long)]
         inputs: String,
+        /// Number of Rayon threads for this subprocess (0 = use Rayon default)
+        #[arg(long, default_value_t = 0)]
+        num_threads: usize,
     },
 }
 
@@ -212,9 +215,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             let orchestrator = Box::new(OrchestratorClient::new(environment));
             register_node(node_id, &config_path, orchestrator).await
         }
-        Command::ProveFibSubprocess { inputs } => {
+        Command::ProveFibSubprocess { inputs, num_threads } => {
             let inputs: (u32, u32, u32) = serde_json::from_str(&inputs)?;
-            match ProvingEngine::prove_fib_subprocess(&inputs) {
+            match ProvingEngine::prove_fib_subprocess(&inputs, num_threads) {
                 Ok(proof) => {
                     let bytes = to_allocvec(&proof)?;
                     let mut out = std::io::stdout().lock();

@@ -15,6 +15,11 @@ fn config_file_path(dir: &tempfile::TempDir) -> PathBuf {
 
 const BINARY_NAME: &str = "nexus-network";
 
+/// Run the binary with given args and return stdout + stderr combined.
+fn run_bin(args: &[&str]) -> assert_cmd::assert::Assert {
+    Command::cargo_bin(BINARY_NAME).unwrap().args(args).assert()
+}
+
 #[test]
 /// Help command should display usage information.
 fn cli_help_displays_usage() {
@@ -47,6 +52,61 @@ fn register_user_command_creates_config_file() {
 
     // Confirm the file was created
     assert!(config_path.exists());
+}
+
+#[test]
+/// --max-threads flag appears in `start --help`.
+fn start_help_shows_max_threads() {
+    run_bin(&["start", "--help"])
+        .success()
+        .stdout(contains("--max-threads"));
+}
+
+#[test]
+/// --max-threads is accepted by clap; an unrecognized value would produce "error: invalid value".
+/// Here we confirm that passing a numeric value doesn't produce a clap argument error.
+/// (The command will still fail at runtime due to missing config, which is expected.)
+fn start_max_threads_flag_is_parsed() {
+    // We expect a runtime failure (missing config / version check), NOT a clap "unrecognized
+    // argument" or "invalid value" error. The absence of those clap-level errors confirms the
+    // flag was wired up correctly.
+    let output = Command::cargo_bin(BINARY_NAME)
+        .unwrap()
+        .args(["start", "--max-threads", "4"])
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unrecognized argument") && !stderr.contains("invalid value for '--max-threads'"),
+        "clap rejected --max-threads: {stderr}"
+    );
+}
+
+#[test]
+/// The hidden `prove-fib-subprocess` subcommand accepts --num-threads.
+/// Passing an invalid --inputs value triggers a JSON parse error (not an "unrecognized argument"
+/// error), which confirms the flag was wired up correctly.
+fn subprocess_num_threads_flag_is_parsed() {
+    let output = Command::cargo_bin(BINARY_NAME)
+        .unwrap()
+        .args([
+            "prove-fib-subprocess",
+            "--inputs",
+            "not-valid-json",
+            "--num-threads",
+            "4",
+        ])
+        .output()
+        .unwrap();
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        !stderr.contains("unrecognized argument") && !stderr.contains("invalid value for '--num-threads'"),
+        "clap rejected --num-threads: {stderr}"
+    );
+    // The process must have exited non-zero (invalid inputs)
+    assert!(!output.status.success(), "expected non-zero exit for invalid inputs");
 }
 
 #[test]
