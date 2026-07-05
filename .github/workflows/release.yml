@@ -161,7 +161,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nexus-compute-cli-linux-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-unknown-linux-gnu/release/nexus-compute-cli-linux-arm64 # Path to file to upload
@@ -225,7 +225,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nexus-compute-cli-macos-x86_64 # Name of the artifact
           path: clients/cli/target/x86_64-apple-darwin/release/nexus-compute-cli-macos-x86_64 # Path to file to upload
@@ -281,7 +281,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nexus-compute-cli-macos-arm64 # Name of the artifact
           path: clients/cli/target/aarch64-apple-darwin/release/nexus-compute-cli-macos-arm64 # Path to file to upload
@@ -334,7 +334,7 @@ jobs:
 
       # Upload the binary as an artifact
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: nexus-compute-cli-windows-x86_64.exe # Name of the artifact
           path: clients/cli/target/x86_64-pc-windows-msvc/release/nexus-compute-cli-windows-x86_64.exe # Path to file to upload
