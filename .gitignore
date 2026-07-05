@@ -76,4 +76,7 @@ target/
 .idea
 
 # Generated files
-public/install.sh
+public/install.sh# local backups / helper scripts
+backups/
+*.bak
+run-rust-checks.sh

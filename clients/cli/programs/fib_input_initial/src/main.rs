@@ -1,7 +1,7 @@
 use nexus_sdk::{
-    compile::{cargo::CargoPackager, Compile, Compiler},
-    stwo::seq::Stwo,
     ByGuestCompilation, Local, Prover, Verifiable, Viewable,
+    compile::{Compile, Compiler, cargo::CargoPackager},
+    stwo::seq::Stwo,
 };
 
 const PACKAGE: &str = "guest";

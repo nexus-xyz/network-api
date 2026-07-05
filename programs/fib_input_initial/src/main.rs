@@ -43,12 +43,12 @@ fn main(n: u32, init_a: u32, init_b: u32) {
     // Simple Fibonacci calculation
     let mut prev: u32 = init_a;
     let mut curr: u32 = init_b;
-    
+
     for _ in 0..n {
         let next = prev.wrapping_add(curr);
         prev = curr;
         curr = next;
     }
-    
+
     println!("{:?}", curr);
-} 
+}
