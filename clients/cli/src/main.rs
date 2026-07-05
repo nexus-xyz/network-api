@@ -241,6 +241,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 /// * `check_mem` - Whether to check risky memory usage.
 /// * `with_background` - Whether to use the alternate TUI background color.
 /// * `max_tasks` - Optional maximum number of tasks to prove.
+/// * `show_mock_notification` - [Debug] Show rewards overlay on startup for testing.
 #[allow(clippy::too_many_arguments)]
 async fn start(
     node_id: Option<u64>,
@@ -300,6 +301,7 @@ async fn start(
 
 #[cfg(test)]
 mod tests {
+    use super::validate_difficulty;
     use crate::nexus_orchestrator::TaskDifficulty;
 
     #[test]
@@ -336,17 +338,5 @@ mod tests {
         assert_eq!(validate_difficulty("   "), None);
         assert_eq!(validate_difficulty("SMALL_MEDIUM_EXTRA"), None);
         assert_eq!(validate_difficulty("123"), None);
-    }
-
-    fn validate_difficulty(difficulty_str: &str) -> Option<TaskDifficulty> {
-        match difficulty_str.trim().to_ascii_uppercase().as_str() {
-            "SMALL" => Some(TaskDifficulty::Small),
-            "SMALL_MEDIUM" => Some(TaskDifficulty::SmallMedium),
-            "MEDIUM" => Some(TaskDifficulty::Medium),
-            "LARGE" => Some(TaskDifficulty::Large),
-            "EXTRA_LARGE" => Some(TaskDifficulty::ExtraLarge),
-            "EXTRA_LARGE_2" => Some(TaskDifficulty::ExtraLarge2),
-            _ => None,
-        }
     }
 }
