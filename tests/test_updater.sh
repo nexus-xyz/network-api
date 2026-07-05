@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# DEPRECATED: This test relies on the old updater logic and does not run in CI.
+# It is kept for historical reference only.
+
 # Test Auto-updater Functionality
 #
 # This script tests the CLI's auto-update mechanism by:
