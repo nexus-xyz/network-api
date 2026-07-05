@@ -153,14 +153,19 @@ pub struct VersionChecker {
 }
 
 impl VersionChecker {
-    pub fn new(current_version: String) -> Self {
+    /// Creates a new `VersionChecker`.
+    ///
+    /// Returns an error instead of panicking if the underlying HTTP client
+    /// cannot be initialized (e.g. TLS stack unavailable).  Callers should
+    /// treat a construction failure as non-fatal and skip the version check
+    /// rather than aborting the process.
+    pub fn new(current_version: String) -> Result<Self, reqwest::Error> {
         let client = ClientBuilder::new()
             .timeout(Duration::from_secs(10))
             .user_agent(format!("nexus-cli/{}", current_version))
-            .build()
-            .expect("Failed to create HTTP client for version checker");
+            .build()?;
 
-        Self { client }
+        Ok(Self { client })
     }
 }
 
@@ -183,7 +188,10 @@ impl VersionCheckable for VersionChecker {
 
 /// Check if a new version is available and return notification message
 pub async fn check_for_new_version(current_version: &str) -> Option<String> {
-    let version_checker = VersionChecker::new(current_version.to_string());
+    let version_checker = match VersionChecker::new(current_version.to_string()) {
+        Ok(v) => v,
+        Err(_) => return None, // Non-fatal: skip version check if client init fails
+    };
 
     if let Ok(release) = version_checker.check_latest_version().await {
         let mut version_info = VersionInfo::new(current_version.to_string());
