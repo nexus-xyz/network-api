@@ -127,6 +127,10 @@ enum Command {
         /// Override max difficulty to request. Auto-promotion occurs when tasks complete in < 7 min
         #[arg(long = "max-difficulty", value_name = "DIFFICULTY")]
         max_difficulty: Option<String>,
+
+        /// Ignore memory requirements per thread (allows running more threads than recommended)
+        #[arg(long = "ignore-memory-requirement", default_value_t = false)]
+        ignore_memory_requirement: bool,
     },
     /// Register a new user
     RegisterUser {
@@ -177,6 +181,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             with_background,
             max_tasks,
             max_difficulty,
+            ignore_memory_requirement,
         } => {
             // If a custom orchestrator URL is provided, create a custom environment
             let final_environment = if let Some(url) = orchestrator_url {
@@ -196,6 +201,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 with_background,
                 max_tasks,
                 max_difficulty,
+                ignore_memory_requirement,
             )
             .await
         }
@@ -252,6 +258,7 @@ async fn start(
     with_background: bool,
     max_tasks: Option<u32>,
     max_difficulty: Option<String>,
+    ignore_memory_requirement: bool,
 ) -> Result<(), Box<dyn Error>> {
     // 1. Version checking (will internally perform country detection without race)
     validate_version_requirements().await?;
@@ -287,6 +294,7 @@ async fn start(
         max_threads,
         max_tasks,
         max_difficulty_parsed,
+        ignore_memory_requirement,
     )
     .await?;
 

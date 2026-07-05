@@ -101,6 +101,7 @@ pub async fn setup_session(
     max_threads: Option<u32>,
     max_tasks: Option<u32>,
     max_difficulty: Option<crate::nexus_orchestrator::TaskDifficulty>,
+    ignore_memory_requirement: bool,
 ) -> Result<SessionData, Box<dyn Error>> {
     let node_id = config.node_id.parse::<u64>()?;
     let client_id = config.user_id;
@@ -118,7 +119,7 @@ pub async fn setup_session(
     let mut num_workers: usize = max_threads.unwrap_or(1).clamp(1, max_workers as u32) as usize;
 
     // Check memory and clamp threads if max-threads was explicitly set OR check-memory flag is set
-    if max_threads.is_some() || check_mem {
+    if !ignore_memory_requirement && (max_threads.is_some() || check_mem) {
         let memory_clamped_workers = clamp_threads_by_memory(num_workers);
         if memory_clamped_workers < num_workers {
             crate::print_cmd_warn!(
@@ -132,7 +133,7 @@ pub async fn setup_session(
     }
 
     // Additional memory warning if explicitly requested
-    if check_mem {
+    if check_mem && !ignore_memory_requirement {
         warn_memory_configuration(Some(num_workers as u32));
     }
 
