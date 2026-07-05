@@ -104,9 +104,17 @@ impl Config {
             // Get the wallet address for analytics
             let wallet_address = orchestrator.get_node(&node_id.to_string()).await?;
 
-            // Create a minimal config with the provided node_id
+            // Resolve the user_id for this wallet so that analytics and reward
+            // tracking use the real identity instead of a placeholder string.
+            // A lookup failure is non-fatal: fall back to an empty string so the
+            // node can still prove and submit tasks.
+            let user_id = orchestrator
+                .get_user(&wallet_address)
+                .await
+                .unwrap_or_else(|_| String::new());
+
             let config = Config {
-                user_id: "anonymous".to_string(), // Use anonymous for --node-id shortcut
+                user_id,
                 wallet_address,
                 node_id: node_id.to_string(),
                 environment: "".to_string(),
