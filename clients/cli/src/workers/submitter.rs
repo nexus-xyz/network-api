@@ -20,6 +20,8 @@ pub enum SubmitError {
     Network(#[from] crate::orchestrator::error::OrchestratorError),
     #[error("Serialization error: {0}")]
     Serialization(#[from] postcard::Error),
+    #[error("No proofs available to submit: proof generation produced an empty result")]
+    NoProofs,
 }
 
 /// Proof submitter with built-in retry and error handling
@@ -80,7 +82,13 @@ impl ProofSubmitter {
             .iter()
             .map(postcard::to_allocvec)
             .collect::<Result<_, _>>()?;
-        let legacy_proof_bytes = proofs_bytes.first().cloned().unwrap_or_default();
+        // Fail explicitly rather than forwarding empty bytes as the proof payload.
+        // An empty submission is silently rejected by the orchestrator, causing the node
+        // to lose the task reward without any visible error.
+        if proofs_bytes.is_empty() {
+            return Err(SubmitError::NoProofs);
+        }
+        let legacy_proof_bytes = proofs_bytes[0].clone();
 
         // Submit through network client with retry logic
         let mut submission = ProofSubmission::new(
