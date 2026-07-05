@@ -176,20 +176,15 @@ pub async fn report_proving_if_needed() {
 
     let now = Instant::now();
 
-    // Check and update last report time with a small critical section
+    // Check (but do NOT update yet) the rate-limit window.
+    // The timestamp is only advanced after a successful request so that a
+    // transient network failure does not suppress retries for a full hour.
     let should_send = {
-        let mut guard = match map.lock() {
+        let guard = match map.lock() {
             Ok(g) => g,
             Err(poisoned) => poisoned.into_inner(),
         };
-
-        match guard.get(wallet_address) {
-            Some(&last) if now.duration_since(last) < Duration::from_secs(3600) => false,
-            _ => {
-                guard.insert(wallet_address.to_string(), now);
-                true
-            }
-        }
+        !matches!(guard.get(wallet_address), Some(&last) if now.duration_since(last) < Duration::from_secs(3600))
     };
 
     if !should_send {
@@ -201,14 +196,34 @@ pub async fn report_proving_if_needed() {
         "data": { "address": wallet_address }
     });
 
-    let response = client
+    let result = client
         .post(REPORT_PROVING_URL)
         .header(reqwest::header::USER_AGENT, CLI_USER_AGENT)
         .json(&body)
         .send()
         .await;
 
-    drop(response);
+    // Only advance the rate-limit timestamp when the request succeeds.
+    // On failure, log the error and leave the timestamp unchanged so the
+    // next invocation can retry rather than silently waiting a full hour.
+    match result {
+        Ok(resp) if resp.status().is_success() => {
+            let mut guard = match map.lock() {
+                Ok(g) => g,
+                Err(poisoned) => poisoned.into_inner(),
+            };
+            guard.insert(wallet_address.to_string(), now);
+        }
+        Ok(resp) => {
+            eprintln!(
+                "[nexus-cli] reportProving returned non-success status: {}",
+                resp.status()
+            );
+        }
+        Err(e) => {
+            eprintln!("[nexus-cli] reportProving request failed: {}", e);
+        }
+    }
 }
 
 /// Track analytics for getting a task from orchestrator (non-blocking)
