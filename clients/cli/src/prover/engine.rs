@@ -14,6 +14,12 @@ use postcard::from_bytes;
 use serde_json;
 use std::env;
 use std::process::Stdio;
+use std::time::Duration;
+
+/// Maximum wall-clock time allowed for a proving subprocess.
+/// A subprocess that exceeds this limit is assumed to have deadlocked or
+/// entered an infinite loop; it is killed and the task is retried.
+const SUBPROCESS_TIMEOUT_SECS: u64 = 600; // 10 minutes
 
 /// Core proving engine for ZK proof generation
 pub struct ProvingEngine;
@@ -63,7 +69,20 @@ impl ProvingEngine {
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit());
 
-        let output = cmd.output().await?;
+        // Apply a hard timeout so a hung subprocess cannot block the worker forever.
+        // If the subprocess deadlocks or enters an infinite loop it will be killed
+        // and the task will be retried on the next fetch cycle.
+        let output = tokio::time::timeout(
+            Duration::from_secs(SUBPROCESS_TIMEOUT_SECS),
+            cmd.output(),
+        )
+        .await
+        .map_err(|_| {
+            ProverError::Subprocess(format!(
+                "Prover subprocess timed out after {} seconds",
+                SUBPROCESS_TIMEOUT_SECS
+            ))
+        })??;
 
         if !output.status.success() {
             if let Some(code) = output.status.code() {
